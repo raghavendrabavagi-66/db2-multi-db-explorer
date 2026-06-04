@@ -1,0 +1,4 @@
+dbname,host,port
+SAMPLE,db2host1.example.com,50000
+TESTDB,db2host2.example.com,50000
+PRODDB,db2host3.example.com,60000
