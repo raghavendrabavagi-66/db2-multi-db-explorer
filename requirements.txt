@@ -1,3 +1,4 @@
 streamlit>=1.33
 ibm_db>=3.2.0
 pandas>=2.0
+pyodbc>=5.0

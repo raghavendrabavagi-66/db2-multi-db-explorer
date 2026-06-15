@@ -51,6 +51,71 @@ def _conn_string(conn: Connection, user: str, password: str) -> str:
     )
 
 
+@dataclass
+class QueryOutcome:
+    """Result of a single read-only SQL execution on one DB2 database."""
+
+    rows: list[dict] = field(default_factory=list)
+    status: str = "ok"
+    error: str = ""
+    elapsed_ms: int = 0
+
+    @property
+    def ok(self) -> bool:
+        return self.status == "ok"
+
+
+def query_single(
+    conn: Connection,
+    user: str,
+    password: str,
+    sql: str,
+    params: tuple | list = (),
+) -> QueryOutcome:
+    """Connect, run arbitrary read-only SQL, return rows as dicts (uppercase keys)."""
+    start = time.perf_counter()
+    if ibm_db is None:
+        return QueryOutcome(
+            status="error",
+            error="ibm_db driver is not installed (pip install ibm_db).",
+        )
+
+    handle = None
+    try:
+        handle = ibm_db.connect(_conn_string(conn, user, password), "", "")
+    except Exception as exc:
+        return QueryOutcome(
+            status="unreachable",
+            error=str(exc).strip(),
+            elapsed_ms=int((time.perf_counter() - start) * 1000),
+        )
+
+    try:
+        stmt = ibm_db.prepare(handle, sql)
+        ibm_db.execute(stmt, tuple(params))
+        rows: list[dict] = []
+        row = ibm_db.fetch_assoc(stmt)
+        while row:
+            rows.append({str(k).upper(): v for k, v in row.items()})
+            row = ibm_db.fetch_assoc(stmt)
+        return QueryOutcome(
+            rows=rows,
+            status="ok",
+            elapsed_ms=int((time.perf_counter() - start) * 1000),
+        )
+    except Exception as exc:
+        return QueryOutcome(
+            status="error",
+            error=str(exc).strip(),
+            elapsed_ms=int((time.perf_counter() - start) * 1000),
+        )
+    finally:
+        try:
+            ibm_db.close(handle)
+        except Exception:
+            pass
+
+
 def query_database(
     conn: Connection,
     user: str,

@@ -20,6 +20,29 @@ do in DBeaver, but across all your databases in a single click.
 - Aggregated results table + summary metrics ("X of N databases have MQT
   objects") and a CSV download.
 - Read-only: only `SYSCAT` catalog views are queried, never any DDL/DML.
+- **DB2 vs Azure Compare** page: row-count comparison per table between one DB2
+  schema and one Azure SQL schema, with explicit schema mapping (e.g. USERID → dbo).
+
+## DB2 vs Azure — Table Count Comparison
+
+Open the **DB2 Azure Compare** page from the Streamlit sidebar (multipage app).
+
+1. Enter **DB2** connection (Database, Host, Port, username/password) or paste a JDBC URL.
+2. Enter **Azure SQL** server (`*.database.windows.net`), database, and work email (UPN).
+3. Map schemas: e.g. DB2 `USERID` → Azure `dbo`.
+4. Click **Run comparison** — Azure AD **Interactive MFA** may open a browser sign-in.
+5. Review summary KPIs, filter by mismatches, and download CSV.
+
+Tables are matched by **table name** after schema mapping. The app runs your
+LISTAGG / STRING_AGG generator queries, executes the resulting UNION count SQL,
+and falls back to per-table `COUNT(*)` if the generated SQL is too large.
+
+### Azure SQL prerequisites (Windows)
+
+- Install [Microsoft ODBC Driver 18 for SQL Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server)
+- `pip install pyodbc`
+- Run Streamlit **locally on Windows** so **ActiveDirectoryInteractive** MFA can open a browser
+- Mac/Linux headless: interactive MFA is not supported in v1
 
 ## Object type to DB2 catalog mapping
 
@@ -142,7 +165,11 @@ Then in the browser:
 
 | File                    | Purpose                                                        |
 | ----------------------- | ------------------------------------------------------------- |
-| `app.py`                | Streamlit UI and result rendering                             |
+| `app.py`                | Home: Object Explorer UI                                      |
+| `pages/2_DB2_Azure_Compare.py` | DB2 vs Azure table count comparison page               |
+| `compare_queries.py`    | LISTAGG / STRING_AGG generator SQL templates                  |
+| `compare_engine.py`     | Comparison orchestration, merge, fallback counts              |
+| `azure_client.py`       | Azure SQL via pyodbc + Azure AD Interactive MFA               |
 | `db2_client.py`         | `ibm_db` connection + parallel per-database execution         |
 | `queries.py`            | Object-type -> catalog SQL registry, match-operator patterns  |
 | `connections_loader.py` | CSV/list parsing, row-to-connection helpers, save/load         |
