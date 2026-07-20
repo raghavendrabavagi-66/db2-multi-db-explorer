@@ -37,12 +37,13 @@ Tables are matched by **table name** after schema mapping. The app runs your
 LISTAGG / STRING_AGG generator queries, executes the resulting UNION count SQL,
 and falls back to per-table `COUNT(*)` if the generated SQL is too large.
 
-### Azure SQL prerequisites (Windows)
+### Azure SQL prerequisites (Target)
 
 - Install [Microsoft ODBC Driver 18 for SQL Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server)
 - `pip install pyodbc`
-- Run Streamlit **locally on Windows** so **ActiveDirectoryInteractive** MFA can open a browser
-- Mac/Linux headless: interactive MFA is not supported in v1
+- **Authentication** (choose on the compare page):
+  - **Azure AD — email + browser sign-in (MFA)** — enter UPN; browser may open for Microsoft login
+  - **Windows integrated** — uses your current Windows login (`ActiveDirectoryIntegrated`); run Streamlit on Windows; your account must be allowed on the Azure SQL database
 
 ## Object type to DB2 catalog mapping
 

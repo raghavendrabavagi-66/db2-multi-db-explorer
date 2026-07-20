@@ -7,7 +7,7 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
-from azure_client import AzureConnection, test_connection as test_azure
+from azure_client import AUTH_METHOD_LABELS, AzureConnection, test_connection as test_azure
 from compare_engine import (
     CompareResult,
     comparison_metrics,
@@ -49,7 +49,7 @@ with st.sidebar:
 
 st.title("DB2 vs Azure — Table Count Comparison")
 st.caption(
-    "Compare exact row counts per table between one DB2 LUW schema and one Azure SQL schema."
+    "Compare exact row counts per table: **Source** (DB2 LUW schema) vs **Target** (Azure SQL schema)."
 )
 if st.session_state.compare_ran_at:
     st.caption(f"Last run: {st.session_state.compare_ran_at}")
@@ -60,7 +60,7 @@ if st.session_state.compare_ran_at:
 col_db2, col_az = st.columns(2)
 
 with col_db2:
-    st.markdown('<div class="compare-card"><h4>DB2 LUW</h4>', unsafe_allow_html=True)
+    st.markdown('<div class="compare-card"><h4>Source — DB2 LUW</h4>', unsafe_allow_html=True)
     db2_database = st.text_input("Database", key="cmp_db2_database")
     db2_host = st.text_input("Host", key="cmp_db2_host")
     db2_port = st.number_input("Port", min_value=1, max_value=65535, value=50000, key="cmp_db2_port")
@@ -97,24 +97,45 @@ with col_db2:
     st.markdown("</div>", unsafe_allow_html=True)
 
 with col_az:
-    st.markdown('<div class="compare-card"><h4>Azure SQL</h4>', unsafe_allow_html=True)
+    st.markdown('<div class="compare-card"><h4>Target — Azure SQL</h4>', unsafe_allow_html=True)
     az_server = st.text_input(
         "Server",
         key="cmp_az_server",
         placeholder="rout12.database.windows.net",
     )
     az_database = st.text_input("Database", key="cmp_az_database")
-    az_email = st.text_input("Email (UPN)", key="cmp_az_email", placeholder="you@company.com")
-    st.info("Auth: **Azure AD — Interactive MFA** (a browser window may open on connect).")
+    az_auth = st.radio(
+        "Authentication",
+        options=list(AUTH_METHOD_LABELS.keys()),
+        format_func=lambda k: AUTH_METHOD_LABELS[k],
+        key="cmp_az_auth",
+        horizontal=False,
+    )
+    az_email = ""
+    if az_auth == "azure_ad_interactive":
+        az_email = st.text_input("Email (UPN)", key="cmp_az_email", placeholder="you@company.com")
+        st.caption("A browser window may open for Microsoft sign-in and MFA.")
+    else:
+        st.caption(
+            "Uses your **current Windows account** (Active Directory integrated). "
+            "Run Streamlit on Windows while logged in; the account must have access to this Azure SQL database."
+        )
 
-    if st.button("Test Azure connection", key="cmp_test_az"):
-        if not all([az_server, az_database, az_email]):
-            st.error("Fill Server, Database, and Email.")
+    if st.button("Test Target connection", key="cmp_test_az"):
+        if not all([az_server, az_database]):
+            st.error("Fill Server and Database.")
+        elif az_auth == "azure_ad_interactive" and not az_email:
+            st.error("Fill Email (UPN) for Azure AD sign-in.")
         else:
-            az_conn = AzureConnection(server=az_server, database=az_database, email=az_email)
+            az_conn = AzureConnection(
+                server=az_server,
+                database=az_database,
+                email=az_email,
+                auth_method=az_auth,
+            )
             out = test_azure(az_conn)
             if out.ok:
-                st.success("Azure connection OK.")
+                st.success("Target connection OK.")
             else:
                 st.error(out.error)
     st.markdown("</div>", unsafe_allow_html=True)
@@ -125,14 +146,14 @@ with col_az:
 st.markdown("#### Schema mapping")
 map_col1, map_mid, map_col2 = st.columns([2, 1, 2])
 with map_col1:
-    db2_schema = st.text_input("DB2 schema", value="USERID", key="cmp_db2_schema")
+    db2_schema = st.text_input("Source schema", value="USERID", key="cmp_db2_schema")
 with map_mid:
     st.markdown(
         '<p class="schema-bridge">maps to</p>',
         unsafe_allow_html=True,
     )
 with map_col2:
-    azure_schema = st.text_input("Azure schema", value="dbo", key="cmp_azure_schema")
+    azure_schema = st.text_input("Target schema", value="dbo", key="cmp_azure_schema")
 
 st.caption(
     f"Tables are matched by **table name** after mapping "
@@ -155,8 +176,10 @@ if run_clicked:
     errors = []
     if not all([db2_database, db2_host, db2_user, db2_password]):
         errors.append("DB2: Database, Host, Username, and Password are required.")
-    if not all([az_server, az_database, az_email]):
-        errors.append("Azure: Server, Database, and Email are required.")
+    if not all([az_server, az_database]):
+        errors.append("Target: Server and Database are required.")
+    if az_auth == "azure_ad_interactive" and not (az_email or st.session_state.get("cmp_az_email")):
+        errors.append("Target: Email (UPN) is required for Azure AD sign-in.")
     if not db2_schema.strip() or not azure_schema.strip():
         errors.append("Both schema names are required.")
 
@@ -176,13 +199,20 @@ if run_clicked:
             host=db2_host.strip(),
             port=int(db2_port),
         )
+        target_email = (az_email or st.session_state.get("cmp_az_email") or "").strip()
         azure_conn = AzureConnection(
             server=az_server.strip(),
             database=az_database.strip(),
-            email=az_email.strip(),
+            email=target_email,
+            auth_method=az_auth,
         )
 
-        with st.spinner("Running comparison (Azure MFA may prompt in your browser)..."):
+        spinner_msg = (
+            "Running comparison..."
+            if az_auth == "windows_integrated"
+            else "Running comparison (Target sign-in may open in your browser)..."
+        )
+        with st.spinner(spinner_msg):
             result = run_comparison(
                 db2_conn,
                 db2_user,
@@ -226,8 +256,8 @@ if result is not None and result.status == "ok" and not result.comparison.empty:
     st.divider()
     st.subheader("Summary")
     m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("Tables on DB2", metrics["tables_db2"])
-    m2.metric("Tables on Azure", metrics["tables_azure"])
+    m1.metric("Tables on Source", metrics["tables_source"])
+    m2.metric("Tables on Target", metrics["tables_target"])
     m3.metric("Matched", metrics["matched"])
     m4.metric("Mismatched", metrics["mismatched"])
     m5.metric("Missing on one side", metrics["missing"])
@@ -235,7 +265,7 @@ if result is not None and result.status == "ok" and not result.comparison.empty:
     st.subheader("Comparison")
     view = st.radio(
         "Show",
-        ["All", "Mismatches only", "DB2 only", "Azure only"],
+        ["All", "Mismatches only", "Source only", "Target only"],
         horizontal=True,
         key="cmp_view",
     )
@@ -246,8 +276,8 @@ if result is not None and result.status == "ok" and not result.comparison.empty:
         use_container_width=True,
         hide_index=True,
         column_config={
-            "DB2 Count": st.column_config.NumberColumn(format="%d"),
-            "Azure Count": st.column_config.NumberColumn(format="%d"),
+            "Source Count": st.column_config.NumberColumn(format="%d"),
+            "Target Count": st.column_config.NumberColumn(format="%d"),
             "Delta": st.column_config.NumberColumn(format="%+d"),
         },
     )
@@ -260,9 +290,9 @@ if result is not None and result.status == "ok" and not result.comparison.empty:
     )
 
     with st.expander("Generated SQL"):
-        st.markdown("**DB2 UNION query**")
+        st.markdown("**Source (DB2) UNION query**")
         st.code(result.db2.union_sql or "(fallback — no single UNION SQL)", language="sql")
-        st.markdown("**Azure UNION query**")
+        st.markdown("**Target (Azure) UNION query**")
         st.code(result.azure.union_sql or "(fallback — no single UNION SQL)", language="sql")
 
 elif result is not None and result.status == "ok" and result.comparison.empty:

@@ -291,9 +291,9 @@ def _merge_counts(
             else:
                 status = "Mismatch"
         elif d:
-            status = "DB2 only"
+            status = "Source only"
         else:
-            status = "Azure only"
+            status = "Target only"
 
         delta = None
         if db2_count is not None and azure_count is not None:
@@ -302,10 +302,10 @@ def _merge_counts(
         records.append(
             {
                 "Table Name": (d or a).table_name if (d or a) else key,
-                "DB2 Schema": db2_schema if d else "",
-                "Azure Schema": azure_schema if a else "",
-                "DB2 Count": db2_count,
-                "Azure Count": azure_count,
+                "Source Schema": db2_schema if d else "",
+                "Target Schema": azure_schema if a else "",
+                "Source Count": db2_count,
+                "Target Count": azure_count,
                 "Delta": delta,
                 "Status": status,
             }
@@ -317,18 +317,18 @@ def _merge_counts(
 def _summary_metrics(df: pd.DataFrame) -> dict[str, int]:
     if df.empty:
         return {
-            "tables_db2": 0,
-            "tables_azure": 0,
+            "tables_source": 0,
+            "tables_target": 0,
             "matched": 0,
             "mismatched": 0,
             "missing": 0,
         }
     return {
-        "tables_db2": int(df["DB2 Count"].notna().sum()),
-        "tables_azure": int(df["Azure Count"].notna().sum()),
+        "tables_source": int(df["Source Count"].notna().sum()),
+        "tables_target": int(df["Target Count"].notna().sum()),
         "matched": int((df["Status"] == "Match").sum()),
         "mismatched": int((df["Status"] == "Mismatch").sum()),
-        "missing": int(df["Status"].isin(["DB2 only", "Azure only"]).sum()),
+        "missing": int(df["Status"].isin(["Source only", "Target only"]).sum()),
     }
 
 
@@ -386,10 +386,10 @@ def filter_comparison(df: pd.DataFrame, view: str) -> pd.DataFrame:
         return df
     if view == "Mismatches only":
         return df[df["Status"] == "Mismatch"].copy()
-    if view == "DB2 only":
-        return df[df["Status"] == "DB2 only"].copy()
-    if view == "Azure only":
-        return df[df["Status"] == "Azure only"].copy()
+    if view == "Source only":
+        return df[df["Status"] == "Source only"].copy()
+    if view == "Target only":
+        return df[df["Status"] == "Target only"].copy()
     return df.copy()
 
 
