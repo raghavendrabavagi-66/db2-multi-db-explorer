@@ -432,6 +432,8 @@ def filter_comparison(df: pd.DataFrame, view: str) -> pd.DataFrame:
         return df
     if view == "Mismatches only":
         return df[df["Status"] == "Mismatch"].copy()
+    if view == "Matches only":
+        return df[df["Status"] == "Match"].copy()
     if view == "Source only":
         return df[df["Status"] == "Source only"].copy()
     if view == "Target only":

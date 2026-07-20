@@ -286,7 +286,7 @@ if result is not None and result.status == "ok" and not result.comparison.empty:
     st.subheader("Comparison")
     view = st.radio(
         "Show",
-        ["All", "Mismatches only", "Source only", "Target only"],
+        ["All", "Matches only", "Mismatches only", "Source only", "Target only"],
         horizontal=True,
         key="cmp_view",
     )
