@@ -101,7 +101,8 @@ with col_az:
     az_server = st.text_input(
         "Server",
         key="cmp_az_server",
-        placeholder="rout12.database.windows.net",
+        placeholder="gpitd.pres.com\\i2022  or  myserver.database.windows.net",
+        help="SSMS-style: host\\instance for named instances. Do not add ,1433 after \\instance.",
     )
     az_database = st.text_input("Database", key="cmp_az_database")
     az_auth = st.radio(
@@ -111,14 +112,20 @@ with col_az:
         key="cmp_az_auth",
         horizontal=False,
     )
+    az_trust_cert = st.checkbox(
+        "Trust server certificate",
+        value=True,
+        key="cmp_az_trust_cert",
+        help="Match SSMS: Encryption on + trust server certificate.",
+    )
     az_email = ""
     if az_auth == "azure_ad_interactive":
         az_email = st.text_input("Email (UPN)", key="cmp_az_email", placeholder="you@company.com")
         st.caption("A browser window may open for Microsoft sign-in and MFA.")
     else:
         st.caption(
-            "Uses your **current Windows account** (Active Directory integrated). "
-            "Run Streamlit on Windows while logged in; the account must have access to this Azure SQL database."
+            "Same as SSMS **Windows Authentication** for on-prem instances (e.g. "
+            "`gpitd.pres.com\\i2022`). Uses **Trusted_Connection**; run Streamlit on Windows."
         )
 
     if st.button("Test Target connection", key="cmp_test_az"):
@@ -132,6 +139,7 @@ with col_az:
                 database=az_database,
                 email=az_email,
                 auth_method=az_auth,
+                trust_server_certificate=az_trust_cert,
             )
             out = test_azure(az_conn)
             if out.ok:
@@ -205,6 +213,7 @@ if run_clicked:
             database=az_database.strip(),
             email=target_email,
             auth_method=az_auth,
+            trust_server_certificate=az_trust_cert,
         )
 
         spinner_msg = (

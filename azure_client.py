@@ -1,4 +1,4 @@
-"""Azure SQL client using pyodbc (Azure AD interactive or Windows integrated auth)."""
+"""Azure SQL / SQL Server target client using pyodbc."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ AzureAuthMethod = Literal["azure_ad_interactive", "windows_integrated"]
 
 AUTH_METHOD_LABELS = {
     "azure_ad_interactive": "Azure AD — email + browser sign-in (MFA)",
-    "windows_integrated": "Windows integrated (current Windows login)",
+    "windows_integrated": "Windows integrated (SSMS-style, current Windows login)",
 }
 
 
@@ -27,6 +27,7 @@ class AzureConnection:
     database: str
     email: str = ""
     auth_method: AzureAuthMethod = "azure_ad_interactive"
+    trust_server_certificate: bool = False
 
 
 @dataclass
@@ -41,24 +42,58 @@ class AzureQueryOutcome:
         return self.status == "ok"
 
 
+def _host_only(server: str) -> str:
+    """Strip instance or port suffix for cloud-host detection."""
+    s = server.strip()
+    if s.lower().startswith("tcp:"):
+        s = s[4:]
+    if "\\" in s:
+        return s.split("\\", 1)[0]
+    if "," in s:
+        return s.split(",", 1)[0]
+    return s
+
+
+def _is_azure_sql_host(server: str) -> bool:
+    host = _host_only(server).lower()
+    return ".database.windows.net" in host or ".database.usgovcloudapi.net" in host
+
+
 def _server_value(server: str) -> str:
+    """Format Server= for ODBC (SSMS-compatible).
+
+    - Named instance ``host\\instance`` — no forced port 1433 (SSMS default).
+    - ``host,port`` or ``tcp:host,port`` — unchanged apart from optional tcp prefix.
+    - Plain hostname (e.g. Azure SQL) — ``tcp:host,1433``.
+    """
     server = server.strip()
-    if not server.lower().startswith("tcp:"):
-        server = f"tcp:{server},1433"
-    return server
+    if not server:
+        return server
+    if server.lower().startswith("tcp:"):
+        return server
+    if "\\" in server:
+        return server
+    if "," in server:
+        return f"tcp:{server}"
+    return f"tcp:{server},1433"
 
 
 def _connection_string(conn: AzureConnection) -> str:
     """Build ODBC connection string for the selected authentication mode."""
+    trust = "yes" if conn.trust_server_certificate else "no"
     parts = [
         f"Driver={{{ODBC_DRIVER}}}",
         f"Server={_server_value(conn.server)}",
         f"Database={conn.database.strip()}",
         "Encrypt=yes",
-        "TrustServerCertificate=no",
+        f"TrustServerCertificate={trust}",
     ]
     if conn.auth_method == "windows_integrated":
-        parts.append("Authentication=ActiveDirectoryIntegrated")
+        if _is_azure_sql_host(conn.server):
+            parts.append("Authentication=ActiveDirectoryIntegrated")
+        else:
+            # On-prem / named instance — same as SSMS Windows authentication
+            parts.append("Trusted_Connection=yes")
     else:
         parts.append("Authentication=ActiveDirectoryInteractive")
         parts.append(f"UID={conn.email.strip()}")
@@ -66,7 +101,7 @@ def _connection_string(conn: AzureConnection) -> str:
 
 
 def test_connection(conn: AzureConnection) -> AzureQueryOutcome:
-    """Validate Azure connectivity with a lightweight query."""
+    """Validate target connectivity with a lightweight query."""
     return query(conn, "SELECT 1 AS OK", ())
 
 
@@ -75,7 +110,7 @@ def query(
     sql: str,
     params: tuple | list = (),
 ) -> AzureQueryOutcome:
-    """Run read-only SQL against Azure SQL."""
+    """Run read-only SQL against the target SQL Server / Azure SQL."""
     start = time.perf_counter()
     if pyodbc is None:
         return AzureQueryOutcome(

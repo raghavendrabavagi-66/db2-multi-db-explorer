@@ -42,8 +42,11 @@ and falls back to per-table `COUNT(*)` if the generated SQL is too large.
 - Install [Microsoft ODBC Driver 18 for SQL Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server)
 - `pip install pyodbc`
 - **Authentication** (choose on the compare page):
-  - **Azure AD — email + browser sign-in (MFA)** — enter UPN; browser may open for Microsoft login
-  - **Windows integrated** — uses your current Windows login (`ActiveDirectoryIntegrated`); run Streamlit on Windows; your account must be allowed on the Azure SQL database
+  - **Azure AD — email + browser sign-in (MFA)** — for `*.database.windows.net` targets
+  - **Windows integrated (SSMS-style)** — for on-prem named instances such as
+    `gpitd.pres.com\i2022` with **Trust server certificate** (matches SSMS options)
+- **Server** field: use SSMS server text exactly (`host\instance`); the app no longer
+  appends `,1433` to named instances.
 
 ## Object type to DB2 catalog mapping
 
