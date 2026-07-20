@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Callable, Literal
 
 import pandas as pd
 
@@ -24,6 +24,9 @@ from db2_client import QueryOutcome, query_single
 # DB2 LISTAGG VARCHAR(32000) — treat near-limit output as risky.
 _DB2_UNION_MAX_LEN = 30000
 _FALLBACK_BATCH = 8
+
+TargetTableMode = Literal["original", "staging"]
+_STAGING_SUFFIX = "_STAGING"
 
 
 @dataclass
@@ -53,6 +56,44 @@ class CompareResult:
 
 def _normalize_table_name(name: str) -> str:
     return (name or "").strip().upper()
+
+
+def _ends_with_staging(name: str) -> bool:
+    return _normalize_table_name(name).endswith(_STAGING_SUFFIX)
+
+
+def _strip_staging_suffix(name: str) -> str:
+    upper = _normalize_table_name(name)
+    if upper.endswith(_STAGING_SUFFIX):
+        return upper[: -len(_STAGING_SUFFIX)]
+    return upper
+
+
+def _build_source_map(counts: list[TableCount]) -> dict[str, TableCount]:
+    return {_normalize_table_name(c.table_name): c for c in counts if c.table_name}
+
+
+def _build_target_map(
+    counts: list[TableCount],
+    target_table_mode: TargetTableMode,
+) -> dict[str, TableCount]:
+    """Map logical join key -> target row (original vs ``*_staging`` naming)."""
+    result: dict[str, TableCount] = {}
+    for c in counts:
+        if not c.table_name:
+            continue
+        if target_table_mode == "staging":
+            if not _ends_with_staging(c.table_name):
+                continue
+            key = _strip_staging_suffix(c.table_name)
+        else:
+            if _ends_with_staging(c.table_name):
+                continue
+            key = _normalize_table_name(c.table_name)
+        if key in result:
+            continue
+        result[key] = c
+    return result
 
 
 def _parse_count_rows(rows: list[dict]) -> list[TableCount]:
@@ -273,9 +314,10 @@ def _merge_counts(
     azure_counts: list[TableCount],
     db2_schema: str,
     azure_schema: str,
+    target_table_mode: TargetTableMode = "original",
 ) -> pd.DataFrame:
-    db2_map = {_normalize_table_name(c.table_name): c for c in db2_counts}
-    azure_map = {_normalize_table_name(c.table_name): c for c in azure_counts}
+    db2_map = _build_source_map(db2_counts)
+    azure_map = _build_target_map(azure_counts, target_table_mode)
     all_tables = sorted(set(db2_map) | set(azure_map))
 
     records: list[dict] = []
@@ -299,9 +341,11 @@ def _merge_counts(
         if db2_count is not None and azure_count is not None:
             delta = azure_count - db2_count
 
+        source_label = d.table_name if d else key
         records.append(
             {
-                "Table Name": (d or a).table_name if (d or a) else key,
+                "Table Name": source_label,
+                "Target Table": a.table_name if a else "",
                 "Source Schema": db2_schema if d else "",
                 "Target Schema": azure_schema if a else "",
                 "Source Count": db2_count,
@@ -339,6 +383,7 @@ def run_comparison(
     db2_schema: str,
     azure_conn: AzureConnection,
     azure_schema: str,
+    target_table_mode: TargetTableMode = "original",
     on_progress: Callable[[int, int, str], None] | None = None,
 ) -> CompareResult:
     """Run full comparison pipeline and return merged results."""
@@ -376,6 +421,7 @@ def run_comparison(
         result.azure.counts,
         db2_schema,
         azure_schema,
+        target_table_mode,
     )
     result.status = "ok"
     return result

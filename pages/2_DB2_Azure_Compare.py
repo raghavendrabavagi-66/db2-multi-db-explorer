@@ -118,6 +118,16 @@ with col_az:
         key="cmp_az_trust_cert",
         help="Match SSMS: Encryption on + trust server certificate.",
     )
+    target_table_mode = st.radio(
+        "Target table naming",
+        options=["original", "staging"],
+        format_func=lambda v: (
+            "Original — source `table1` ↔ target `table1`"
+            if v == "original"
+            else "Staging — source `table1` ↔ target `table1_staging`"
+        ),
+        key="cmp_target_table_mode",
+    )
     az_email = ""
     if az_auth == "azure_ad_interactive":
         az_email = st.text_input("Email (UPN)", key="cmp_az_email", placeholder="you@company.com")
@@ -164,8 +174,9 @@ with map_col2:
     azure_schema = st.text_input("Target schema", value="dbo", key="cmp_azure_schema")
 
 st.caption(
-    f"Tables are matched by **table name** after mapping "
-    f"({db2_schema}.ORDERS ↔ {azure_schema}.ORDERS)."
+    f"Schema mapping: **{db2_schema}** → **{azure_schema}**. "
+    f"Table pairing: **{target_table_mode}** "
+    f"({'`table` ↔ `table`' if target_table_mode == 'original' else '`table` ↔ `table_staging`'})."
 )
 
 # ---------------------------------------------------------------------------
@@ -229,6 +240,7 @@ if run_clicked:
                 db2_schema.strip(),
                 azure_conn,
                 azure_schema.strip(),
+                target_table_mode=target_table_mode,
                 on_progress=_on_progress,
             )
 
