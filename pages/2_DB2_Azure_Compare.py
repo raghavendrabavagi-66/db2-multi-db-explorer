@@ -12,6 +12,7 @@ from compare_engine import (
     CompareResult,
     comparison_metrics,
     filter_comparison,
+    list_source_tables,
     run_comparison,
 )
 from connections_loader import Connection, parse_jdbc_db2_url
@@ -43,6 +44,14 @@ if "compare_result" not in st.session_state:
     st.session_state.compare_result = None
 if "compare_ran_at" not in st.session_state:
     st.session_state.compare_ran_at = None
+if "cmp_compare_scope" not in st.session_state:
+    st.session_state.cmp_compare_scope = "all"
+if "cmp_source_table_list" not in st.session_state:
+    st.session_state.cmp_source_table_list = []
+if "cmp_selected_tables" not in st.session_state:
+    st.session_state.cmp_selected_tables = []
+if "cmp_tables_loaded_for_schema" not in st.session_state:
+    st.session_state.cmp_tables_loaded_for_schema = ""
 
 with st.sidebar:
     st.caption("Connections are configured on this page (not shared with Object Explorer).")
@@ -180,6 +189,65 @@ st.caption(
 )
 
 # ---------------------------------------------------------------------------
+# Advanced options
+# ---------------------------------------------------------------------------
+with st.expander("Advanced options", expanded=False):
+    compare_scope = st.radio(
+        "Tables to compare",
+        options=["all", "selected"],
+        format_func=lambda v: "Compare all tables" if v == "all" else "Selected tables only",
+        key="cmp_compare_scope",
+        horizontal=True,
+    )
+    if compare_scope == "selected":
+        load_col, _ = st.columns([1, 3])
+        with load_col:
+            load_tables_clicked = st.button("Load table list", key="cmp_load_tables")
+        if load_tables_clicked:
+            if not all([db2_database, db2_host, db2_user, db2_password]):
+                st.error("DB2: Database, Host, Username, and Password are required to load tables.")
+            elif not db2_schema.strip():
+                st.error("Source schema is required.")
+            else:
+                load_conn = Connection(
+                    dbname=db2_database.strip(),
+                    host=db2_host.strip(),
+                    port=int(db2_port),
+                )
+                with st.spinner("Loading tables from source schema..."):
+                    names, err = list_source_tables(
+                        load_conn,
+                        db2_user,
+                        db2_password,
+                        db2_schema.strip(),
+                    )
+                if err:
+                    st.error(err)
+                else:
+                    st.session_state.cmp_source_table_list = names
+                    st.session_state.cmp_tables_loaded_for_schema = db2_schema.strip()
+                    valid = [t for t in st.session_state.cmp_selected_tables if t in names]
+                    st.session_state.cmp_selected_tables = valid
+                    st.success(f"Loaded {len(names)} table(s) from **{db2_schema.strip()}**.")
+
+        loaded = st.session_state.cmp_source_table_list
+        if loaded:
+            if (
+                st.session_state.cmp_tables_loaded_for_schema
+                and st.session_state.cmp_tables_loaded_for_schema != db2_schema.strip()
+            ):
+                st.caption(
+                    "Source schema changed since the list was loaded — click **Load table list** again."
+                )
+            st.multiselect(
+                "Tables to compare",
+                options=loaded,
+                key="cmp_selected_tables",
+            )
+        else:
+            st.caption("Click **Load table list** to choose tables from the source schema.")
+
+# ---------------------------------------------------------------------------
 # Run
 # ---------------------------------------------------------------------------
 run_col, clear_col, _ = st.columns([1, 1, 3])
@@ -202,6 +270,8 @@ if run_clicked:
         errors.append("Target: Email (UPN) is required for Azure AD sign-in.")
     if not db2_schema.strip() or not azure_schema.strip():
         errors.append("Both schema names are required.")
+    if st.session_state.cmp_compare_scope == "selected" and not st.session_state.cmp_selected_tables:
+        errors.append("Advanced options: select at least one table, or choose Compare all tables.")
 
     if errors:
         for e in errors:
@@ -234,6 +304,9 @@ if run_clicked:
             else "Running comparison (Target sign-in may open in your browser)..."
         )
         with st.spinner(spinner_msg):
+            tables_arg = None
+            if st.session_state.cmp_compare_scope == "selected":
+                tables_arg = list(st.session_state.cmp_selected_tables)
             result = run_comparison(
                 db2_conn,
                 db2_user,
@@ -242,6 +315,7 @@ if run_clicked:
                 azure_conn,
                 azure_schema.strip(),
                 target_table_mode=target_table_mode,
+                selected_tables=tables_arg,
                 on_progress=_on_progress,
             )
 

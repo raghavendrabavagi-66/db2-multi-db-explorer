@@ -30,8 +30,9 @@ Open the **DB2 Azure Compare** page from the Streamlit sidebar (multipage app).
 1. Enter **DB2** connection (Database, Host, Port, username/password) or paste a JDBC URL.
 2. Enter **Azure SQL** server (`*.database.windows.net`), database, and work email (UPN).
 3. Map schemas: e.g. DB2 `USERID` → Azure `dbo`.
-4. Click **Run comparison** — Azure AD **Interactive MFA** may open a browser sign-in.
-5. Review summary KPIs, filter by mismatches, and download CSV.
+4. Optional: open **Advanced options** → **Selected tables only** → **Load table list** → pick tables → **Run comparison** (default compares all tables in both schemas).
+5. Click **Run comparison** — Azure AD **Interactive MFA** may open a browser sign-in.
+6. Review summary KPIs, filter by mismatches, and download CSV.
 
 Tables are matched by **table name** after schema mapping. The app runs your
 LISTAGG / STRING_AGG generator queries, executes the resulting UNION count SQL,

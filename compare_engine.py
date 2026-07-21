@@ -134,6 +134,33 @@ def _fetch_azure_table_list(conn: AzureConnection, schema: str) -> AzureQueryOut
     return azure_query(conn, q.sql, q.params)
 
 
+def list_source_tables(
+    conn: Connection,
+    user: str,
+    password: str,
+    schema: str,
+) -> tuple[list[str], str]:
+    """Return sorted normalized DB2 table names for a schema, or an error message."""
+    list_out = _fetch_db2_table_list(conn, user, password, schema.strip())
+    if not list_out.ok:
+        return [], list_out.error or "Could not list DB2 tables."
+    names = sorted(
+        {
+            _normalize_table_name(str(r.get("TABLENAME", "")))
+            for r in list_out.rows
+            if r.get("TABLENAME")
+        }
+    )
+    return names, ""
+
+
+def _target_table_for_source(logical: str, mode: TargetTableMode) -> str:
+    base = _normalize_table_name(logical)
+    if mode == "staging":
+        return f"{base}{_STAGING_SUFFIX}"
+    return base
+
+
 def _db2_fallback_counts(
     conn: Connection,
     user: str,
@@ -195,8 +222,21 @@ def _run_db2_side(
     user: str,
     password: str,
     schema: str,
+    selected_tables: list[str] | None = None,
 ) -> SideResult:
     side = SideResult()
+    if selected_tables:
+        side.used_fallback = True
+        side.union_sql = f"(subset: {len(selected_tables)} tables)"
+        tables = [(schema, name) for name in selected_tables]
+        count_out = _db2_fallback_counts(conn, user, password, schema, tables)
+        if not count_out.ok:
+            side.status = count_out.status
+            side.error = count_out.error
+            return side
+        side.counts = _parse_count_rows(count_out.rows)
+        return side
+
     gen = with_schema(DB2_UNION_GENERATOR, schema)
     gen_out = query_single(conn, user, password, gen.sql, gen.params)
     if not gen_out.ok:
@@ -252,8 +292,28 @@ def _run_db2_side(
     return side
 
 
-def _run_azure_side(conn: AzureConnection, schema: str) -> SideResult:
+def _run_azure_side(
+    conn: AzureConnection,
+    schema: str,
+    selected_tables: list[str] | None = None,
+    target_table_mode: TargetTableMode = "original",
+) -> SideResult:
     side = SideResult()
+    if selected_tables:
+        side.used_fallback = True
+        side.union_sql = f"(subset: {len(selected_tables)} tables)"
+        tables = [
+            (schema, _target_table_for_source(name, target_table_mode))
+            for name in selected_tables
+        ]
+        count_out = _azure_fallback_counts(conn, schema, tables)
+        if not count_out.ok:
+            side.status = count_out.status
+            side.error = count_out.error
+            return side
+        side.counts = _parse_count_rows(count_out.rows)
+        return side
+
     gen = with_schema(AZURE_UNION_GENERATOR, schema)
     gen_out = azure_query(conn, gen.sql, gen.params)
     if not gen_out.ok:
@@ -384,12 +444,19 @@ def run_comparison(
     azure_conn: AzureConnection,
     azure_schema: str,
     target_table_mode: TargetTableMode = "original",
+    selected_tables: list[str] | None = None,
     on_progress: Callable[[int, int, str], None] | None = None,
 ) -> CompareResult:
     """Run full comparison pipeline and return merged results."""
     result = CompareResult()
     total = 3
     step = 0
+
+    subset: list[str] | None = None
+    if selected_tables:
+        subset = [_normalize_table_name(t) for t in selected_tables if (t or "").strip()]
+        if not subset:
+            subset = None
 
     def _progress(msg: str) -> None:
         nonlocal step
@@ -399,8 +466,12 @@ def run_comparison(
 
     _progress("Execute DB2 counts")
     with ThreadPoolExecutor(max_workers=2) as pool:
-        f_db2 = pool.submit(_run_db2_side, db2_conn, db2_user, db2_password, db2_schema)
-        f_az = pool.submit(_run_azure_side, azure_conn, azure_schema)
+        f_db2 = pool.submit(
+            _run_db2_side, db2_conn, db2_user, db2_password, db2_schema, subset
+        )
+        f_az = pool.submit(
+            _run_azure_side, azure_conn, azure_schema, subset, target_table_mode
+        )
         result.db2 = f_db2.result()
         result.azure = f_az.result()
 
