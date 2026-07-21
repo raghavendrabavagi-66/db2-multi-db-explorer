@@ -189,6 +189,7 @@ with clear_col:
     if st.button("Clear results", use_container_width=True):
         st.session_state.compare_result = None
         st.session_state.compare_ran_at = None
+        st.session_state.cmp_view = "All"
         st.rerun()
 
 if run_clicked:
@@ -256,6 +257,7 @@ if run_clicked:
         else:
             st.session_state.compare_result = result
             st.session_state.compare_ran_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            st.session_state.cmp_view = "All"
             fb = []
             if result.db2.used_fallback:
                 fb.append("DB2 used per-table fallback")
