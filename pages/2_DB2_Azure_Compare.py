@@ -18,6 +18,33 @@ from compare_engine import (
 from connections_loader import Connection, parse_jdbc_db2_url
 from db2_client import query_single
 
+
+def _table_checkbox_key(table_name: str) -> str:
+    safe = "".join(ch if ch.isalnum() else "_" for ch in table_name)
+    return f"cmp_tbl_{safe}"
+
+
+def _selected_tables_from_checkboxes(tables: list[str]) -> list[str]:
+    return [t for t in tables if st.session_state.get(_table_checkbox_key(t), False)]
+
+
+def _set_all_table_checks(tables: list[str], checked: bool) -> None:
+    for t in tables:
+        st.session_state[_table_checkbox_key(t)] = checked
+
+
+def _split_tables_into_columns(tables: list[str], num_cols: int) -> list[list[str]]:
+    """Fill columns top-to-bottom (vertical sections)."""
+    if not tables:
+        return [[] for _ in range(num_cols)]
+    cols: list[list[str]] = [[] for _ in range(num_cols)]
+    per_col = (len(tables) + num_cols - 1) // num_cols
+    for i, name in enumerate(tables):
+        col_idx = min(i // per_col, num_cols - 1)
+        cols[col_idx].append(name)
+    return cols
+
+
 st.markdown(
     """
     <style>
@@ -48,10 +75,10 @@ if "cmp_compare_scope" not in st.session_state:
     st.session_state.cmp_compare_scope = "all"
 if "cmp_source_table_list" not in st.session_state:
     st.session_state.cmp_source_table_list = []
-if "cmp_selected_tables" not in st.session_state:
-    st.session_state.cmp_selected_tables = []
 if "cmp_tables_loaded_for_schema" not in st.session_state:
     st.session_state.cmp_tables_loaded_for_schema = ""
+if "cmp_table_list_columns" not in st.session_state:
+    st.session_state.cmp_table_list_columns = 3
 
 with st.sidebar:
     st.caption("Connections are configured on this page (not shared with Object Explorer).")
@@ -224,10 +251,13 @@ with st.expander("Advanced options", expanded=False):
                 if err:
                     st.error(err)
                 else:
+                    prev_selected = set(
+                        _selected_tables_from_checkboxes(st.session_state.cmp_source_table_list)
+                    )
                     st.session_state.cmp_source_table_list = names
                     st.session_state.cmp_tables_loaded_for_schema = db2_schema.strip()
-                    valid = [t for t in st.session_state.cmp_selected_tables if t in names]
-                    st.session_state.cmp_selected_tables = valid
+                    for t in names:
+                        st.session_state[_table_checkbox_key(t)] = t in prev_selected
                     st.success(f"Loaded {len(names)} table(s) from **{db2_schema.strip()}**.")
 
         loaded = st.session_state.cmp_source_table_list
@@ -239,11 +269,39 @@ with st.expander("Advanced options", expanded=False):
                 st.caption(
                     "Source schema changed since the list was loaded — click **Load table list** again."
                 )
-            st.multiselect(
-                "Tables to compare",
-                options=loaded,
-                key="cmp_selected_tables",
-            )
+            st.markdown("**Tables to compare**")
+            pick_toolbar = st.columns([1, 1, 2, 2])
+            with pick_toolbar[0]:
+                if st.button("Select all", key="cmp_tbl_select_all"):
+                    _set_all_table_checks(loaded, True)
+                    st.rerun()
+            with pick_toolbar[1]:
+                if st.button("Clear all", key="cmp_tbl_clear_all"):
+                    _set_all_table_checks(loaded, False)
+                    st.rerun()
+            with pick_toolbar[2]:
+                num_cols = st.radio(
+                    "Sections",
+                    options=[2, 3],
+                    format_func=lambda n: f"{n} columns",
+                    horizontal=True,
+                    key="cmp_table_list_columns",
+                    help="Use 2 columns on a narrow window; 3 on a wide screen.",
+                )
+            selected_count = len(_selected_tables_from_checkboxes(loaded))
+            with pick_toolbar[3]:
+                st.caption(f"{selected_count} of {len(loaded)} selected")
+
+            with st.container(border=True, height=420):
+                col_chunks = _split_tables_into_columns(loaded, int(num_cols))
+                grid_cols = st.columns(int(num_cols))
+                for col_idx, grid_col in enumerate(grid_cols):
+                    with grid_col:
+                        for table_name in col_chunks[col_idx]:
+                            st.checkbox(
+                                table_name,
+                                key=_table_checkbox_key(table_name),
+                            )
         else:
             st.caption("Click **Load table list** to choose tables from the source schema.")
 
@@ -270,8 +328,10 @@ if run_clicked:
         errors.append("Target: Email (UPN) is required for Azure AD sign-in.")
     if not db2_schema.strip() or not azure_schema.strip():
         errors.append("Both schema names are required.")
-    if st.session_state.cmp_compare_scope == "selected" and not st.session_state.cmp_selected_tables:
-        errors.append("Advanced options: select at least one table, or choose Compare all tables.")
+    if st.session_state.cmp_compare_scope == "selected":
+        loaded_for_run = st.session_state.cmp_source_table_list
+        if not _selected_tables_from_checkboxes(loaded_for_run):
+            errors.append("Advanced options: select at least one table, or choose Compare all tables.")
 
     if errors:
         for e in errors:
@@ -306,7 +366,7 @@ if run_clicked:
         with st.spinner(spinner_msg):
             tables_arg = None
             if st.session_state.cmp_compare_scope == "selected":
-                tables_arg = list(st.session_state.cmp_selected_tables)
+                tables_arg = _selected_tables_from_checkboxes(st.session_state.cmp_source_table_list)
             result = run_comparison(
                 db2_conn,
                 db2_user,
