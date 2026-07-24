@@ -129,8 +129,13 @@ def _get_bottom_container():
 
 def _resolve_selected(result) -> ObjectCompareResult | None:
     key = st.session_state.get("sch_selected_object_key", "")
+    obj_type = st.session_state.get("sch_selected_object_type", "")
     if not key:
         return None
+    if obj_type:
+        for item in result.by_type.get(obj_type, []):
+            if item.object_key == key:
+                return item
     for items in result.by_type.values():
         for item in items:
             if item.object_key == key:
@@ -140,10 +145,16 @@ def _resolve_selected(result) -> ObjectCompareResult | None:
 
 def _render_ddl_pane(selected: ObjectCompareResult) -> None:
     st.subheader("DDL comparison")
-    src_file = selected.source_file or OBJECT_TYPE_FILES.get(selected.object_type, "")
+    if selected.source_file:
+        src_file = selected.source_file
+    elif selected.status in ("identical", "different", "only_gitlab"):
+        src_file = OBJECT_TYPE_FILES.get(selected.object_type, "—")
+    else:
+        src_file = "—"
     line_info = f" · line {selected.gitlab_line}" if selected.gitlab_line else ""
+    type_label = _TYPE_LABELS.get(selected.object_type, selected.object_type)
     st.caption(
-        f"**{selected.object_type}** · `{selected.schema}.{selected.name}`"
+        f"**{type_label}** · `{selected.schema}.{selected.name}`"
         + (f" on `{selected.parent}`" if selected.parent else "")
         + f" · {src_file}{line_info}"
         + f" · status: **{selected.status}**"
@@ -156,6 +167,19 @@ def _render_ddl_pane(selected: ObjectCompareResult) -> None:
             st.code(selected.gitlab_ddl, language="sql")
         elif not selected.gitlab_ddl.strip() and selected.status == "different":
             st.warning("GitLab DDL is empty in the comparison result — re-run **Compare all** after loading deployment.")
+        elif not selected.gitlab_ddl.strip() and selected.status == "only_db":
+            if selected.object_type == "TABLE":
+                st.warning("Object exists in the database but was not found in GitLab **03_table.sql**.")
+            elif selected.object_type.startswith("MQT"):
+                st.info(
+                    "No GitLab MQT DDL for this object. "
+                    "**Regular tables** such as CRIT_DEFN belong under **Tables (03_table.sql)** — not MQT Deferred."
+                )
+            else:
+                st.warning(
+                    f"Object exists in the database but was not found in GitLab "
+                    f"**{OBJECT_TYPE_FILES.get(selected.object_type, 'deployment files')}**."
+                )
         components.html(diff_html, height=_DDL_IFRAME_HEIGHT, scrolling=True)
     with tab_summary:
         st.table(
@@ -163,7 +187,7 @@ def _render_ddl_pane(selected: ObjectCompareResult) -> None:
                 "Property": ["Status", "Object type", "Schema", "Name", "Parent table", "Source file", "GitLab line"],
                 "Value": [
                     selected.status,
-                    selected.object_type,
+                    _TYPE_LABELS.get(selected.object_type, selected.object_type),
                     selected.schema,
                     selected.name,
                     selected.parent or "—",

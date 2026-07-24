@@ -55,6 +55,11 @@ def run_schema_compare(
         gl_list = gitlab_objects.get(object_type, [])
         db_map = db_objects.get(object_type, {})
 
+        # MQT buckets must use mqt:: keys — ignore legacy misclassified table entries.
+        if object_type.startswith("MQT"):
+            gl_list = [o for o in gl_list if o.object_key.startswith("mqt::")]
+            db_map = {k: v for k, v in db_map.items() if k.startswith("mqt::")}
+
         gl_by_key = {obj.object_key: obj for obj in gl_list}
         all_keys = sorted(set(gl_by_key.keys()) | set(db_map.keys()))
         type_results: list[ObjectCompareResult] = []

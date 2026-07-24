@@ -365,6 +365,36 @@ ORDER BY s.name, seq.name
     return result
 
 
+def fetch_mqt_objects(conn: AzureConnection, object_type: str) -> dict[str, str]:
+    """Fetch indexed views — SQL Server equivalent of DB2 materialized query tables."""
+    sql = """
+SELECT
+    s.name AS SCHEMA_NAME,
+    v.name AS VIEW_NAME,
+    m.definition AS DEFINITION
+FROM sys.views v
+JOIN sys.schemas s ON v.schema_id = s.schema_id
+JOIN sys.sql_modules m ON v.object_id = m.object_id
+WHERE EXISTS (
+    SELECT 1
+    FROM sys.indexes i
+    WHERE i.object_id = v.object_id
+      AND i.index_id > 0
+)
+ORDER BY s.name, v.name
+"""
+    result: dict[str, str] = {}
+    for row in _rows(_fetch(conn, sql)):
+        schema = str(row.get("SCHEMA_NAME", ""))
+        name = str(row.get("VIEW_NAME", ""))
+        definition = str(row.get("DEFINITION", "") or "").strip()
+        if not definition:
+            continue
+        key = make_object_key(object_type, schema, name)
+        result[key] = definition
+    return result
+
+
 _FETCHERS = {
     "SCHEMA": fetch_schemas,
     "ROLE": fetch_roles,
@@ -376,8 +406,8 @@ _FETCHERS = {
     "VIEW": lambda c: _fetch_module_objects(c, "VIEW"),
     "TRIGGER": lambda c: _fetch_module_objects(c, "TRIGGER"),
     "SEQUENCE": fetch_sequences,
-    "MQT_IMMEDIATE": fetch_tables,
-    "MQT_DEFERRED": fetch_tables,
+    "MQT_IMMEDIATE": lambda c: fetch_mqt_objects(c, "MQT_IMMEDIATE"),
+    "MQT_DEFERRED": lambda c: fetch_mqt_objects(c, "MQT_DEFERRED"),
 }
 
 
