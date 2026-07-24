@@ -119,15 +119,22 @@ ORDER BY s.name, t.name, c.column_id
 
 
 def _fetch_constraint_columns(conn: AzureConnection) -> dict[int, list[str]]:
+    """Map key-constraint object_id -> ordered column names (PK / unique keys)."""
     sql = """
 SELECT
-    ic.constraint_object_id,
+    k.object_id AS CONSTRAINT_OBJECT_ID,
     c.name AS COLUMN_NAME,
-    ic.constraint_column_id
-FROM sys.index_columns ic
-JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
-WHERE ic.index_id > 0
-ORDER BY ic.constraint_object_id, ic.constraint_column_id
+    ic.key_ordinal
+FROM sys.key_constraints k
+JOIN sys.index_columns ic
+    ON ic.object_id = k.parent_object_id
+   AND ic.index_id = k.unique_index_id
+JOIN sys.columns c
+    ON c.object_id = ic.object_id
+   AND c.column_id = ic.column_id
+WHERE k.type IN ('PK', 'UQ')
+  AND ic.is_included_column = 0
+ORDER BY k.object_id, ic.key_ordinal
 """
     cols: dict[int, list[str]] = {}
     for row in _rows(_fetch(conn, sql)):
