@@ -22,6 +22,37 @@ do in DBeaver, but across all your databases in a single click.
 - Read-only: only `SYSCAT` catalog views are queried, never any DDL/DML.
 - **DB2 vs Azure Compare** page: row-count comparison per table between one DB2
   schema and one Azure SQL schema, with explicit schema mapping (e.g. USERID → dbo).
+- **Schema Compare** page: compare GitLab deployment DDL (`db2automation_logs/.../step4_deployment`) against live target SQL definitions with Redgate-style side-by-side diff.
+
+## Schema Compare — GitLab vs Target Database
+
+Open **Schema Compare** from the Streamlit sidebar.
+
+### GitLab setup
+
+Create `.streamlit/secrets.toml` (see [`.streamlit/secrets.toml.example`](.streamlit/secrets.toml.example)):
+
+```toml
+[gitlab]
+base_url = "https://gitlab.com"
+project_id = "75690564"
+token = "glpat-..."
+default_branch = "main"
+```
+
+The token needs **read_api** and **read_repository** scopes. Alternatively set `GITLAB_BASE_URL`, `GITLAB_PROJECT_ID`, and `GITLAB_TOKEN` environment variables.
+
+### Workflow
+
+1. Select **Database folder** (e.g. `ED2K`) and **Server folder** (e.g. `PS_X_DB22Q`), then **Load deployment**.
+2. Enter **Target** server/database (auto-filled from `migration_info.txt` when available) and test the connection.
+3. Click **Compare all** — objects are grouped by deployment file (`04_constraints.sql`, `03_table.sql`, …).
+4. Expand an object type, select a row, and review the **SQL view** diff (GitLab left, database right; red/green highlights).
+5. Use **Show** filters and **Search** to narrow to differences or missing objects.
+
+Deployment path pattern:
+
+`db2automation_logs/{database}/{server}/step4_deployment/{bundle}/{01_schema,03_table,04_constraints,...}.sql`
 
 ## DB2 vs Azure — Table Count Comparison
 
@@ -172,6 +203,13 @@ Then in the browser:
 | ----------------------- | ------------------------------------------------------------- |
 | `app.py`                | Home: Object Explorer UI                                      |
 | `pages/2_DB2_Azure_Compare.py` | DB2 vs Azure table count comparison page               |
+| `pages/3_Schema_Compare.py` | GitLab deployment vs target DDL schema compare          |
+| `gitlab_client.py`      | GitLab API — list folders, fetch deployment SQL files         |
+| `deployment_parser.py`  | Parse deployment SQL into objects by type                     |
+| `azure_ddl_fetcher.py`  | Reconstruct live DDL from SQL Server catalog views              |
+| `ddl_normalizer.py`     | Normalize DDL before equality check                           |
+| `schema_compare_engine.py` | Match GitLab vs DB objects, classify status                |
+| `diff_viewer.py`        | Side-by-side red/green HTML diff                               |
 | `compare_queries.py`    | LISTAGG / STRING_AGG generator SQL templates                  |
 | `compare_engine.py`     | Comparison orchestration, merge, fallback counts              |
 | `azure_client.py`       | Azure SQL via pyodbc + Azure AD Interactive MFA               |
@@ -184,6 +222,8 @@ Then in the browser:
 
 ## Security notes
 
+- GitLab personal access tokens belong in `.streamlit/secrets.toml` (gitignored) or
+  environment variables — never commit tokens to the repository.
 - The password lives only in Streamlit session memory; it is never written to
   disk by this app.
 - The name filter is always passed to DB2 as a bound parameter (`?`), so it is

@@ -1,4 +1,5 @@
-streamlit>=1.33
+streamlit>=1.35
 ibm_db>=3.2.0
 pandas>=2.0
 pyodbc>=5.0
+requests>=2.31

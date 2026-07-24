@@ -4,6 +4,7 @@ __pycache__/
 *.pyo
 .Python
 connections.csv
+db2automation_logs/
 .streamlit/secrets.toml
 .DS_Store
 *.log
