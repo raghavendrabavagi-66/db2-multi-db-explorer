@@ -21,29 +21,52 @@ from schema_compare_engine import ObjectCompareResult, filter_results, run_schem
 
 st.set_page_config(page_title="Schema Compare", layout="wide")
 
-# 60% top object navigator / 40% bottom DDL pane (viewport-based)
+# 60% scrollable object list + 40% pinned bottom DDL pane
 st.markdown(
     """
     <style>
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(.sch-pane-label-objects) {
-        height: 60vh !important;
-        max-height: 60vh !important;
+    /* Top object navigator — capped height with internal scroll */
+    .st-key-sch_objects_pane {
+        max-height: calc(60vh - 8rem) !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+    .st-key-sch_objects_pane [data-testid="stVerticalBlockBorderWrapper"] {
+        max-height: calc(60vh - 8rem) !important;
         overflow-y: auto !important;
     }
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(.sch-pane-label-ddl) {
+    /* Native Streamlit bottom container (st.bottom / st._bottom) */
+    [data-testid="stBottomBlockContainer"] {
+        max-height: 40vh !important;
+        overflow-y: auto !important;
+        background: #ffffff !important;
+        border-top: 1px solid #e0e0e0 !important;
+        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1) !important;
+    }
+    [data-testid="stBottomBlockContainer"] iframe {
+        height: calc(40vh - 11rem) !important;
+        min-height: 160px !important;
+    }
+    /* Fallback when st.bottom is unavailable — fixed pane + main padding */
+    section.main:has(.sch-ddl-open-marker) {
+        padding-bottom: calc(40vh + 1.5rem) !important;
+    }
+    section.main .st-key-sch_ddl_pane {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 5.5rem !important;
+        right: 1.25rem !important;
         height: 40vh !important;
         max-height: 40vh !important;
         overflow-y: auto !important;
-        position: sticky !important;
-        bottom: 0 !important;
+        z-index: 999 !important;
         background: #ffffff !important;
-        z-index: 50 !important;
-        box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08) !important;
-        margin-top: 0.25rem !important;
+        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.12) !important;
+        border-top: 1px solid #e0e0e0 !important;
     }
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(.sch-pane-label-ddl) iframe {
-        height: calc(40vh - 9rem) !important;
-        min-height: calc(40vh - 9rem) !important;
+    section.main .st-key-sch_ddl_pane iframe {
+        height: calc(40vh - 11rem) !important;
+        min-height: 160px !important;
     }
     </style>
     """,
@@ -51,7 +74,7 @@ st.markdown(
 )
 
 # Fallback iframe height when CSS calc is not applied (components.html requires pixels)
-_DDL_IFRAME_HEIGHT = 340
+_DDL_IFRAME_HEIGHT = 260
 
 _STATUS_ICON = {
     "identical": "✓",
@@ -93,6 +116,79 @@ def _type_summary(items: list[ObjectCompareResult]) -> str:
     if only_db:
         parts.append(f"{only_db} only DB")
     return ", ".join(parts)
+
+
+def _get_bottom_container():
+    """Streamlit pinned bottom container (public or legacy private API)."""
+    bottom = getattr(st, "bottom", None)
+    if bottom is not None:
+        return bottom
+    return getattr(st, "_bottom", None)
+
+
+def _resolve_selected(result) -> ObjectCompareResult | None:
+    key = st.session_state.get("sch_selected_object_key", "")
+    if not key:
+        return None
+    for items in result.by_type.values():
+        for item in items:
+            if item.object_key == key:
+                return item
+    return None
+
+
+def _render_ddl_pane(selected: ObjectCompareResult) -> None:
+    st.subheader("DDL comparison")
+    src_file = selected.source_file or OBJECT_TYPE_FILES.get(selected.object_type, "")
+    line_info = f" · line {selected.gitlab_line}" if selected.gitlab_line else ""
+    st.caption(
+        f"**{selected.object_type}** · `{selected.schema}.{selected.name}`"
+        + (f" on `{selected.parent}`" if selected.parent else "")
+        + f" · {src_file}{line_info}"
+        + f" · status: **{selected.status}**"
+    )
+    tab_sql, tab_summary = st.tabs(["SQL view", "Summary view"])
+    with tab_sql:
+        components.html(selected.diff_html, height=_DDL_IFRAME_HEIGHT, scrolling=True)
+    with tab_summary:
+        st.table(
+            {
+                "Property": ["Status", "Object type", "Schema", "Name", "Parent table", "Source file", "GitLab line"],
+                "Value": [
+                    selected.status,
+                    selected.object_type,
+                    selected.schema,
+                    selected.name,
+                    selected.parent or "—",
+                    src_file,
+                    str(selected.gitlab_line or "—"),
+                ],
+            }
+        )
+        fk_rows = fk_summary_table(selected.gitlab_ddl, selected.db_ddl)
+        if fk_rows:
+            st.markdown("**Foreign key properties**")
+            fk_df = pd.DataFrame(fk_rows)
+            st.dataframe(
+                fk_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Match": st.column_config.TextColumn(width="small"),
+                },
+            )
+            mismatches = [r for r in fk_rows if r["Match"] == "no"]
+            if mismatches:
+                props = ", ".join(r["Property"] for r in mismatches)
+                st.warning(f"Mismatch: {props}")
+        if selected.status == "different":
+            st.warning("Definitions differ after normalization — review inline highlights in SQL view.")
+        elif selected.status == "identical":
+            st.success("Definitions match.")
+        elif selected.status == "only_gitlab":
+            st.warning("Object exists in GitLab deployment but was not found in the target database.")
+        else:
+            st.warning("Object exists in the database but is not in the GitLab deployment files.")
 
 
 def _apply_pending_branch() -> None:
@@ -344,11 +440,8 @@ if skipped_types:
 
 st.divider()
 
-with st.container(border=True):
-    st.markdown('<span class="sch-pane-label-objects"></span>', unsafe_allow_html=True)
+with st.container(border=True, key="sch_objects_pane", height=520):
     st.subheader("Objects by type")
-
-    selected: ObjectCompareResult | None = None
 
     for object_type in OBJECT_TYPE_FILES:
         filename = OBJECT_TYPE_FILES[object_type]
@@ -387,71 +480,17 @@ with st.container(border=True):
             sel = event.selection
             if sel and sel.rows:
                 idx = sel.rows[0]
-                key = df.iloc[idx]["Key"]
-                st.session_state.sch_selected_object_key = key
+                st.session_state.sch_selected_object_key = df.iloc[idx]["Key"]
                 st.session_state.sch_selected_object_type = object_type
-                selected = items[idx]
 
-# Resolve selected object across reruns
-if not selected and st.session_state.sch_selected_object_key:
-    for object_type, items in result.by_type.items():
-        for item in items:
-            if item.object_key == st.session_state.sch_selected_object_key:
-                selected = item
-                st.session_state.sch_selected_object_type = object_type
-                break
+selected = _resolve_selected(result)
 
 if selected:
-    with st.container(border=True):
-        st.markdown('<span class="sch-pane-label-ddl"></span>', unsafe_allow_html=True)
-        st.subheader("DDL comparison")
-        src_file = selected.source_file or OBJECT_TYPE_FILES.get(selected.object_type, "")
-        line_info = f" · line {selected.gitlab_line}" if selected.gitlab_line else ""
-        st.caption(
-            f"**{selected.object_type}** · `{selected.schema}.{selected.name}`"
-            + (f" on `{selected.parent}`" if selected.parent else "")
-            + f" · {src_file}{line_info}"
-            + f" · status: **{selected.status}**"
-        )
-        tab_sql, tab_summary = st.tabs(["SQL view", "Summary view"])
-        with tab_sql:
-            components.html(selected.diff_html, height=_DDL_IFRAME_HEIGHT, scrolling=True)
-        with tab_summary:
-            st.table(
-                {
-                    "Property": ["Status", "Object type", "Schema", "Name", "Parent table", "Source file", "GitLab line"],
-                    "Value": [
-                        selected.status,
-                        selected.object_type,
-                        selected.schema,
-                        selected.name,
-                        selected.parent or "—",
-                        src_file,
-                        str(selected.gitlab_line or "—"),
-                    ],
-                }
-            )
-            fk_rows = fk_summary_table(selected.gitlab_ddl, selected.db_ddl)
-            if fk_rows:
-                st.markdown("**Foreign key properties**")
-                fk_df = pd.DataFrame(fk_rows)
-                st.dataframe(
-                    fk_df,
-                    use_container_width=True,
-                    hide_index=True,
-                    column_config={
-                        "Match": st.column_config.TextColumn(width="small"),
-                    },
-                )
-                mismatches = [r for r in fk_rows if r["Match"] == "no"]
-                if mismatches:
-                    props = ", ".join(r["Property"] for r in mismatches)
-                    st.warning(f"Mismatch: {props}")
-            if selected.status == "different":
-                st.warning("Definitions differ after normalization — review inline highlights in SQL view.")
-            elif selected.status == "identical":
-                st.success("Definitions match.")
-            elif selected.status == "only_gitlab":
-                st.warning("Object exists in GitLab deployment but was not found in the target database.")
-            else:
-                st.warning("Object exists in the database but is not in the GitLab deployment files.")
+    bottom = _get_bottom_container()
+    if bottom is not None:
+        with bottom:
+            _render_ddl_pane(selected)
+    else:
+        st.markdown('<div class="sch-ddl-open-marker"></div>', unsafe_allow_html=True)
+        with st.container(border=True, key="sch_ddl_pane"):
+            _render_ddl_pane(selected)
