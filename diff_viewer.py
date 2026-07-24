@@ -12,7 +12,7 @@ _DIFF_STYLES = """
 .diff-wrap { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
 .diff-head { font-weight: 600; padding: 6px 8px; background: #f0f0f0; border-bottom: 1px solid #ddd; }
 .diff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }
-.diff-pane { overflow: auto; max-height: 420px; }
+.diff-pane { overflow: auto; max-height: calc(40vh - 9rem); min-height: 200px; }
 .diff-pane table { width: 100%; border-collapse: collapse; }
 .diff-pane td { padding: 1px 6px; vertical-align: top; white-space: pre-wrap; word-break: break-word; }
 .ln { color: #888; width: 36px; text-align: right; user-select: none; border-right: 1px solid #eee; background: #fafafa; }

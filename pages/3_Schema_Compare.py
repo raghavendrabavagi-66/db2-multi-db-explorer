@@ -21,6 +21,38 @@ from schema_compare_engine import ObjectCompareResult, filter_results, run_schem
 
 st.set_page_config(page_title="Schema Compare", layout="wide")
 
+# 60% top object navigator / 40% bottom DDL pane (viewport-based)
+st.markdown(
+    """
+    <style>
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.sch-pane-label-objects) {
+        height: 60vh !important;
+        max-height: 60vh !important;
+        overflow-y: auto !important;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.sch-pane-label-ddl) {
+        height: 40vh !important;
+        max-height: 40vh !important;
+        overflow-y: auto !important;
+        position: sticky !important;
+        bottom: 0 !important;
+        background: #ffffff !important;
+        z-index: 50 !important;
+        box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08) !important;
+        margin-top: 0.25rem !important;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.sch-pane-label-ddl) iframe {
+        height: calc(40vh - 9rem) !important;
+        min-height: calc(40vh - 9rem) !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Fallback iframe height when CSS calc is not applied (components.html requires pixels)
+_DDL_IFRAME_HEIGHT = 340
+
 _STATUS_ICON = {
     "identical": "✓",
     "different": "✗",
@@ -311,51 +343,54 @@ if skipped_types:
     )
 
 st.divider()
-st.subheader("Objects by type")
 
-selected: ObjectCompareResult | None = None
+with st.container(border=True):
+    st.markdown('<span class="sch-pane-label-objects"></span>', unsafe_allow_html=True)
+    st.subheader("Objects by type")
 
-for object_type in OBJECT_TYPE_FILES:
-    filename = OBJECT_TYPE_FILES[object_type]
-    label = _TYPE_LABELS.get(object_type, object_type)
-    items = result.by_type.get(object_type, [])
+    selected: ObjectCompareResult | None = None
 
-    if filename in result.missing_files and not items:
-        continue
+    for object_type in OBJECT_TYPE_FILES:
+        filename = OBJECT_TYPE_FILES[object_type]
+        label = _TYPE_LABELS.get(object_type, object_type)
+        items = result.by_type.get(object_type, [])
 
-    header = f"{label} ({filename}) — {_type_summary(items)}"
-    with st.expander(header, expanded=object_type in ("CONSTRAINT", "TABLE") and bool(items)):
-        if not items:
-            st.caption("No objects.")
+        if filename in result.missing_files and not items:
             continue
-        rows = []
-        for item in items:
-            rows.append(
-                {
-                    "Status": f"{_STATUS_ICON.get(item.status, '?')} {item.status}",
-                    "Owner": item.schema,
-                    "Object": item.name,
-                    "Parent": item.parent,
-                    "Line": item.gitlab_line or "",
-                    "Key": item.object_key,
-                }
+
+        header = f"{label} ({filename}) — {_type_summary(items)}"
+        with st.expander(header, expanded=object_type in ("CONSTRAINT", "TABLE") and bool(items)):
+            if not items:
+                st.caption("No objects.")
+                continue
+            rows = []
+            for item in items:
+                rows.append(
+                    {
+                        "Status": f"{_STATUS_ICON.get(item.status, '?')} {item.status}",
+                        "Owner": item.schema,
+                        "Object": item.name,
+                        "Parent": item.parent,
+                        "Line": item.gitlab_line or "",
+                        "Key": item.object_key,
+                    }
+                )
+            df = pd.DataFrame(rows)
+            event = st.dataframe(
+                df.drop(columns=["Key"]),
+                use_container_width=True,
+                hide_index=True,
+                on_select="rerun",
+                selection_mode="single-row",
+                key=f"sch_df_{object_type}",
             )
-        df = pd.DataFrame(rows)
-        event = st.dataframe(
-            df.drop(columns=["Key"]),
-            use_container_width=True,
-            hide_index=True,
-            on_select="rerun",
-            selection_mode="single-row",
-            key=f"sch_df_{object_type}",
-        )
-        sel = event.selection
-        if sel and sel.rows:
-            idx = sel.rows[0]
-            key = df.iloc[idx]["Key"]
-            st.session_state.sch_selected_object_key = key
-            st.session_state.sch_selected_object_type = object_type
-            selected = items[idx]
+            sel = event.selection
+            if sel and sel.rows:
+                idx = sel.rows[0]
+                key = df.iloc[idx]["Key"]
+                st.session_state.sch_selected_object_key = key
+                st.session_state.sch_selected_object_type = object_type
+                selected = items[idx]
 
 # Resolve selected object across reruns
 if not selected and st.session_state.sch_selected_object_key:
@@ -367,55 +402,56 @@ if not selected and st.session_state.sch_selected_object_key:
                 break
 
 if selected:
-    st.divider()
-    st.subheader("DDL comparison")
-    src_file = selected.source_file or OBJECT_TYPE_FILES.get(selected.object_type, "")
-    line_info = f" · line {selected.gitlab_line}" if selected.gitlab_line else ""
-    st.caption(
-        f"**{selected.object_type}** · `{selected.schema}.{selected.name}`"
-        + (f" on `{selected.parent}`" if selected.parent else "")
-        + f" · {src_file}{line_info}"
-        + f" · status: **{selected.status}**"
-    )
-    tab_sql, tab_summary = st.tabs(["SQL view", "Summary view"])
-    with tab_sql:
-        components.html(selected.diff_html, height=480, scrolling=True)
-    with tab_summary:
-        st.table(
-            {
-                "Property": ["Status", "Object type", "Schema", "Name", "Parent table", "Source file", "GitLab line"],
-                "Value": [
-                    selected.status,
-                    selected.object_type,
-                    selected.schema,
-                    selected.name,
-                    selected.parent or "—",
-                    src_file,
-                    str(selected.gitlab_line or "—"),
-                ],
-            }
+    with st.container(border=True):
+        st.markdown('<span class="sch-pane-label-ddl"></span>', unsafe_allow_html=True)
+        st.subheader("DDL comparison")
+        src_file = selected.source_file or OBJECT_TYPE_FILES.get(selected.object_type, "")
+        line_info = f" · line {selected.gitlab_line}" if selected.gitlab_line else ""
+        st.caption(
+            f"**{selected.object_type}** · `{selected.schema}.{selected.name}`"
+            + (f" on `{selected.parent}`" if selected.parent else "")
+            + f" · {src_file}{line_info}"
+            + f" · status: **{selected.status}**"
         )
-        fk_rows = fk_summary_table(selected.gitlab_ddl, selected.db_ddl)
-        if fk_rows:
-            st.markdown("**Foreign key properties**")
-            fk_df = pd.DataFrame(fk_rows)
-            st.dataframe(
-                fk_df,
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "Match": st.column_config.TextColumn(width="small"),
-                },
+        tab_sql, tab_summary = st.tabs(["SQL view", "Summary view"])
+        with tab_sql:
+            components.html(selected.diff_html, height=_DDL_IFRAME_HEIGHT, scrolling=True)
+        with tab_summary:
+            st.table(
+                {
+                    "Property": ["Status", "Object type", "Schema", "Name", "Parent table", "Source file", "GitLab line"],
+                    "Value": [
+                        selected.status,
+                        selected.object_type,
+                        selected.schema,
+                        selected.name,
+                        selected.parent or "—",
+                        src_file,
+                        str(selected.gitlab_line or "—"),
+                    ],
+                }
             )
-            mismatches = [r for r in fk_rows if r["Match"] == "no"]
-            if mismatches:
-                props = ", ".join(r["Property"] for r in mismatches)
-                st.warning(f"Mismatch: {props}")
-        if selected.status == "different":
-            st.warning("Definitions differ after normalization — review inline highlights in SQL view.")
-        elif selected.status == "identical":
-            st.success("Definitions match.")
-        elif selected.status == "only_gitlab":
-            st.warning("Object exists in GitLab deployment but was not found in the target database.")
-        else:
-            st.warning("Object exists in the database but is not in the GitLab deployment files.")
+            fk_rows = fk_summary_table(selected.gitlab_ddl, selected.db_ddl)
+            if fk_rows:
+                st.markdown("**Foreign key properties**")
+                fk_df = pd.DataFrame(fk_rows)
+                st.dataframe(
+                    fk_df,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "Match": st.column_config.TextColumn(width="small"),
+                    },
+                )
+                mismatches = [r for r in fk_rows if r["Match"] == "no"]
+                if mismatches:
+                    props = ", ".join(r["Property"] for r in mismatches)
+                    st.warning(f"Mismatch: {props}")
+            if selected.status == "different":
+                st.warning("Definitions differ after normalization — review inline highlights in SQL view.")
+            elif selected.status == "identical":
+                st.success("Definitions match.")
+            elif selected.status == "only_gitlab":
+                st.warning("Object exists in GitLab deployment but was not found in the target database.")
+            else:
+                st.warning("Object exists in the database but is not in the GitLab deployment files.")
