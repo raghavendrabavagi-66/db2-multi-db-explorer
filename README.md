@@ -30,21 +30,16 @@ Open **Schema Compare** from the Streamlit sidebar.
 
 ### GitLab setup
 
-Create `.streamlit/secrets.toml` (see [`.streamlit/secrets.toml.example`](.streamlit/secrets.toml.example)):
+GitLab **URL** (`https://gitlab.com`) and **project ID** (`75690564`) are built into the app. On the Schema Compare page:
 
-```toml
-[gitlab]
-base_url = "https://gitlab.com"
-project_id = "75690564"
-token = "glpat-..."
-default_branch = "main"
-```
+1. Enter your **GitLab personal access token** (scopes: **read_api**, **read_repository**).
+2. Click **Load branches** and pick a **branch** from the dropdown.
 
-The token needs **read_api** and **read_repository** scopes. Alternatively set `GITLAB_BASE_URL`, `GITLAB_PROJECT_ID`, and `GITLAB_TOKEN` environment variables.
+The PAT is kept in your Streamlit session only (same as DB passwords) — no `secrets.toml` file is required for Schema Compare.
 
 ### Workflow
 
-1. Select **Database folder** (e.g. `ED2K`) and **Server folder** (e.g. `PS_X_DB22Q`), then **Load deployment**.
+1. Enter PAT → **Load branches** → choose branch, **Database folder**, and **Server folder** → **Load deployment**.
 2. Enter **Target** server/database (auto-filled from `migration_info.txt` when available) and test the connection.
 3. Click **Compare all** — objects are grouped by deployment file (`04_constraints.sql`, `03_table.sql`, …).
 4. Expand an object type, select a row, and review the **SQL view** diff (GitLab left, database right; red/green highlights).
@@ -222,8 +217,7 @@ Then in the browser:
 
 ## Security notes
 
-- GitLab personal access tokens belong in `.streamlit/secrets.toml` (gitignored) or
-  environment variables — never commit tokens to the repository.
+- GitLab PATs on Schema Compare are entered in the UI and live in Streamlit session memory only.
 - The password lives only in Streamlit session memory; it is never written to
   disk by this app.
 - The name filter is always passed to DB2 as a bound parameter (`?`), so it is

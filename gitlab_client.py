@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import re
 import urllib.parse
 from dataclasses import dataclass
@@ -10,6 +9,10 @@ from dataclasses import dataclass
 import requests
 
 ROOT_PATH = "db2automation_logs"
+
+# Fixed GitLab project — PAT and branch are entered on the Schema Compare page.
+GITLAB_BASE_URL = "https://gitlab.com"
+GITLAB_PROJECT_ID = "75690564"
 
 
 @dataclass
@@ -31,36 +34,16 @@ class GitLabOutcome:
         return self.status == "ok"
 
 
-def load_gitlab_config() -> GitLabConfig | None:
-    """Load GitLab settings from Streamlit secrets or environment variables."""
-    base_url = ""
-    project_id = ""
-    token = ""
-    default_branch = "main"
-
-    try:
-        import streamlit as st
-
-        sec = st.secrets.get("gitlab", {})
-        base_url = str(sec.get("base_url", "") or "")
-        project_id = str(sec.get("project_id", "") or "")
-        token = str(sec.get("token", "") or "")
-        default_branch = str(sec.get("default_branch", "main") or "main")
-    except Exception:
-        pass
-
-    base_url = base_url or os.environ.get("GITLAB_BASE_URL", "https://gitlab.com")
-    project_id = project_id or os.environ.get("GITLAB_PROJECT_ID", "")
-    token = token or os.environ.get("GITLAB_TOKEN", "")
-    default_branch = os.environ.get("GITLAB_DEFAULT_BRANCH", default_branch)
-
-    if not project_id or not token:
+def make_gitlab_config(token: str, branch: str = "main") -> GitLabConfig | None:
+    """Build config from UI-supplied PAT; URL and project ID are fixed."""
+    token = (token or "").strip()
+    if not token:
         return None
     return GitLabConfig(
-        base_url=base_url.rstrip("/"),
-        project_id=project_id,
+        base_url=GITLAB_BASE_URL.rstrip("/"),
+        project_id=GITLAB_PROJECT_ID,
         token=token,
-        default_branch=default_branch,
+        default_branch=(branch or "main").strip() or "main",
     )
 
 
@@ -72,6 +55,22 @@ class GitLabClient:
 
     def _url(self, path: str) -> str:
         return f"{self.config.base_url}/api/v4/projects/{self.config.project_id}{path}"
+
+    def list_branches(self) -> GitLabOutcome:
+        try:
+            resp = self._session.get(
+                self._url("/repository/branches?per_page=100"),
+                timeout=60,
+            )
+            if resp.status_code != 200:
+                return GitLabOutcome(
+                    status="error",
+                    error=f"GitLab branches error ({resp.status_code}): {resp.text[:300]}",
+                )
+            names = sorted(item["name"] for item in resp.json() if item.get("name"))
+            return GitLabOutcome(data=names)
+        except requests.RequestException as exc:
+            return GitLabOutcome(status="error", error=str(exc))
 
     def list_tree(self, path: str, branch: str) -> GitLabOutcome:
         encoded = urllib.parse.quote(path, safe="")

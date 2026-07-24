@@ -10,7 +10,12 @@ import streamlit as st
 from azure_client import AUTH_METHOD_LABELS, AzureConnection, test_connection as test_azure
 from azure_ddl_fetcher import fetch_all_objects
 from deployment_parser import OBJECT_TYPE_FILES, parse_all_deployment_files
-from gitlab_client import GitLabClient, load_gitlab_config
+from gitlab_client import (
+    GITLAB_BASE_URL,
+    GITLAB_PROJECT_ID,
+    GitLabClient,
+    make_gitlab_config,
+)
 from schema_compare_engine import ObjectCompareResult, filter_results, run_schema_compare
 
 st.set_page_config(page_title="Schema Compare", layout="wide")
@@ -69,19 +74,11 @@ if "sch_selected_object_key" not in st.session_state:
     st.session_state.sch_selected_object_key = ""
 if "sch_selected_object_type" not in st.session_state:
     st.session_state.sch_selected_object_type = ""
+if "sch_branch_list" not in st.session_state:
+    st.session_state.sch_branch_list = []
 
 st.title("Schema Compare")
 st.caption("Compare GitLab deployment DDL (source) against live target database definitions.")
-
-gitlab_config = load_gitlab_config()
-if gitlab_config is None:
-    st.error(
-        "GitLab is not configured. Add `[gitlab]` to `.streamlit/secrets.toml` with "
-        "`base_url`, `project_id`, and `token` (or set GITLAB_* environment variables)."
-    )
-    st.stop()
-
-gl_client = GitLabClient(gitlab_config)
 
 # ---------------------------------------------------------------------------
 # Header: GitLab source + Target connection
@@ -90,17 +87,60 @@ col_gl, col_tgt = st.columns(2)
 
 with col_gl:
     st.markdown("#### Source — GitLab deployment")
-    st.caption(f"{gitlab_config.base_url} · project {gitlab_config.project_id}")
-    branch = st.text_input("Branch", value=gitlab_config.default_branch, key="sch_branch")
+    st.caption(f"{GITLAB_BASE_URL} · project {GITLAB_PROJECT_ID}")
 
-    db_out = gl_client.list_db_folders(branch)
-    db_options = db_out.data if db_out.ok else []
-    if not db_out.ok:
-        st.warning(db_out.error)
+    gitlab_token = st.text_input(
+        "GitLab personal access token",
+        type="password",
+        key="sch_gitlab_token",
+        help="Required scopes: read_api, read_repository",
+    )
+
+    branch_col, refresh_col = st.columns([3, 1])
+    with refresh_col:
+        st.write("")
+        st.write("")
+        load_branches_clicked = st.button("Load branches", key="sch_load_branches")
+    with branch_col:
+        if load_branches_clicked:
+            cfg = make_gitlab_config(gitlab_token)
+            if not cfg:
+                st.error("Enter your GitLab PAT first.")
+            else:
+                with st.spinner("Loading branches…"):
+                    out = GitLabClient(cfg).list_branches()
+                if out.ok:
+                    st.session_state.sch_branch_list = out.data or []
+                    if st.session_state.sch_branch_list and st.session_state.get("sch_branch") not in st.session_state.sch_branch_list:
+                        st.session_state.sch_branch = st.session_state.sch_branch_list[0]
+                    st.success(f"Loaded {len(st.session_state.sch_branch_list)} branch(es).")
+                else:
+                    st.error(out.error)
+
+        branch_options = st.session_state.sch_branch_list or ["main"]
+        branch = st.selectbox("Branch", options=branch_options, key="sch_branch")
+
+    gl_client: GitLabClient | None = None
+    if gitlab_token.strip():
+        cfg = make_gitlab_config(gitlab_token, branch)
+        if cfg:
+            gl_client = GitLabClient(cfg)
+
+    db_options: list[str] = []
+    if gl_client:
+        db_out = gl_client.list_db_folders(branch)
+        if db_out.ok:
+            db_options = db_out.data or []
+        elif gitlab_token.strip():
+            st.warning(db_out.error)
+    elif gitlab_token.strip():
+        st.caption("Click **Load branches** to connect to GitLab.")
+    else:
+        st.caption("Enter PAT and load branches to browse deployments.")
 
     database = st.selectbox("Database folder", options=db_options or [""], key="sch_database")
     server_options: list[str] = []
-    if database:
+    if gl_client and database:
         srv_out = gl_client.list_server_folders(database, branch)
         if srv_out.ok:
             server_options = srv_out.data or []
@@ -109,7 +149,11 @@ with col_gl:
     server_folder = st.selectbox("Server folder", options=server_options or [""], key="sch_server")
 
     if st.button("Load deployment", key="sch_load"):
-        if not database or not server_folder:
+        if not gitlab_token.strip():
+            st.error("Enter your GitLab PAT.")
+        elif not gl_client:
+            st.error("Could not connect to GitLab — check your PAT.")
+        elif not database or not server_folder:
             st.error("Select database and server folder.")
         else:
             filenames = list(OBJECT_TYPE_FILES.values())
@@ -124,8 +168,14 @@ with col_gl:
                 info = gl_client.fetch_migration_info(database, server_folder, branch)
                 if info.ok and info.data:
                     mig = info.data
-                    if mig.get("branch"):
-                        st.session_state.sch_branch = mig["branch"]
+                    mig_branch = str(mig.get("branch", "") or "").strip()
+                    if mig_branch and mig_branch in st.session_state.sch_branch_list:
+                        st.session_state.sch_branch = mig_branch
+                    elif mig_branch:
+                        st.session_state.sch_branch_list = sorted(
+                            set(st.session_state.sch_branch_list) | {mig_branch}
+                        )
+                        st.session_state.sch_branch = mig_branch
                     if mig.get("target_database"):
                         st.session_state.sch_az_database = mig["target_database"]
                     if mig.get("target_server"):
