@@ -62,6 +62,18 @@ def _type_summary(items: list[ObjectCompareResult]) -> str:
     return ", ".join(parts)
 
 
+def _apply_pending_branch() -> None:
+    """Apply branch from migration_info before the branch selectbox is drawn."""
+    pending = st.session_state.pop("sch_pending_branch", None)
+    if not pending:
+        return
+    if pending not in st.session_state.sch_branch_list:
+        st.session_state.sch_branch_list = sorted(
+            set(st.session_state.sch_branch_list) | {pending}
+        )
+    st.session_state.sch_branch = pending
+
+
 if "sch_compare_result" not in st.session_state:
     st.session_state.sch_compare_result = None
 if "sch_deployment_files" not in st.session_state:
@@ -95,6 +107,8 @@ with col_gl:
         key="sch_gitlab_token",
         help="Required scopes: read_api, read_repository",
     )
+
+    _apply_pending_branch()
 
     branch_col, refresh_col = st.columns([3, 1])
     with refresh_col:
@@ -169,13 +183,8 @@ with col_gl:
                 if info.ok and info.data:
                     mig = info.data
                     mig_branch = str(mig.get("branch", "") or "").strip()
-                    if mig_branch and mig_branch in st.session_state.sch_branch_list:
-                        st.session_state.sch_branch = mig_branch
-                    elif mig_branch:
-                        st.session_state.sch_branch_list = sorted(
-                            set(st.session_state.sch_branch_list) | {mig_branch}
-                        )
-                        st.session_state.sch_branch = mig_branch
+                    if mig_branch:
+                        st.session_state.sch_pending_branch = mig_branch
                     if mig.get("target_database"):
                         st.session_state.sch_az_database = mig["target_database"]
                     if mig.get("target_server"):
@@ -184,6 +193,8 @@ with col_gl:
                     f"Loaded {len(st.session_state.sch_deployment_files)} file(s) from "
                     f"`{st.session_state.sch_bundle_path}`."
                 )
+                if st.session_state.get("sch_pending_branch"):
+                    st.rerun()
 
     if st.session_state.sch_bundle_path:
         st.caption(f"Bundle: `{st.session_state.sch_bundle_path}`")
