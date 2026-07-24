@@ -95,6 +95,20 @@ def _format_column_default(definition: str) -> str:
     return f" DEFAULT {d.upper()}"
 
 
+def _format_identity(seed, increment) -> str:
+    if seed is None and increment is None:
+        return ""
+    try:
+        seed_i = int(seed)
+    except (TypeError, ValueError):
+        seed_i = 1
+    try:
+        inc_i = int(increment)
+    except (TypeError, ValueError):
+        inc_i = 1
+    return f" IDENTITY({seed_i},{inc_i})"
+
+
 def _fetch_column_defaults(conn: AzureConnection) -> dict[tuple[str, str, str], str]:
     sql = """
 SELECT
@@ -133,11 +147,16 @@ SELECT
     c.precision,
     c.scale,
     c.is_nullable,
-    c.column_id
+    c.column_id,
+    CAST(ic.seed_value AS BIGINT) AS IDENTITY_SEED,
+    CAST(ic.increment_value AS BIGINT) AS IDENTITY_INCREMENT
 FROM sys.tables t
 JOIN sys.schemas s ON t.schema_id = s.schema_id
 JOIN sys.columns c ON c.object_id = t.object_id
 JOIN sys.types ty ON c.user_type_id = ty.user_type_id
+LEFT JOIN sys.identity_columns ic
+    ON ic.object_id = c.object_id
+   AND ic.column_id = c.column_id
 WHERE t.is_ms_shipped = 0
 ORDER BY s.name, t.name, c.column_id
 """
@@ -153,9 +172,10 @@ ORDER BY s.name, t.name, c.column_id
         nullable = row.get("IS_NULLABLE")
 
         type_sql = _column_type_sql(type_name, max_len, prec, scale)
+        identity_sql = _format_identity(row.get("IDENTITY_SEED"), row.get("IDENTITY_INCREMENT"))
         null_sql = " NULL" if nullable else " NOT NULL"
         default_sql = _format_column_default(defaults.get((schema, table, col), ""))
-        line = f"    {_bracket(col)} {type_sql}{null_sql}{default_sql}"
+        line = f"    {_bracket(col)} {type_sql}{identity_sql}{null_sql}{default_sql}"
         grouped.setdefault((schema, table), []).append(line)
 
     result: dict[str, str] = {}

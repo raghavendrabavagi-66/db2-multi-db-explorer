@@ -82,6 +82,12 @@ def normalize_table_columns(text: str) -> str:
         flags=re.IGNORECASE,
     )
     text = re.sub(r"\bDATETIME2(\s+NOT\s+NULL|\s+NULL|\s+DEFAULT)", r"DATETIME2(7)\1", text, flags=re.IGNORECASE)
+    text = re.sub(
+        r"IDENTITY\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)",
+        r"IDENTITY(\1,\2)",
+        text,
+        flags=re.IGNORECASE,
+    )
     return text
 
 
