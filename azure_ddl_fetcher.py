@@ -65,7 +65,7 @@ def _column_type_sql(type_name: str, max_len, prec, scale) -> str:
     if type_name in ("varchar", "char", "varbinary", "binary"):
         if type_name in ("varchar", "varbinary") and max_len == -1:
             return f"{type_name.upper()}(MAX)"
-        length = int(max_len) if type_name in ("char", "binary") else int(max_len) // 2 if max_len else 0
+        length = int(max_len) if max_len else 0
         return f"{type_name.upper()}({length})"
     if type_name in ("nvarchar", "nchar"):
         if max_len == -1:
