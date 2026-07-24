@@ -67,6 +67,24 @@ def normalize_fk_actions(text: str) -> str:
     return text
 
 
+def normalize_table_columns(text: str) -> str:
+    """Normalize table column defaults and datetime precision for comparison."""
+    text = re.sub(
+        r"DEFAULT\s*\(\s*sysdatetime\s*\(\s*\)\s*\)",
+        "DEFAULT SYSDATETIME()",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"DEFAULT\s*\(\s*getdate\s*\(\s*\)\s*\)",
+        "DEFAULT GETDATE()",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(r"\bDATETIME2(\s+NOT\s+NULL|\s+NULL|\s+DEFAULT)", r"DATETIME2(7)\1", text, flags=re.IGNORECASE)
+    return text
+
+
 def uppercase_keywords(text: str) -> str:
     def _kw(m: re.Match[str]) -> str:
         word = m.group(0).upper()
@@ -81,6 +99,8 @@ def normalize_ddl(text: str, object_type: str = "") -> str:
     out = strip_comments_and_headers(text)
     if object_type == "INDEX":
         out = strip_index_preamble(out)
+    if object_type == "TABLE":
+        out = normalize_table_columns(out)
     out = normalize_fk_actions(out)
     out = normalize_brackets(out)
     out = normalize_whitespace(out)

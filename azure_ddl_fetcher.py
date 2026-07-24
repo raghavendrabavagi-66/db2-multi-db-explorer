@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from azure_client import AzureConnection, AzureQueryOutcome, query
 from deployment_parser import make_object_key
 
@@ -58,7 +60,69 @@ ORDER BY name
     return result
 
 
+def _column_type_sql(type_name: str, max_len, prec, scale) -> str:
+    type_name = type_name.lower()
+    if type_name in ("varchar", "char", "varbinary", "binary"):
+        if type_name in ("varchar", "varbinary") and max_len == -1:
+            return f"{type_name.upper()}(MAX)"
+        length = int(max_len) if type_name in ("char", "binary") else int(max_len) // 2 if max_len else 0
+        return f"{type_name.upper()}({length})"
+    if type_name in ("nvarchar", "nchar"):
+        if max_len == -1:
+            return f"{type_name.upper()}(MAX)"
+        length = int(max_len) // 2 if max_len else 0
+        return f"{type_name.upper()}({length})"
+    if type_name in ("decimal", "numeric"):
+        return f"{type_name.upper()}({prec},{scale})"
+    if type_name in ("datetime2", "datetimeoffset", "time"):
+        return f"{type_name.upper()}({int(scale or 7)})"
+    return type_name.upper()
+
+
+def _format_column_default(definition: str) -> str:
+    """Format sys.default_constraints.definition for CREATE TABLE column DDL."""
+    d = (definition or "").strip()
+    if not d:
+        return ""
+    if d.startswith("(") and d.endswith(")"):
+        d = d[1:-1].strip()
+    if re.match(r"sysdatetime\s*\(\s*\)\s*$", d, re.IGNORECASE):
+        return " DEFAULT SYSDATETIME()"
+    if re.match(r"getdate\s*\(\s*\)\s*$", d, re.IGNORECASE):
+        return " DEFAULT GETDATE()"
+    if re.match(r"getutcdate\s*\(\s*\)\s*$", d, re.IGNORECASE):
+        return " DEFAULT GETUTCDATE()"
+    return f" DEFAULT {d.upper()}"
+
+
+def _fetch_column_defaults(conn: AzureConnection) -> dict[tuple[str, str, str], str]:
+    sql = """
+SELECT
+    s.name AS SCHEMA_NAME,
+    t.name AS TABLE_NAME,
+    c.name AS COLUMN_NAME,
+    dc.definition AS DEFAULT_DEFINITION
+FROM sys.default_constraints dc
+JOIN sys.columns c
+    ON dc.parent_object_id = c.object_id
+   AND dc.parent_column_id = c.column_id
+JOIN sys.tables t ON c.object_id = t.object_id
+JOIN sys.schemas s ON t.schema_id = s.schema_id
+WHERE t.is_ms_shipped = 0
+"""
+    defaults: dict[tuple[str, str, str], str] = {}
+    for row in _rows(_fetch(conn, sql)):
+        schema = str(row.get("SCHEMA_NAME", ""))
+        table = str(row.get("TABLE_NAME", ""))
+        col = str(row.get("COLUMN_NAME", ""))
+        defn = str(row.get("DEFAULT_DEFINITION", "") or "").strip()
+        if defn:
+            defaults[(schema, table, col)] = defn
+    return defaults
+
+
 def fetch_tables(conn: AzureConnection) -> dict[str, str]:
+    defaults = _fetch_column_defaults(conn)
     sql = """
 SELECT
     s.name AS SCHEMA_NAME,
@@ -88,25 +152,10 @@ ORDER BY s.name, t.name, c.column_id
         scale = row.get("SCALE")
         nullable = row.get("IS_NULLABLE")
 
-        if type_name in ("varchar", "char", "varbinary", "binary"):
-            if type_name in ("varchar", "varbinary") and max_len == -1:
-                type_sql = f"{type_name.upper()}(MAX)"
-            else:
-                length = int(max_len) if type_name in ("char", "binary") else int(max_len) // 2 if max_len else 0
-                type_sql = f"{type_name.upper()}({length})"
-        elif type_name in ("nvarchar", "nchar"):
-            if max_len == -1:
-                type_sql = f"{type_name.upper()}(MAX)"
-            else:
-                length = int(max_len) // 2 if max_len else 0
-                type_sql = f"{type_name.upper()}({length})"
-        elif type_name in ("decimal", "numeric"):
-            type_sql = f"{type_name.upper()}({prec},{scale})"
-        else:
-            type_sql = type_name.upper()
-
+        type_sql = _column_type_sql(type_name, max_len, prec, scale)
         null_sql = " NULL" if nullable else " NOT NULL"
-        line = f"    {_bracket(col)} {type_sql}{null_sql}"
+        default_sql = _format_column_default(defaults.get((schema, table, col), ""))
+        line = f"    {_bracket(col)} {type_sql}{null_sql}{default_sql}"
         grouped.setdefault((schema, table), []).append(line)
 
     result: dict[str, str] = {}
