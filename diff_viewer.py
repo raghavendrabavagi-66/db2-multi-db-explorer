@@ -11,24 +11,33 @@ from ddl_normalizer import strip_comments_and_headers
 _DIFF_STYLES = """
 .diff-wrap { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
 .diff-head { font-weight: 600; padding: 6px 8px; background: #f0f0f0; border-bottom: 1px solid #ddd; }
-.diff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }
-.diff-pane { overflow: auto; max-height: calc(40vh - 9rem); min-height: 200px; }
+.diff-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }
+.diff-pane { overflow: auto; max-height: calc(40vh - 9rem); min-height: 200px; min-width: 0; }
 .diff-pane table { width: 100%; border-collapse: collapse; }
 .diff-pane td { padding: 1px 6px; vertical-align: top; white-space: pre-wrap; word-break: break-word; }
 .ln { color: #888; width: 36px; text-align: right; user-select: none; border-right: 1px solid #eee; background: #fafafa; }
 .diff-add { background: #d4edda; }
 .diff-del { background: #f8d7da; }
 .diff-ctx { background: #fff; }
+.diff-empty { background: #fafafa; color: #bbb; }
 .diff-inline-add { background: #d4edda; border-radius: 2px; }
 .diff-inline-del { background: #f8d7da; border-radius: 2px; }
 """
 
+_BLANK = "&nbsp;"
+
 
 def prepare_display_ddl(text: str) -> str:
     """Strip comments/noise before showing DDL in the diff pane."""
-    cleaned = strip_comments_and_headers(text or "")
+    if not (text or "").strip():
+        return ""
+    cleaned = strip_comments_and_headers(text)
     lines = [ln.strip() for ln in cleaned.splitlines() if ln.strip()]
-    return "\n".join(lines)
+    if lines:
+        return "\n".join(lines)
+    # Fallback: keep non-comment lines from raw text (handles odd encodings / markers)
+    raw_lines = [ln.strip() for ln in text.splitlines() if ln.strip() and not ln.strip().startswith("--")]
+    return "\n".join(raw_lines)
 
 
 def _normalize_phrases(text: str) -> str:
@@ -89,6 +98,10 @@ def _row(ln: int, content: str, cell_class: str = "diff-ctx") -> str:
     return f'<tr><td class="ln">{ln}</td><td class="{cell_class}">{content}</td></tr>'
 
 
+def _blank_row(ln: int) -> str:
+    return _row(ln, _BLANK, "diff-empty")
+
+
 def side_by_side_diff_html(
     left: str,
     right: str,
@@ -97,6 +110,12 @@ def side_by_side_diff_html(
 ) -> str:
     left_lines = prepare_display_ddl(left).splitlines()
     right_lines = prepare_display_ddl(right).splitlines()
+
+    if not left_lines and (left or "").strip():
+        left_lines = [ln.strip() for ln in left.splitlines() if ln.strip() and not ln.strip().startswith("--")]
+    if not right_lines and (right or "").strip():
+        right_lines = [ln.strip() for ln in right.splitlines() if ln.strip() and not ln.strip().startswith("--")]
+
     matcher = difflib.SequenceMatcher(None, left_lines, right_lines)
 
     left_rows: list[str] = []
@@ -106,11 +125,10 @@ def side_by_side_diff_html(
 
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
         if tag == "equal":
-            for i in range(i1, i2):
+            for i, j in zip(range(i1, i2), range(j1, j2)):
                 left_rows.append(_row(ln_left, html.escape(left_lines[i])))
-                ln_left += 1
-            for j in range(j1, j2):
                 right_rows.append(_row(ln_right, html.escape(right_lines[j])))
+                ln_left += 1
                 ln_right += 1
         elif tag == "replace":
             left_chunk = left_lines[i1:i2]
@@ -132,28 +150,28 @@ def side_by_side_diff_html(
                         right_rows.append(_row(ln_right, r_html))
                     elif l_line:
                         left_rows.append(_row(ln_left, html.escape(l_line), "diff-del"))
-                        right_rows.append(_row(ln_right, "&nbsp;", "diff-ctx"))
+                        right_rows.append(_blank_row(ln_right))
                     elif r_line:
-                        left_rows.append(_row(ln_left, "&nbsp;", "diff-ctx"))
+                        left_rows.append(_blank_row(ln_left))
                         right_rows.append(_row(ln_right, html.escape(r_line), "diff-add"))
                     ln_left += 1
                     ln_right += 1
         elif tag == "delete":
             for i in range(i1, i2):
                 left_rows.append(_row(ln_left, html.escape(left_lines[i]), "diff-del"))
+                right_rows.append(_blank_row(ln_right))
                 ln_left += 1
+                ln_right += 1
         elif tag == "insert":
             for j in range(j1, j2):
+                left_rows.append(_blank_row(ln_left))
                 right_rows.append(_row(ln_right, html.escape(right_lines[j]), "diff-add"))
+                ln_left += 1
                 ln_right += 1
 
-    pad = max(len(left_rows), len(right_rows))
-    while len(left_rows) < pad:
-        left_rows.append(_row(ln_left, "&nbsp;"))
-        ln_left += 1
-    while len(right_rows) < pad:
-        right_rows.append(_row(ln_right, "&nbsp;"))
-        ln_right += 1
+    if not left_rows and not right_rows:
+        left_rows.append(_row(1, _BLANK, "diff-empty"))
+        right_rows.append(_row(1, _BLANK, "diff-empty"))
 
     return f"""
 <style>

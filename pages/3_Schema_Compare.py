@@ -17,6 +17,7 @@ from gitlab_client import (
     make_gitlab_config,
 )
 from constraint_summary import fk_summary_table
+from diff_viewer import prepare_display_ddl, side_by_side_diff_html
 from schema_compare_engine import ObjectCompareResult, filter_results, run_schema_compare
 
 st.set_page_config(page_title="Schema Compare", layout="wide")
@@ -149,7 +150,13 @@ def _render_ddl_pane(selected: ObjectCompareResult) -> None:
     )
     tab_sql, tab_summary = st.tabs(["SQL view", "Summary view"])
     with tab_sql:
-        components.html(selected.diff_html, height=_DDL_IFRAME_HEIGHT, scrolling=True)
+        diff_html = side_by_side_diff_html(selected.gitlab_ddl, selected.db_ddl)
+        if not prepare_display_ddl(selected.gitlab_ddl) and selected.gitlab_ddl.strip():
+            st.warning("GitLab DDL did not render in the diff — showing raw SQL below.")
+            st.code(selected.gitlab_ddl, language="sql")
+        elif not selected.gitlab_ddl.strip() and selected.status == "different":
+            st.warning("GitLab DDL is empty in the comparison result — re-run **Compare all** after loading deployment.")
+        components.html(diff_html, height=_DDL_IFRAME_HEIGHT, scrolling=True)
     with tab_summary:
         st.table(
             {
@@ -308,6 +315,9 @@ with col_gl:
                 st.session_state.sch_deployment_files = payload.get("files", {})
                 st.session_state.sch_missing_files = payload.get("missing", [])
                 st.session_state.sch_bundle_path = payload.get("bundle_path", "")
+                st.session_state.sch_compare_result = None
+                st.session_state.sch_selected_object_key = ""
+                st.session_state.sch_selected_object_type = ""
                 info = gl_client.fetch_migration_info(database, server_folder, branch)
                 if info.ok and info.data:
                     mig = info.data

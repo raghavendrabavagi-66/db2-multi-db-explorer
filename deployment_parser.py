@@ -68,24 +68,51 @@ def _strip_brackets(identifier: str) -> str:
     return s
 
 
+def _ddl_from_batch(batch: str) -> str:
+    """Return batch text starting at the first SQL statement (skip leading comments)."""
+    lines: list[str] = []
+    started = False
+    for line in batch.splitlines():
+        stripped = line.strip()
+        if not started:
+            if not stripped or stripped.startswith("--"):
+                continue
+            started = True
+        lines.append(line)
+    return "\n".join(lines).strip()
+
+
+def _batch_ddl_start_line(full_sql: str, batch_offset: int, batch: str) -> int:
+    """Line number in full_sql where the first SQL statement of the batch begins."""
+    trimmed = _ddl_from_batch(batch)
+    if not trimmed:
+        return _line_number(full_sql, batch_offset)
+    first_line = trimmed.splitlines()[0].strip()
+    idx = batch.find(first_line)
+    if idx >= 0:
+        return _line_number(full_sql, batch_offset + idx)
+    return _line_number(full_sql, batch_offset)
+
+
 def split_batches(sql: str) -> list[tuple[str, int]]:
-    """Split SQL on GO batch separators; return (batch_text, start_line)."""
+    """Split SQL on GO batch separators; return (batch_text, char_offset)."""
     if not sql.strip():
         return []
-    parts = re.split(r"(?mi)^\s*GO\s*$", sql)
     batches: list[tuple[str, int]] = []
-    offset = 0
-    for part in parts:
-        batch = part.strip()
-        pos = sql.find(part, offset) if part else offset
-        start = _line_number(sql, pos if pos >= 0 else offset)
-        offset = pos + len(part) if pos >= 0 else offset
-        if not batch:
-            continue
-        lines = [ln for ln in batch.splitlines() if ln.strip() and not ln.strip().startswith("--")]
-        if not lines:
-            continue
-        batches.append((batch, start))
+    go_pattern = re.compile(r"(?mi)^\s*GO\s*$", re.MULTILINE)
+    last = 0
+    for match in go_pattern.finditer(sql):
+        chunk = sql[last : match.start()].strip()
+        if chunk:
+            lines = [ln for ln in chunk.splitlines() if ln.strip() and not ln.strip().startswith("--")]
+            if lines:
+                batches.append((chunk, last))
+        last = match.end()
+    tail = sql[last:].strip()
+    if tail:
+        lines = [ln for ln in tail.splitlines() if ln.strip() and not ln.strip().startswith("--")]
+        if lines:
+            batches.append((tail, last))
     return batches
 
 
@@ -98,7 +125,7 @@ def _parse_schema(batch: str, source_file: str, start_line: int) -> DeploymentOb
     if not m:
         return None
     name = _strip_brackets(m.group(1))
-    return DeploymentObject("SCHEMA", "", name, "", batch, source_file, start_line)
+    return DeploymentObject("SCHEMA", "", name, "", _ddl_from_batch(batch), source_file, start_line)
 
 
 def _parse_table(batch: str, source_file: str, start_line: int) -> DeploymentObject | None:
@@ -111,7 +138,7 @@ def _parse_table(batch: str, source_file: str, start_line: int) -> DeploymentObj
         return None
     schema = _strip_brackets(m.group(1))
     name = _strip_brackets(m.group(2))
-    return DeploymentObject("TABLE", schema, name, "", batch, source_file, start_line)
+    return DeploymentObject("TABLE", schema, name, "", _ddl_from_batch(batch), source_file, start_line)
 
 
 def _parse_constraint(batch: str, source_file: str, start_line: int) -> DeploymentObject | None:
@@ -125,7 +152,7 @@ def _parse_constraint(batch: str, source_file: str, start_line: int) -> Deployme
     schema = _strip_brackets(m.group(1))
     table = _strip_brackets(m.group(2))
     name = _strip_brackets(m.group(3))
-    return DeploymentObject("CONSTRAINT", schema, name, table, batch, source_file, start_line)
+    return DeploymentObject("CONSTRAINT", schema, name, table, _ddl_from_batch(batch), source_file, start_line)
 
 
 def _parse_index(batch: str, source_file: str, start_line: int) -> DeploymentObject | None:
@@ -143,7 +170,7 @@ def _parse_index(batch: str, source_file: str, start_line: int) -> DeploymentObj
     name = _strip_brackets(m.group(1))
     schema = _strip_brackets(m.group(2))
     table = _strip_brackets(m.group(3))
-    return DeploymentObject("INDEX", schema, name, table, batch, source_file, start_line)
+    return DeploymentObject("INDEX", schema, name, table, _ddl_from_batch(batch), source_file, start_line)
 
 
 def _parse_procedure(batch: str, source_file: str, start_line: int, kind: str) -> DeploymentObject | None:
@@ -157,7 +184,7 @@ def _parse_procedure(batch: str, source_file: str, start_line: int, kind: str) -
         return None
     schema = _strip_brackets(m.group(1))
     name = _strip_brackets(m.group(2))
-    return DeploymentObject(kind, schema, name, "", batch, source_file, start_line)
+    return DeploymentObject(kind, schema, name, "", _ddl_from_batch(batch), source_file, start_line)
 
 
 def _parse_view(batch: str, source_file: str, start_line: int) -> DeploymentObject | None:
@@ -170,7 +197,7 @@ def _parse_view(batch: str, source_file: str, start_line: int) -> DeploymentObje
         return None
     schema = _strip_brackets(m.group(1))
     name = _strip_brackets(m.group(2))
-    return DeploymentObject("VIEW", schema, name, "", batch, source_file, start_line)
+    return DeploymentObject("VIEW", schema, name, "", _ddl_from_batch(batch), source_file, start_line)
 
 
 def _parse_sequence(batch: str, source_file: str, start_line: int) -> DeploymentObject | None:
@@ -183,7 +210,7 @@ def _parse_sequence(batch: str, source_file: str, start_line: int) -> Deployment
         return None
     schema = _strip_brackets(m.group(1))
     name = _strip_brackets(m.group(2))
-    return DeploymentObject("SEQUENCE", schema, name, "", batch, source_file, start_line)
+    return DeploymentObject("SEQUENCE", schema, name, "", _ddl_from_batch(batch), source_file, start_line)
 
 
 def _parse_trigger(batch: str, source_file: str, start_line: int) -> DeploymentObject | None:
@@ -197,7 +224,7 @@ def _parse_trigger(batch: str, source_file: str, start_line: int) -> DeploymentO
     schema = _strip_brackets(m.group(1))
     name = _strip_brackets(m.group(2))
     table = _strip_brackets(m.group(4))
-    return DeploymentObject("TRIGGER", schema, name, table, batch, source_file, start_line)
+    return DeploymentObject("TRIGGER", schema, name, table, _ddl_from_batch(batch), source_file, start_line)
 
 
 def _parse_role(batch: str, source_file: str, start_line: int) -> DeploymentObject | None:
@@ -205,13 +232,13 @@ def _parse_role(batch: str, source_file: str, start_line: int) -> DeploymentObje
     if not m:
         return None
     name = _strip_brackets(m.group(1))
-    return DeploymentObject("ROLE", "", name, "", batch, source_file, start_line)
+    return DeploymentObject("ROLE", "", name, "", _ddl_from_batch(batch), source_file, start_line)
 
 
 def _parse_mqt(batch: str, source_file: str, start_line: int, kind: str) -> DeploymentObject | None:
     obj = _parse_table(batch, source_file, start_line)
     if obj:
-        return DeploymentObject(kind, obj.schema, obj.name, "", batch, source_file, start_line)
+        return DeploymentObject(kind, obj.schema, obj.name, "", _ddl_from_batch(batch), source_file, start_line)
     return None
 
 
@@ -250,7 +277,8 @@ def parse_deployment_file(content: str, filename: str) -> list[DeploymentObject]
         return []
     parser = _parser_for_type(object_type)
     objects: list[DeploymentObject] = []
-    for batch, start_line in split_batches(content):
+    for batch, batch_offset in split_batches(content):
+        start_line = _batch_ddl_start_line(content, batch_offset, batch)
         obj = parser(batch, filename, start_line)
         if obj:
             objects.append(obj)
