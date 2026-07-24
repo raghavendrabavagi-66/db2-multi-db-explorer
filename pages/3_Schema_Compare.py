@@ -16,6 +16,7 @@ from gitlab_client import (
     GitLabClient,
     make_gitlab_config,
 )
+from constraint_summary import fk_summary_table
 from schema_compare_engine import ObjectCompareResult, filter_results, run_schema_compare
 
 st.set_page_config(page_title="Schema Compare", layout="wide")
@@ -297,6 +298,18 @@ m2.metric("Different", summary.different)
 m3.metric("Only in GitLab", summary.only_gitlab)
 m4.metric("Only in DB", summary.only_db)
 
+skipped_types: list[str] = []
+for object_type in OBJECT_TYPE_FILES:
+    filename = OBJECT_TYPE_FILES[object_type]
+    items = raw_result.by_type.get(object_type, [])
+    if filename in raw_result.missing_files and not items:
+        skipped_types.append(_TYPE_LABELS.get(object_type, object_type))
+if skipped_types:
+    st.caption(
+        "Skipped (not in deployment, none in DB): "
+        + ", ".join(skipped_types)
+    )
+
 st.divider()
 st.subheader("Objects by type")
 
@@ -308,8 +321,6 @@ for object_type in OBJECT_TYPE_FILES:
     items = result.by_type.get(object_type, [])
 
     if filename in result.missing_files and not items:
-        with st.expander(f"{label} ({filename}) — file not found in repo"):
-            st.caption("This deployment file is not present in the GitLab bundle.")
         continue
 
     header = f"{label} ({filename}) — {_type_summary(items)}"
@@ -384,8 +395,24 @@ if selected:
                 ],
             }
         )
+        fk_rows = fk_summary_table(selected.gitlab_ddl, selected.db_ddl)
+        if fk_rows:
+            st.markdown("**Foreign key properties**")
+            fk_df = pd.DataFrame(fk_rows)
+            st.dataframe(
+                fk_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Match": st.column_config.TextColumn(width="small"),
+                },
+            )
+            mismatches = [r for r in fk_rows if r["Match"] == "no"]
+            if mismatches:
+                props = ", ".join(r["Property"] for r in mismatches)
+                st.warning(f"Mismatch: {props}")
         if selected.status == "different":
-            st.warning("Definitions differ after normalization — review highlighted lines in SQL view.")
+            st.warning("Definitions differ after normalization — review inline highlights in SQL view.")
         elif selected.status == "identical":
             st.success("Definitions match.")
         elif selected.status == "only_gitlab":
