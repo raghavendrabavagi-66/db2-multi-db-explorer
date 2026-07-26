@@ -45,6 +45,25 @@ The PAT is kept in your Streamlit session only (same as DB passwords) — no `se
 4. Expand an object type, select a row, and review the **SQL view** diff (GitLab left, database right; red/green highlights).
 5. Use **Show** filters and **Search** to narrow to differences or missing objects.
 
+### Apply constraint drift (GitLab → database)
+
+When GitLab deployment is the source of truth, you can sync **constraints** from `04_constraints.sql` into the target database:
+
+1. Complete **Compare all** (stores the target connection for apply actions).
+2. Open **Constraints** — use **Preview batch sync** / **Apply all constraint drifts** for bulk fixes, or select a row and open the **Sync** tab in the DDL pane.
+3. Review the generated script:
+   - **`only_gitlab`** — `ADD CONSTRAINT` only (object missing in DB).
+   - **`different`** — `DROP CONSTRAINT` then `ADD CONSTRAINT` from GitLab (SQL Server cannot alter FK actions or PK columns in place).
+4. Check the confirmation box and click **Apply to database**.
+
+**Safety notes**
+
+- Requires `ALTER` permission on the target database.
+- Each apply runs in a **transaction** (drop + add rolls back together on failure).
+- Batch apply **stops on first failure**; objects applied before the failure remain committed.
+- Intended for **staging** validation; use caution on production.
+- **`only_db`** constraints show a suggested DROP script only (not executed from GitLab sync).
+
 Deployment path pattern:
 
 `db2automation_logs/{database}/{server}/step4_deployment/{bundle}/{01_schema,03_table,04_constraints,...}.sql`

@@ -42,6 +42,19 @@ class AzureQueryOutcome:
         return self.status == "ok"
 
 
+@dataclass
+class AzureExecuteOutcome:
+    status: str = "ok"
+    error: str = ""
+    executed_sql: list[str] = field(default_factory=list)
+    failed_index: int | None = None
+    elapsed_ms: int = 0
+
+    @property
+    def ok(self) -> bool:
+        return self.status == "ok"
+
+
 def _host_only(server: str) -> str:
     """Strip instance or port suffix for cloud-host detection."""
     s = server.strip()
@@ -150,6 +163,78 @@ def query(
         return AzureQueryOutcome(
             status="error",
             error=str(exc).strip(),
+            elapsed_ms=int((time.perf_counter() - start) * 1000),
+        )
+    finally:
+        try:
+            if handle is not None:
+                handle.close()
+        except Exception:
+            pass
+
+
+def _connect(conn: AzureConnection) -> tuple[object | None, AzureExecuteOutcome | None]:
+    """Open pyodbc connection or return an error outcome."""
+    if pyodbc is None:
+        return None, AzureExecuteOutcome(
+            status="error",
+            error="pyodbc is not installed (pip install pyodbc).",
+        )
+    if conn.auth_method == "azure_ad_interactive" and not conn.email.strip():
+        return None, AzureExecuteOutcome(
+            status="error",
+            error="Email (UPN) is required for Azure AD sign-in.",
+        )
+    try:
+        handle = pyodbc.connect(_connection_string(conn), timeout=120, autocommit=False)
+        return handle, None
+    except Exception as exc:
+        return None, AzureExecuteOutcome(status="unreachable", error=str(exc).strip())
+
+
+def execute_batch(conn: AzureConnection, statements: list[str]) -> AzureExecuteOutcome:
+    """Run DDL/DML statements in a single transaction (commit or rollback)."""
+    start = time.perf_counter()
+    cleaned = [s.strip().rstrip(";") + ";" for s in statements if s and s.strip()]
+    if not cleaned:
+        return AzureExecuteOutcome(status="error", error="No SQL statements to execute.")
+
+    handle, err_outcome = _connect(conn)
+    if err_outcome is not None:
+        err_outcome.elapsed_ms = int((time.perf_counter() - start) * 1000)
+        return err_outcome
+
+    executed: list[str] = []
+    try:
+        cursor = handle.cursor()
+        for idx, sql in enumerate(cleaned):
+            try:
+                cursor.execute(sql)
+                executed.append(sql)
+            except Exception as exc:
+                handle.rollback()
+                return AzureExecuteOutcome(
+                    status="error",
+                    error=str(exc).strip(),
+                    executed_sql=executed,
+                    failed_index=idx,
+                    elapsed_ms=int((time.perf_counter() - start) * 1000),
+                )
+        handle.commit()
+        return AzureExecuteOutcome(
+            status="ok",
+            executed_sql=executed,
+            elapsed_ms=int((time.perf_counter() - start) * 1000),
+        )
+    except Exception as exc:
+        try:
+            handle.rollback()
+        except Exception:
+            pass
+        return AzureExecuteOutcome(
+            status="error",
+            error=str(exc).strip(),
+            executed_sql=executed,
             elapsed_ms=int((time.perf_counter() - start) * 1000),
         )
     finally:

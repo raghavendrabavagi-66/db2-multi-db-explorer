@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import streamlit.components.v1 as components
 
 import pandas as pd
 import streamlit as st
 
 from azure_client import AUTH_METHOD_LABELS, AzureConnection, test_connection as test_azure
-from azure_ddl_fetcher import fetch_all_objects
-from deployment_parser import OBJECT_TYPE_FILES, parse_all_deployment_files
+from azure_ddl_fetcher import fetch_all_objects, fetch_constraints
+from constraint_sync import (
+    apply_sync_script,
+    generate_batch_scripts,
+    generate_sync_script,
+    preflight_constraint,
+)
+from deployment_parser import OBJECT_TYPE_FILES, parse_all_deployment_files, parse_deployment_file
 from gitlab_client import (
     GITLAB_BASE_URL,
     GITLAB_PROJECT_ID,
@@ -18,7 +26,13 @@ from gitlab_client import (
 )
 from constraint_summary import fk_summary_table
 from diff_viewer import prepare_display_ddl, side_by_side_diff_html
-from schema_compare_engine import ObjectCompareResult, filter_results, run_schema_compare
+from schema_compare_engine import (
+    ObjectCompareResult,
+    filter_results,
+    merge_type_results,
+    refresh_type_compare,
+    run_schema_compare,
+)
 
 st.set_page_config(page_title="Schema Compare", layout="wide")
 
@@ -143,6 +157,212 @@ def _resolve_selected(result) -> ObjectCompareResult | None:
     return None
 
 
+def _azure_conn_from_session() -> AzureConnection | None:
+    stored = st.session_state.get("sch_azure_conn")
+    if stored is not None:
+        return stored
+    server = st.session_state.get("sch_az_server", "").strip()
+    database = st.session_state.get("sch_az_database", "").strip()
+    if not server or not database:
+        return None
+    auth = st.session_state.get("sch_az_auth", "azure_ad_interactive")
+    return AzureConnection(
+        server=server,
+        database=database,
+        email=st.session_state.get("sch_az_email", "").strip(),
+        auth_method=auth,
+        trust_server_certificate=st.session_state.get("sch_az_trust_cert", True),
+    )
+
+
+def _append_apply_log(object_key: str, action: str, ok: bool, error: str = "") -> None:
+    entry = {
+        "time": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+        "object_key": object_key,
+        "action": action,
+        "ok": ok,
+        "error": error,
+    }
+    log = list(st.session_state.get("sch_apply_log", []))
+    log.insert(0, entry)
+    st.session_state.sch_apply_log = log[:50]
+
+
+def _refresh_constraints_compare() -> None:
+    """Re-fetch CONSTRAINT objects and patch compare result."""
+    conn = _azure_conn_from_session()
+    compare_result = st.session_state.get("sch_compare_result")
+    if conn is None or compare_result is None:
+        return
+    db_map = fetch_constraints(conn)
+    content = st.session_state.sch_deployment_files.get("04_constraints.sql", "")
+    gl_list = parse_deployment_file(content, "04_constraints.sql")
+    type_results = refresh_type_compare(
+        {"CONSTRAINT": gl_list},
+        {"CONSTRAINT": db_map},
+        "CONSTRAINT",
+    )
+    merge_type_results(compare_result, "CONSTRAINT", type_results)
+
+
+def _render_constraint_sync(selected: ObjectCompareResult) -> None:
+    """Sync script preview and apply controls for constraints."""
+    script = generate_sync_script(selected)
+    conn = _azure_conn_from_session()
+    db_name = conn.database if conn else st.session_state.get("sch_az_database", "target")
+
+    if selected.status == "only_db":
+        st.markdown("**Suggested DROP script** (read-only — not applied from GitLab sync)")
+        if script.steps:
+            st.code(script.sql_text, language="sql")
+        else:
+            st.caption(script.message or "No drop script available.")
+        return
+
+    if script.action not in ("create", "replace"):
+        st.info(script.message or "No sync action available for this object.")
+        return
+
+    with st.expander("Sync script (GitLab → database)", expanded=True):
+        st.code(script.sql_text, language="sql")
+
+    if script.warnings:
+        for warning in script.warnings:
+            st.warning(warning)
+
+    if conn is None:
+        st.error("Target connection not available. Run **Compare all** first.")
+        return
+
+    preflight = preflight_constraint(conn, selected, script)
+    for blocker in preflight.blockers:
+        st.error(blocker)
+    for warning in preflight.warnings:
+        if warning not in script.warnings:
+            st.warning(warning)
+
+    confirm_key = f"sch_sync_confirm_{selected.object_key}"
+    confirmed = st.checkbox(
+        f"I confirm applying this change to **{db_name}**",
+        key=confirm_key,
+    )
+
+    apply_col, _ = st.columns([1, 3])
+    with apply_col:
+        apply_disabled = not confirmed or not preflight.ok
+        if st.button(
+            "Apply to database",
+            type="primary",
+            key=f"sch_apply_{selected.object_key}",
+            disabled=apply_disabled,
+        ):
+            with st.spinner("Applying constraint sync…"):
+                outcome = apply_sync_script(conn, script)
+            if outcome.ok:
+                _append_apply_log(selected.object_key, script.action, True)
+                _refresh_constraints_compare()
+                st.success("Constraint applied successfully.")
+                st.rerun()
+            else:
+                _append_apply_log(selected.object_key, script.action, False, outcome.error)
+                st.error(outcome.error)
+
+
+def _constraint_drift_items(items: list[ObjectCompareResult]) -> list[ObjectCompareResult]:
+    return [i for i in items if i.status in ("different", "only_gitlab")]
+
+
+def _render_constraint_batch_sync(all_items: list[ObjectCompareResult]) -> None:
+    """Batch preview and apply for constraint drift."""
+    drift = _constraint_drift_items(all_items)
+    if not drift:
+        return
+
+    conn = _azure_conn_from_session()
+    db_name = conn.database if conn else st.session_state.get("sch_az_database", "target")
+    batch_pairs = generate_batch_scripts(all_items)
+
+    st.markdown(f"**Constraint sync** — {len(drift)} object(s) with drift")
+    preview_key = "sch_batch_preview_open"
+    if st.button(f"Preview batch sync ({len(batch_pairs)} scripts)", key="sch_batch_preview_btn"):
+        st.session_state[preview_key] = not st.session_state.get(preview_key, False)
+
+    if st.session_state.get(preview_key):
+        for idx, (item, script) in enumerate(batch_pairs, start=1):
+            st.caption(
+                f"{idx}. `{item.schema}.{item.name}` on `{item.parent}` "
+                f"({item.status}, {script.action})"
+            )
+            st.code(script.sql_text, language="sql")
+
+    if conn is None:
+        st.caption("Run **Compare all** to enable batch apply.")
+        return
+
+    batch_confirm_key = "sch_batch_confirm"
+    batch_confirmed = st.checkbox(
+        f"I confirm applying **{len(batch_pairs)}** constraint change(s) to **{db_name}**",
+        key=batch_confirm_key,
+    )
+    if st.button(
+        f"Apply all constraint drifts ({len(batch_pairs)})",
+        type="primary",
+        key="sch_batch_apply",
+        disabled=not batch_confirmed or not batch_pairs,
+    ):
+        results: list[dict[str, str]] = []
+        failed = False
+        with st.spinner("Applying batch constraint sync…"):
+            for item, script in batch_pairs:
+                preflight = preflight_constraint(conn, item, script)
+                if not preflight.ok:
+                    results.append(
+                        {
+                            "Object": item.name,
+                            "Table": item.parent,
+                            "Result": "blocked",
+                            "Detail": "; ".join(preflight.blockers),
+                        }
+                    )
+                    failed = True
+                    break
+                outcome = apply_sync_script(conn, script)
+                if outcome.ok:
+                    _append_apply_log(item.object_key, f"batch:{script.action}", True)
+                    results.append(
+                        {
+                            "Object": item.name,
+                            "Table": item.parent,
+                            "Result": "ok",
+                            "Detail": "",
+                        }
+                    )
+                else:
+                    _append_apply_log(item.object_key, f"batch:{script.action}", False, outcome.error)
+                    results.append(
+                        {
+                            "Object": item.name,
+                            "Table": item.parent,
+                            "Result": "error",
+                            "Detail": outcome.error,
+                        }
+                    )
+                    failed = True
+                    break
+        _refresh_constraints_compare()
+        st.session_state["sch_batch_apply_results"] = results
+        if failed:
+            st.error("Batch apply stopped on first failure. Earlier objects in the batch were committed.")
+        else:
+            st.success(f"Applied {len(results)} constraint change(s).")
+        st.session_state[preview_key] = False
+        st.rerun()
+
+    batch_results = st.session_state.get("sch_batch_apply_results")
+    if batch_results:
+        st.dataframe(pd.DataFrame(batch_results), use_container_width=True, hide_index=True)
+
+
 def _render_ddl_pane(selected: ObjectCompareResult) -> None:
     st.subheader("DDL comparison")
     if selected.source_file:
@@ -159,7 +379,7 @@ def _render_ddl_pane(selected: ObjectCompareResult) -> None:
         + f" · {src_file}{line_info}"
         + f" · status: **{selected.status}**"
     )
-    tab_sql, tab_summary = st.tabs(["SQL view", "Summary view"])
+    tab_sql, tab_summary, tab_sync = st.tabs(["SQL view", "Summary view", "Sync"])
     with tab_sql:
         diff_html = side_by_side_diff_html(selected.gitlab_ddl, selected.db_ddl)
         if not prepare_display_ddl(selected.gitlab_ddl) and selected.gitlab_ddl.strip():
@@ -221,6 +441,12 @@ def _render_ddl_pane(selected: ObjectCompareResult) -> None:
         else:
             st.warning("Object exists in the database but is not in the GitLab deployment files.")
 
+    with tab_sync:
+        if selected.object_type == "CONSTRAINT":
+            _render_constraint_sync(selected)
+        else:
+            st.info("Apply from GitLab is available for **Constraints** only in this release.")
+
 
 def _apply_pending_branch() -> None:
     """Apply branch from migration_info before the branch selectbox is drawn."""
@@ -248,6 +474,10 @@ if "sch_selected_object_type" not in st.session_state:
     st.session_state.sch_selected_object_type = ""
 if "sch_branch_list" not in st.session_state:
     st.session_state.sch_branch_list = []
+if "sch_azure_conn" not in st.session_state:
+    st.session_state.sch_azure_conn = None
+if "sch_apply_log" not in st.session_state:
+    st.session_state.sch_apply_log = []
 
 st.title("Schema Compare")
 st.caption("Compare GitLab deployment DDL (source) against live target database definitions.")
@@ -436,6 +666,7 @@ if compare_clicked:
         compare_result.missing_files = list(st.session_state.sch_missing_files)
         compare_result.bundle_path = st.session_state.sch_bundle_path
         st.session_state.sch_compare_result = compare_result
+        st.session_state.sch_azure_conn = azure_conn
         progress.progress(1.0, text="Done")
         progress.empty()
         if fetch_err:
@@ -490,6 +721,8 @@ with st.container(border=True, key="sch_objects_pane", height=520):
             if not items:
                 st.caption("No objects.")
                 continue
+            if object_type == "CONSTRAINT":
+                _render_constraint_batch_sync(raw_result.by_type.get("CONSTRAINT", []))
             rows = []
             for item in items:
                 rows.append(

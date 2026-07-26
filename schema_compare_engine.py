@@ -186,3 +186,123 @@ def filter_results(
 def object_from_db_only_key(object_type: str, key: str, ddl: str) -> DeploymentObject:
     schema, name, parent = _parse_key(key, object_type)
     return DeploymentObject(object_type, schema, name, parent, ddl, "", 0)
+
+
+def _compare_type_items(
+    object_type: str,
+    gl_list: list[DeploymentObject],
+    db_map: dict[str, str],
+) -> tuple[list[ObjectCompareResult], CompareSummary]:
+    """Compare one object type bucket and return results + partial summary."""
+    if object_type.startswith("MQT"):
+        gl_list = [o for o in gl_list if o.object_key.startswith("mqt::")]
+        db_map = {k: v for k, v in db_map.items() if k.startswith("mqt::")}
+
+    gl_by_key = {obj.object_key: obj for obj in gl_list}
+    all_keys = sorted(set(gl_by_key.keys()) | set(db_map.keys()))
+    type_results: list[ObjectCompareResult] = []
+    summary = CompareSummary()
+
+    for key in all_keys:
+        gl_obj = gl_by_key.get(key)
+        db_ddl = db_map.get(key, "")
+
+        if gl_obj and db_ddl:
+            _, _, is_match = normalize_pair(gl_obj.ddl, db_ddl, object_type)
+            status: CompareStatusLiteral = "identical" if is_match else "different"
+            diff_html = side_by_side_diff_html(gl_obj.ddl, db_ddl)
+            type_results.append(
+                ObjectCompareResult(
+                    object_key=key,
+                    object_type=object_type,
+                    schema=gl_obj.schema,
+                    name=gl_obj.name,
+                    parent=gl_obj.parent,
+                    status=status,
+                    gitlab_ddl=gl_obj.ddl,
+                    db_ddl=db_ddl,
+                    gitlab_line=gl_obj.start_line,
+                    source_file=gl_obj.source_file,
+                    diff_html=diff_html,
+                )
+            )
+            if is_match:
+                summary.identical += 1
+            else:
+                summary.different += 1
+        elif gl_obj:
+            type_results.append(
+                ObjectCompareResult(
+                    object_key=key,
+                    object_type=object_type,
+                    schema=gl_obj.schema,
+                    name=gl_obj.name,
+                    parent=gl_obj.parent,
+                    status="only_gitlab",
+                    gitlab_ddl=gl_obj.ddl,
+                    db_ddl="",
+                    gitlab_line=gl_obj.start_line,
+                    source_file=gl_obj.source_file,
+                    diff_html=side_by_side_diff_html(gl_obj.ddl, ""),
+                )
+            )
+            summary.only_gitlab += 1
+        else:
+            schema, name, parent = _parse_key(key, object_type)
+            type_results.append(
+                ObjectCompareResult(
+                    object_key=key,
+                    object_type=object_type,
+                    schema=schema,
+                    name=name,
+                    parent=parent,
+                    status="only_db",
+                    gitlab_ddl="",
+                    db_ddl=db_ddl,
+                    gitlab_line=None,
+                    source_file="",
+                    diff_html=side_by_side_diff_html("", db_ddl),
+                )
+            )
+            summary.only_db += 1
+
+    return type_results, summary
+
+
+def refresh_type_compare(
+    gitlab_objects: dict[str, list[DeploymentObject]],
+    db_objects: dict[str, dict[str, str]],
+    object_type: str,
+) -> list[ObjectCompareResult]:
+    """Re-compare a single object type (e.g. CONSTRAINT after apply)."""
+    gl_list = gitlab_objects.get(object_type, [])
+    db_map = db_objects.get(object_type, {})
+    results, _ = _compare_type_items(object_type, gl_list, db_map)
+    return results
+
+
+def recompute_summary(result: SchemaCompareResult) -> CompareSummary:
+    """Rebuild summary counts from all by_type buckets."""
+    summary = CompareSummary()
+    for items in result.by_type.values():
+        for item in items:
+            if item.status == "identical":
+                summary.identical += 1
+            elif item.status == "different":
+                summary.different += 1
+            elif item.status == "only_gitlab":
+                summary.only_gitlab += 1
+            else:
+                summary.only_db += 1
+    return summary
+
+
+def merge_type_results(
+    result: SchemaCompareResult,
+    object_type: str,
+    type_results: list[ObjectCompareResult],
+) -> SchemaCompareResult:
+    """Replace one object-type bucket and recompute summary."""
+    result.by_type[object_type] = type_results
+    result.summary = recompute_summary(result)
+    return result

@@ -23,6 +23,14 @@ _CHECK_RE = re.compile(
     r"CHECK\s+(?P<definition>.+?)\s*;?\s*$",
     re.IGNORECASE | re.DOTALL,
 )
+_UNIQUE_RE = re.compile(
+    r"UNIQUE\s*\((?P<cols>[^)]+)\)",
+    re.IGNORECASE,
+)
+_DEFAULT_RE = re.compile(
+    r"DEFAULT\s+(?P<definition>.+?)\s+FOR\s+(?P<column>\[[^\]]+\]|\w+)",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 def _clean_action(value: str | None) -> str:
@@ -58,6 +66,21 @@ def parse_constraint_ddl(ddl: str) -> dict[str, str]:
         return {
             "kind": "PRIMARY KEY",
             "columns": pk.group("cols").strip(),
+        }
+
+    uniq = _UNIQUE_RE.search(line)
+    if uniq and "FOREIGN KEY" not in line.upper():
+        return {
+            "kind": "UNIQUE",
+            "columns": uniq.group("cols").strip(),
+        }
+
+    default = _DEFAULT_RE.search(line)
+    if default:
+        return {
+            "kind": "DEFAULT",
+            "definition": default.group("definition").strip(),
+            "column": default.group("column").strip(),
         }
 
     chk = _CHECK_RE.search(line)
