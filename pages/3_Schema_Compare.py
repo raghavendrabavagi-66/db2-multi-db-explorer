@@ -10,12 +10,18 @@ import pandas as pd
 import streamlit as st
 
 from azure_client import AUTH_METHOD_LABELS, AzureConnection, test_connection as test_azure
-from azure_ddl_fetcher import fetch_all_objects, fetch_constraints
+from azure_ddl_fetcher import fetch_all_objects, fetch_constraints, fetch_indexes
 from constraint_sync import (
     apply_sync_script,
     generate_batch_scripts,
     generate_sync_script,
     preflight_constraint,
+)
+from index_sync import (
+    apply_index_sync_script,
+    generate_index_batch_scripts,
+    generate_index_sync_script,
+    preflight_index,
 )
 from deployment_parser import OBJECT_TYPE_FILES, parse_all_deployment_files, parse_deployment_file
 from gitlab_client import (
@@ -25,6 +31,7 @@ from gitlab_client import (
     make_gitlab_config,
 )
 from constraint_summary import fk_summary_table
+from index_summary import index_summary_table
 from diff_viewer import prepare_display_ddl, side_by_side_diff_html
 from schema_compare_engine import (
     ObjectCompareResult,
@@ -205,6 +212,23 @@ def _refresh_constraints_compare() -> None:
     merge_type_results(compare_result, "CONSTRAINT", type_results)
 
 
+def _refresh_indexes_compare() -> None:
+    """Re-fetch INDEX objects and patch compare result."""
+    conn = _azure_conn_from_session()
+    compare_result = st.session_state.get("sch_compare_result")
+    if conn is None or compare_result is None:
+        return
+    db_map = fetch_indexes(conn)
+    content = st.session_state.sch_deployment_files.get("05_index.sql", "")
+    gl_list = parse_deployment_file(content, "05_index.sql")
+    type_results = refresh_type_compare(
+        {"INDEX": gl_list},
+        {"INDEX": db_map},
+        "INDEX",
+    )
+    merge_type_results(compare_result, "INDEX", type_results)
+
+
 def _render_constraint_sync(selected: ObjectCompareResult) -> None:
     """Sync script preview and apply controls for constraints."""
     script = generate_sync_script(selected)
@@ -262,6 +286,73 @@ def _render_constraint_sync(selected: ObjectCompareResult) -> None:
                 _append_apply_log(selected.object_key, script.action, True)
                 _refresh_constraints_compare()
                 st.success("Constraint applied successfully.")
+                st.rerun()
+            else:
+                _append_apply_log(selected.object_key, script.action, False, outcome.error)
+                st.error(outcome.error)
+
+
+def _index_drift_items(items: list[ObjectCompareResult]) -> list[ObjectCompareResult]:
+    return [i for i in items if i.status in ("different", "only_gitlab")]
+
+
+def _render_index_sync(selected: ObjectCompareResult) -> None:
+    """Sync script preview and apply controls for indexes."""
+    script = generate_index_sync_script(selected)
+    conn = _azure_conn_from_session()
+    db_name = conn.database if conn else st.session_state.get("sch_az_database", "target")
+
+    if selected.status == "only_db":
+        st.markdown("**Suggested DROP script** (read-only — not applied from GitLab sync)")
+        if script.steps:
+            st.code(script.sql_text, language="sql")
+        else:
+            st.caption(script.message or "No drop script available.")
+        return
+
+    if script.action not in ("create", "replace"):
+        st.info(script.message or "No sync action available for this object.")
+        return
+
+    with st.expander("Sync script (GitLab → database)", expanded=True):
+        st.code(script.sql_text, language="sql")
+
+    if script.warnings:
+        for warning in script.warnings:
+            st.warning(warning)
+
+    if conn is None:
+        st.error("Target connection not available. Run **Compare all** first.")
+        return
+
+    preflight = preflight_index(conn, selected, script)
+    for blocker in preflight.blockers:
+        st.error(blocker)
+    for warning in preflight.warnings:
+        if warning not in script.warnings:
+            st.warning(warning)
+
+    confirm_key = f"sch_index_sync_confirm_{selected.object_key}"
+    confirmed = st.checkbox(
+        f"I confirm applying this change to **{db_name}**",
+        key=confirm_key,
+    )
+
+    apply_col, _ = st.columns([1, 3])
+    with apply_col:
+        apply_disabled = not confirmed or not preflight.ok
+        if st.button(
+            "Apply to database",
+            type="primary",
+            key=f"sch_index_apply_{selected.object_key}",
+            disabled=apply_disabled,
+        ):
+            with st.spinner("Applying index sync…"):
+                outcome = apply_index_sync_script(conn, script)
+            if outcome.ok:
+                _append_apply_log(selected.object_key, script.action, True)
+                _refresh_indexes_compare()
+                st.success("Index applied successfully.")
                 st.rerun()
             else:
                 _append_apply_log(selected.object_key, script.action, False, outcome.error)
@@ -363,6 +454,97 @@ def _render_constraint_batch_sync(all_items: list[ObjectCompareResult]) -> None:
         st.dataframe(pd.DataFrame(batch_results), use_container_width=True, hide_index=True)
 
 
+def _render_index_batch_sync(all_items: list[ObjectCompareResult]) -> None:
+    """Batch preview and apply for index drift."""
+    drift = _index_drift_items(all_items)
+    if not drift:
+        return
+
+    conn = _azure_conn_from_session()
+    db_name = conn.database if conn else st.session_state.get("sch_az_database", "target")
+    batch_pairs = generate_index_batch_scripts(all_items)
+
+    st.markdown(f"**Index sync** — {len(drift)} object(s) with drift")
+    preview_key = "sch_index_batch_preview_open"
+    if st.button(f"Preview batch sync ({len(batch_pairs)} scripts)", key="sch_index_batch_preview_btn"):
+        st.session_state[preview_key] = not st.session_state.get(preview_key, False)
+
+    if st.session_state.get(preview_key):
+        for idx, (item, script) in enumerate(batch_pairs, start=1):
+            st.caption(
+                f"{idx}. `{item.schema}.{item.name}` on `{item.parent}` "
+                f"({item.status}, {script.action})"
+            )
+            st.code(script.sql_text, language="sql")
+
+    if conn is None:
+        st.caption("Run **Compare all** to enable batch apply.")
+        return
+
+    batch_confirm_key = "sch_index_batch_confirm"
+    batch_confirmed = st.checkbox(
+        f"I confirm applying **{len(batch_pairs)}** index change(s) to **{db_name}**",
+        key=batch_confirm_key,
+    )
+    if st.button(
+        f"Apply all index drifts ({len(batch_pairs)})",
+        type="primary",
+        key="sch_index_batch_apply",
+        disabled=not batch_confirmed or not batch_pairs,
+    ):
+        results: list[dict[str, str]] = []
+        failed = False
+        with st.spinner("Applying batch index sync…"):
+            for item, script in batch_pairs:
+                preflight = preflight_index(conn, item, script)
+                if not preflight.ok:
+                    results.append(
+                        {
+                            "Object": item.name,
+                            "Table": item.parent,
+                            "Result": "blocked",
+                            "Detail": "; ".join(preflight.blockers),
+                        }
+                    )
+                    failed = True
+                    break
+                outcome = apply_index_sync_script(conn, script)
+                if outcome.ok:
+                    _append_apply_log(item.object_key, f"batch:{script.action}", True)
+                    results.append(
+                        {
+                            "Object": item.name,
+                            "Table": item.parent,
+                            "Result": "ok",
+                            "Detail": "",
+                        }
+                    )
+                else:
+                    _append_apply_log(item.object_key, f"batch:{script.action}", False, outcome.error)
+                    results.append(
+                        {
+                            "Object": item.name,
+                            "Table": item.parent,
+                            "Result": "error",
+                            "Detail": outcome.error,
+                        }
+                    )
+                    failed = True
+                    break
+        _refresh_indexes_compare()
+        st.session_state["sch_index_batch_apply_results"] = results
+        if failed:
+            st.error("Batch apply stopped on first failure. Earlier objects in the batch were committed.")
+        else:
+            st.success(f"Applied {len(results)} index change(s).")
+        st.session_state[preview_key] = False
+        st.rerun()
+
+    batch_results = st.session_state.get("sch_index_batch_apply_results")
+    if batch_results:
+        st.dataframe(pd.DataFrame(batch_results), use_container_width=True, hide_index=True)
+
+
 def _render_ddl_pane(selected: ObjectCompareResult) -> None:
     st.subheader("DDL comparison")
     if selected.source_file:
@@ -432,6 +614,22 @@ def _render_ddl_pane(selected: ObjectCompareResult) -> None:
             if mismatches:
                 props = ", ".join(r["Property"] for r in mismatches)
                 st.warning(f"Mismatch: {props}")
+        index_rows = index_summary_table(selected.gitlab_ddl, selected.db_ddl)
+        if index_rows:
+            st.markdown("**Index properties**")
+            index_df = pd.DataFrame(index_rows)
+            st.dataframe(
+                index_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Match": st.column_config.TextColumn(width="small"),
+                },
+            )
+            index_mismatches = [r for r in index_rows if r["Match"] == "no"]
+            if index_mismatches:
+                props = ", ".join(r["Property"].strip() for r in index_mismatches)
+                st.warning(f"Mismatch: {props}")
         if selected.status == "different":
             st.warning("Definitions differ after normalization — review inline highlights in SQL view.")
         elif selected.status == "identical":
@@ -444,8 +642,10 @@ def _render_ddl_pane(selected: ObjectCompareResult) -> None:
     with tab_sync:
         if selected.object_type == "CONSTRAINT":
             _render_constraint_sync(selected)
+        elif selected.object_type == "INDEX":
+            _render_index_sync(selected)
         else:
-            st.info("Apply from GitLab is available for **Constraints** only in this release.")
+            st.info("Apply from GitLab is available for **Constraints** and **Indexes**.")
 
 
 def _apply_pending_branch() -> None:
@@ -723,6 +923,8 @@ with st.container(border=True, key="sch_objects_pane", height=520):
                 continue
             if object_type == "CONSTRAINT":
                 _render_constraint_batch_sync(raw_result.by_type.get("CONSTRAINT", []))
+            if object_type == "INDEX":
+                _render_index_batch_sync(raw_result.by_type.get("INDEX", []))
             rows = []
             for item in items:
                 rows.append(

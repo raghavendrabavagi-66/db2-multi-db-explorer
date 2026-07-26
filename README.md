@@ -56,13 +56,26 @@ When GitLab deployment is the source of truth, you can sync **constraints** from
    - **`different`** — `DROP CONSTRAINT` then `ADD CONSTRAINT` from GitLab (SQL Server cannot alter FK actions or PK columns in place).
 4. Check the confirmation box and click **Apply to database**.
 
-**Safety notes**
+### Apply index drift (GitLab → database)
+
+You can sync **indexes** from `05_index.sql` the same way:
+
+1. Complete **Compare all**.
+2. Open **Indexes** — use batch sync in the expander, or select a row and open the **Sync** tab.
+3. Review the generated script:
+   - **`only_gitlab`** and **`different`** — `IF EXISTS DROP INDEX` then `CREATE INDEX` from GitLab (idempotent; fixes ASC/DESC and column-order drift).
+4. The **Summary** tab shows index kind and per-column ASC/DESC comparison.
+5. Confirm and click **Apply to database**.
+
+**Safety notes (constraints and indexes)**
 
 - Requires `ALTER` permission on the target database.
-- Each apply runs in a **transaction** (drop + add rolls back together on failure).
+- Each apply runs in a **transaction** (drop + create rolls back together on failure).
 - Batch apply **stops on first failure**; objects applied before the failure remain committed.
+- Index recreate on large tables may lock/rebuild — use caution on production.
 - Intended for **staging** validation; use caution on production.
-- **`only_db`** constraints show a suggested DROP script only (not executed from GitLab sync).
+- **`only_db`** objects show a suggested DROP script only (not executed from GitLab sync).
+- Live index DDL fetch may omit INCLUDE columns or filtered `WHERE` clauses; sync still applies full GitLab CREATE text.
 
 Deployment path pattern:
 
