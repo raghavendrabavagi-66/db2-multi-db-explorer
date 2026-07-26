@@ -582,7 +582,7 @@ def _render_ddl_pane(selected: ObjectCompareResult) -> None:
                     f"Object exists in the database but was not found in GitLab "
                     f"**{OBJECT_TYPE_FILES.get(selected.object_type, 'deployment files')}**."
                 )
-        components.html(diff_html, height=_DDL_IFRAME_HEIGHT, scrolling=True)
+        components.html(diff_html, height=_DDL_IFRAME_HEIGHT, scrolling=False)
     with tab_summary:
         st.table(
             {
