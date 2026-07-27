@@ -450,7 +450,7 @@ def _render_constraint_batch_sync(all_items: list[ObjectCompareResult]) -> None:
 
     batch_results = st.session_state.get("sch_batch_apply_results")
     if batch_results:
-        st.dataframe(pd.DataFrame(batch_results), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(batch_results), width="stretch", hide_index=True)
 
 
 def _render_index_batch_sync(all_items: list[ObjectCompareResult]) -> None:
@@ -541,7 +541,7 @@ def _render_index_batch_sync(all_items: list[ObjectCompareResult]) -> None:
 
     batch_results = st.session_state.get("sch_index_batch_apply_results")
     if batch_results:
-        st.dataframe(pd.DataFrame(batch_results), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(batch_results), width="stretch", hide_index=True)
 
 
 def _render_ddl_pane(selected: ObjectCompareResult) -> None:
@@ -603,7 +603,7 @@ def _render_ddl_pane(selected: ObjectCompareResult) -> None:
             fk_df = pd.DataFrame(fk_rows)
             st.dataframe(
                 fk_df,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 column_config={
                     "Match": st.column_config.TextColumn(width="small"),
@@ -619,7 +619,7 @@ def _render_ddl_pane(selected: ObjectCompareResult) -> None:
             index_df = pd.DataFrame(index_rows)
             st.dataframe(
                 index_df,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 column_config={
                     "Match": st.column_config.TextColumn(width="small"),
@@ -925,14 +925,14 @@ with st.container(border=True, key="sch_objects_pane", height=520):
                         "Owner": item.schema,
                         "Object": item.name,
                         "Parent": item.parent,
-                        "Line": item.gitlab_line or "",
+                        "Line": str(item.gitlab_line) if item.gitlab_line is not None else "—",
                         "Key": item.object_key,
                     }
                 )
             df = pd.DataFrame(rows)
             event = st.dataframe(
                 df.drop(columns=["Key"]),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 on_select="rerun",
                 selection_mode="single-row",

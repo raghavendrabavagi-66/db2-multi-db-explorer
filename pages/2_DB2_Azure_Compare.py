@@ -305,9 +305,9 @@ with st.expander("Advanced options", expanded=False):
 # ---------------------------------------------------------------------------
 run_col, clear_col, _ = st.columns([1, 1, 3])
 with run_col:
-    run_clicked = st.button("Run comparison", type="primary", use_container_width=True)
+    run_clicked = st.button("Run comparison", type="primary", width="stretch")
 with clear_col:
-    if st.button("Clear results", use_container_width=True):
+    if st.button("Clear results", width="stretch"):
         st.session_state.compare_result = None
         st.session_state.compare_ran_at = None
         st.session_state.cmp_view = "All"
@@ -421,7 +421,7 @@ if result is not None and result.status == "ok" and not result.comparison.empty:
 
     st.dataframe(
         view_df,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         column_config={
             "Source Count": st.column_config.NumberColumn(format="%d"),

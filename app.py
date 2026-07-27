@@ -112,7 +112,7 @@ with dbcol1:
     st.caption(f"{len(connections)} database(s) configured.")
 with dbcol2:
     edit_label = "Close editor" if st.session_state.show_db_editor else "Edit DB list"
-    if st.button(edit_label, use_container_width=True):
+    if st.button(edit_label, width="stretch"):
         st.session_state.show_db_editor = not st.session_state.show_db_editor
         st.rerun()
 
@@ -165,7 +165,7 @@ if st.session_state.show_db_editor:
     edited_df = st.data_editor(
         st.session_state.db_list_df,
         num_rows="dynamic",
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         key="db_editor",
         column_config={
@@ -190,7 +190,7 @@ if st.session_state.show_db_editor:
 
     save_col, reset_col, _ = st.columns([1, 1, 3])
     with save_col:
-        if st.button("Save to file", use_container_width=True):
+        if st.button("Save to file", width="stretch"):
             to_save = connections_from_rows(
                 st.session_state.db_list_df.itertuples(index=False, name=None)
             )
@@ -200,7 +200,7 @@ if st.session_state.show_db_editor:
             except OSError as exc:
                 st.error(f"Could not save: {exc}")
     with reset_col:
-        if st.button("Reset", use_container_width=True):
+        if st.button("Reset", width="stretch"):
             st.session_state.db_list_df = _empty_db_frame()
             # Clear the editor's tracked edits so they aren't re-applied.
             st.session_state.pop("db_editor", None)
@@ -216,7 +216,7 @@ for i, obj_type in enumerate(OBJECT_TYPES):
     if col.button(
         obj_type,
         key=f"objbtn_{obj_type}",
-        use_container_width=True,
+        width="stretch",
         type="primary" if is_selected else "secondary",
     ):
         st.session_state.selected_type = obj_type
@@ -362,7 +362,7 @@ if results is not None:
     if show_only_matches:
         view_df = df[df["Object Name"].astype(str) != ""]
 
-    st.dataframe(view_df, use_container_width=True, hide_index=True)
+    st.dataframe(view_df, width="stretch", hide_index=True)
 
     st.download_button(
         "Download results as CSV",
