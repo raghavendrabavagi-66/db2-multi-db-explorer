@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import struct
 import time
 from dataclasses import dataclass, field
 from typing import Literal
@@ -11,12 +12,20 @@ try:
 except Exception:  # pragma: no cover
     pyodbc = None
 
+try:
+    from azure.identity import InteractiveBrowserCredential  # type: ignore
+except Exception:  # pragma: no cover
+    InteractiveBrowserCredential = None  # type: ignore
+
 ODBC_DRIVER = "ODBC Driver 18 for SQL Server"
+SQL_COPT_SS_ACCESS_TOKEN = 1256
+AZURE_SQL_TOKEN_SCOPE = "https://database.windows.net/.default"
+AZURE_SQL_TOKEN_SCOPE_USGOV = "https://database.usgovcloudapi.net/.default"
 
 AzureAuthMethod = Literal["azure_ad_interactive", "windows_integrated"]
 
 AUTH_METHOD_LABELS = {
-    "azure_ad_interactive": "Azure AD — email + browser sign-in (MFA)",
+    "azure_ad_interactive": "Azure AD — browser sign-in (account picker / MFA)",
     "windows_integrated": "Windows integrated (SSMS-style, current Windows login)",
 }
 
@@ -91,8 +100,20 @@ def _server_value(server: str) -> str:
     return f"tcp:{server},1433"
 
 
-def _connection_string(conn: AzureConnection) -> str:
-    """Build ODBC connection string for the selected authentication mode."""
+def _token_scope(server: str) -> str:
+    host = _host_only(server).lower()
+    if ".database.usgovcloudapi.net" in host:
+        return AZURE_SQL_TOKEN_SCOPE_USGOV
+    return AZURE_SQL_TOKEN_SCOPE
+
+
+def _pack_access_token(token: str) -> bytes:
+    token_bytes = token.encode("utf-16-le")
+    return struct.pack("<I", len(token_bytes)) + token_bytes
+
+
+def _base_connection_string(conn: AzureConnection) -> str:
+    """ODBC connection string without authentication (token or Windows auth added separately)."""
     trust = "yes" if conn.trust_server_certificate else "no"
     parts = [
         f"Driver={{{ODBC_DRIVER}}}",
@@ -101,16 +122,47 @@ def _connection_string(conn: AzureConnection) -> str:
         "Encrypt=yes",
         f"TrustServerCertificate={trust}",
     ]
-    if conn.auth_method == "windows_integrated":
-        if _is_azure_sql_host(conn.server):
-            parts.append("Authentication=ActiveDirectoryIntegrated")
-        else:
-            # On-prem / named instance — same as SSMS Windows authentication
-            parts.append("Trusted_Connection=yes")
-    else:
-        parts.append("Authentication=ActiveDirectoryInteractive")
-        parts.append(f"UID={conn.email.strip()}")
     return ";".join(parts) + ";"
+
+
+def _windows_connection_string(conn: AzureConnection) -> str:
+    """Build ODBC connection string for Windows integrated authentication."""
+    parts = [_base_connection_string(conn).rstrip(";")]
+    if _is_azure_sql_host(conn.server):
+        parts.append("Authentication=ActiveDirectoryIntegrated")
+    else:
+        parts.append("Trusted_Connection=yes")
+    return ";".join(parts) + ";"
+
+
+def _acquire_interactive_token(conn: AzureConnection) -> str:
+    if InteractiveBrowserCredential is None:
+        raise RuntimeError(
+            "azure-identity is not installed (pip install azure-identity)."
+        )
+    cred_kwargs: dict[str, str] = {}
+    if conn.email.strip():
+        cred_kwargs["login_hint"] = conn.email.strip()
+    credential = InteractiveBrowserCredential(**cred_kwargs)
+    return credential.get_token(_token_scope(conn.server)).token
+
+
+def _pyodbc_connect(conn: AzureConnection, *, autocommit: bool = False):
+    """Open a pyodbc connection using the configured authentication mode."""
+    if conn.auth_method == "azure_ad_interactive":
+        token = _acquire_interactive_token(conn)
+        token_struct = _pack_access_token(token)
+        return pyodbc.connect(
+            _base_connection_string(conn),
+            timeout=120,
+            autocommit=autocommit,
+            attrs_before={SQL_COPT_SS_ACCESS_TOKEN: token_struct},
+        )
+    return pyodbc.connect(
+        _windows_connection_string(conn),
+        timeout=120,
+        autocommit=autocommit,
+    )
 
 
 def test_connection(conn: AzureConnection) -> AzureQueryOutcome:
@@ -131,15 +183,9 @@ def query(
             error="pyodbc is not installed (pip install pyodbc).",
         )
 
-    if conn.auth_method == "azure_ad_interactive" and not conn.email.strip():
-        return AzureQueryOutcome(
-            status="error",
-            error="Email (UPN) is required for Azure AD sign-in.",
-        )
-
     handle = None
     try:
-        handle = pyodbc.connect(_connection_string(conn), timeout=120)
+        handle = _pyodbc_connect(conn, autocommit=False)
     except Exception as exc:
         return AzureQueryOutcome(
             status="unreachable",
@@ -180,13 +226,8 @@ def _connect(conn: AzureConnection) -> tuple[object | None, AzureExecuteOutcome 
             status="error",
             error="pyodbc is not installed (pip install pyodbc).",
         )
-    if conn.auth_method == "azure_ad_interactive" and not conn.email.strip():
-        return None, AzureExecuteOutcome(
-            status="error",
-            error="Email (UPN) is required for Azure AD sign-in.",
-        )
     try:
-        handle = pyodbc.connect(_connection_string(conn), timeout=120, autocommit=False)
+        handle = _pyodbc_connect(conn, autocommit=False)
         return handle, None
     except Exception as exc:
         return None, AzureExecuteOutcome(status="unreachable", error=str(exc).strip())

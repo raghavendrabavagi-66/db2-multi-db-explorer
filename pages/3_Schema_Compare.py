@@ -807,13 +807,17 @@ with col_tgt:
     az_trust_cert = st.checkbox("Trust server certificate", value=True, key="sch_az_trust_cert")
     az_email = ""
     if az_auth == "azure_ad_interactive":
-        az_email = st.text_input("Email (UPN)", key="sch_az_email")
+        az_email = st.text_input(
+            "Login hint (optional)",
+            key="sch_az_email",
+            placeholder="you@company.com",
+            help="Leave blank to pick an account in the browser. "
+            "If provided, pre-selects that account in the sign-in dialog.",
+        )
 
     if st.button("Test Target connection", key="sch_test_az"):
         if not all([az_server, az_database]):
             st.error("Fill Server and Database.")
-        elif az_auth == "azure_ad_interactive" and not az_email:
-            st.error("Email required for Azure AD sign-in.")
         else:
             conn = AzureConnection(
                 server=az_server,
@@ -846,8 +850,6 @@ if compare_clicked:
         st.error("Load deployment from GitLab first.")
     elif not all([az_server, az_database]):
         st.error("Target Server and Database are required.")
-    elif az_auth == "azure_ad_interactive" and not (az_email or st.session_state.get("sch_az_email")):
-        st.error("Email (UPN) required for Azure AD sign-in.")
     else:
         progress = st.progress(0.0, text="Parsing GitLab deployment files…")
         gitlab_objects = parse_all_deployment_files(st.session_state.sch_deployment_files)

@@ -166,8 +166,13 @@ with col_az:
     )
     az_email = ""
     if az_auth == "azure_ad_interactive":
-        az_email = st.text_input("Email (UPN)", key="cmp_az_email", placeholder="you@company.com")
-        st.caption("A browser window may open for Microsoft sign-in and MFA.")
+        az_email = st.text_input(
+            "Login hint (optional)",
+            key="cmp_az_email",
+            placeholder="you@company.com",
+            help="Leave blank to pick an account in the browser.",
+        )
+        st.caption("A browser window opens for Microsoft sign-in (account picker / MFA).")
     else:
         st.caption(
             "Same as SSMS **Windows Authentication** for on-prem instances (e.g. "
@@ -177,8 +182,6 @@ with col_az:
     if st.button("Test Target connection", key="cmp_test_az"):
         if not all([az_server, az_database]):
             st.error("Fill Server and Database.")
-        elif az_auth == "azure_ad_interactive" and not az_email:
-            st.error("Fill Email (UPN) for Azure AD sign-in.")
         else:
             az_conn = AzureConnection(
                 server=az_server,
@@ -324,8 +327,6 @@ if run_clicked:
         errors.append("DB2: Database, Host, Username, and Password are required.")
     if not all([az_server, az_database]):
         errors.append("Target: Server and Database are required.")
-    if az_auth == "azure_ad_interactive" and not (az_email or st.session_state.get("cmp_az_email")):
-        errors.append("Target: Email (UPN) is required for Azure AD sign-in.")
     if not db2_schema.strip() or not azure_schema.strip():
         errors.append("Both schema names are required.")
     if st.session_state.cmp_compare_scope == "selected":
