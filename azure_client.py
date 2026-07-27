@@ -112,6 +112,29 @@ def _pack_access_token(token: str) -> bytes:
     return struct.pack("<I", len(token_bytes)) + token_bytes
 
 
+_interactive_credential: InteractiveBrowserCredential | None = None
+
+
+def _get_interactive_credential(conn: AzureConnection) -> InteractiveBrowserCredential:
+    """Return a process-wide credential so MSAL token cache survives across connections."""
+    global _interactive_credential
+    if InteractiveBrowserCredential is None:
+        raise RuntimeError(
+            "azure-identity is not installed (pip install azure-identity)."
+        )
+    if _interactive_credential is None:
+        cred_kwargs: dict[str, str] = {}
+        if conn.email.strip():
+            cred_kwargs["login_hint"] = conn.email.strip()
+        _interactive_credential = InteractiveBrowserCredential(**cred_kwargs)
+    return _interactive_credential
+
+
+def _acquire_interactive_token(conn: AzureConnection) -> str:
+    credential = _get_interactive_credential(conn)
+    return credential.get_token(_token_scope(conn.server)).token
+
+
 def _base_connection_string(conn: AzureConnection) -> str:
     """ODBC connection string without authentication (token or Windows auth added separately)."""
     trust = "yes" if conn.trust_server_certificate else "no"
@@ -133,18 +156,6 @@ def _windows_connection_string(conn: AzureConnection) -> str:
     else:
         parts.append("Trusted_Connection=yes")
     return ";".join(parts) + ";"
-
-
-def _acquire_interactive_token(conn: AzureConnection) -> str:
-    if InteractiveBrowserCredential is None:
-        raise RuntimeError(
-            "azure-identity is not installed (pip install azure-identity)."
-        )
-    cred_kwargs: dict[str, str] = {}
-    if conn.email.strip():
-        cred_kwargs["login_hint"] = conn.email.strip()
-    credential = InteractiveBrowserCredential(**cred_kwargs)
-    return credential.get_token(_token_scope(conn.server)).token
 
 
 def _pyodbc_connect(conn: AzureConnection, *, autocommit: bool = False):
