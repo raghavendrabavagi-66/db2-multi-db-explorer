@@ -40,7 +40,7 @@ The PAT is kept in your Streamlit session only (same as DB passwords) — no `se
 ### Workflow
 
 1. Enter PAT → **Load branches** → choose branch, **Database folder**, and **Server folder** → **Load deployment**.
-2. Enter **Target** server/database (auto-filled from `migration_info.txt` when available). For Azure AD, optionally enter a **login hint**; leave blank to pick an account in the browser. Test the connection.
+2. Enter **Target** server/database (auto-filled from `migration_info.txt` when available) and test the connection.
 3. Click **Compare all** — objects are grouped by deployment file (`04_constraints.sql`, `03_table.sql`, …).
 4. Expand an object type, select a row, and review the **SQL view** diff (GitLab left, database right; red/green highlights).
 5. Use **Show** filters and **Search** to narrow to differences or missing objects.
@@ -86,7 +86,7 @@ Deployment path pattern:
 Open the **DB2 Azure Compare** page from the Streamlit sidebar (multipage app).
 
 1. Enter **DB2** connection (Database, Host, Port, username/password) or paste a JDBC URL.
-2. Enter **Azure SQL** server (`*.database.windows.net`) and database. Optionally enter a **login hint** (work email) to pre-select your account; leave blank to pick an account in the browser.
+2. Enter **Azure SQL** server (`*.database.windows.net`) and database.
 3. Map schemas: e.g. DB2 `USERID` → Azure `dbo`.
 4. Optional: open **Advanced options** → **Selected tables only** → **Load table list** → pick tables → **Run comparison** (default compares all tables in both schemas).
 5. Click **Run comparison** — a browser window opens for Microsoft sign-in (account picker / MFA).
@@ -101,7 +101,7 @@ and falls back to per-table `COUNT(*)` if the generated SQL is too large.
 - Install [Microsoft ODBC Driver 18 for SQL Server](https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server)
 - `pip install pyodbc azure-identity`
 - **Authentication** (choose on the compare page):
-  - **Azure AD — browser sign-in (account picker / MFA)** — uses `InteractiveBrowserCredential` from `azure-identity`; token is passed to ODBC via `SQL_COPT_SS_ACCESS_TOKEN` (no `UID` in the connection string). Optional **login hint** pre-selects your account.
+  - **Azure AD — browser sign-in (account picker / MFA)** — uses `InteractiveBrowserCredential` from `azure-identity`; token is passed to ODBC via `SQL_COPT_SS_ACCESS_TOKEN` (no `UID` in the connection string).
   - **Windows integrated (SSMS-style)** — for on-prem named instances such as
     `gpitd.pres.com\i2022` with **Trust server certificate** (matches SSMS options)
 - **Server** field: use SSMS server text exactly (`host\instance`); the app no longer

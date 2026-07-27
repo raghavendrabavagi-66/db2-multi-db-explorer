@@ -164,14 +164,7 @@ with col_az:
         ),
         key="cmp_target_table_mode",
     )
-    az_email = ""
     if az_auth == "azure_ad_interactive":
-        az_email = st.text_input(
-            "Login hint (optional)",
-            key="cmp_az_email",
-            placeholder="you@company.com",
-            help="Leave blank to pick an account in the browser.",
-        )
         st.caption("A browser window opens for Microsoft sign-in (account picker / MFA).")
     else:
         st.caption(
@@ -186,7 +179,6 @@ with col_az:
             az_conn = AzureConnection(
                 server=az_server,
                 database=az_database,
-                email=az_email,
                 auth_method=az_auth,
                 trust_server_certificate=az_trust_cert,
             )
@@ -350,11 +342,9 @@ if run_clicked:
             host=db2_host.strip(),
             port=int(db2_port),
         )
-        target_email = (az_email or st.session_state.get("cmp_az_email") or "").strip()
         azure_conn = AzureConnection(
             server=az_server.strip(),
             database=az_database.strip(),
-            email=target_email,
             auth_method=az_auth,
             trust_server_certificate=az_trust_cert,
         )

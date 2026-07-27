@@ -176,7 +176,6 @@ def _azure_conn_from_session() -> AzureConnection | None:
     return AzureConnection(
         server=server,
         database=database,
-        email=st.session_state.get("sch_az_email", "").strip(),
         auth_method=auth,
         trust_server_certificate=st.session_state.get("sch_az_trust_cert", True),
     )
@@ -805,15 +804,8 @@ with col_tgt:
         key="sch_az_auth",
     )
     az_trust_cert = st.checkbox("Trust server certificate", value=True, key="sch_az_trust_cert")
-    az_email = ""
     if az_auth == "azure_ad_interactive":
-        az_email = st.text_input(
-            "Login hint (optional)",
-            key="sch_az_email",
-            placeholder="you@company.com",
-            help="Leave blank to pick an account in the browser. "
-            "If provided, pre-selects that account in the sign-in dialog.",
-        )
+        st.caption("A browser window opens for Microsoft sign-in (account picker / MFA).")
 
     if st.button("Test Target connection", key="sch_test_az"):
         if not all([az_server, az_database]):
@@ -822,7 +814,6 @@ with col_tgt:
             conn = AzureConnection(
                 server=az_server,
                 database=az_database,
-                email=az_email,
                 auth_method=az_auth,
                 trust_server_certificate=az_trust_cert,
             )
@@ -857,7 +848,6 @@ if compare_clicked:
         azure_conn = AzureConnection(
             server=az_server.strip(),
             database=az_database.strip(),
-            email=(az_email or st.session_state.get("sch_az_email") or "").strip(),
             auth_method=az_auth,
             trust_server_certificate=az_trust_cert,
         )
