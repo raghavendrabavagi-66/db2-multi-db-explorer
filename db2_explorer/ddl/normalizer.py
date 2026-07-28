@@ -91,6 +91,16 @@ def normalize_table_columns(text: str) -> str:
     return text
 
 
+def normalize_create_or_alter(text: str) -> str:
+    """SQL Server catalog DDL never includes OR ALTER; GitLab deploy scripts often do."""
+    return re.sub(
+        r"\bCREATE\s+OR\s+ALTER\s+(PROCEDURE|FUNCTION)\b",
+        r"CREATE \1",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+
 def uppercase_keywords(text: str) -> str:
     def _kw(m: re.Match[str]) -> str:
         word = m.group(0).upper()
@@ -107,6 +117,8 @@ def normalize_ddl(text: str, object_type: str = "") -> str:
         out = strip_index_preamble(out)
     if object_type == "TABLE":
         out = normalize_table_columns(out)
+    if object_type in ("PROCEDURE", "FUNCTION"):
+        out = normalize_create_or_alter(out)
     out = normalize_fk_actions(out)
     out = normalize_brackets(out)
     out = normalize_whitespace(out)
