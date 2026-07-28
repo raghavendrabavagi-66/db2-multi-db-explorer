@@ -312,7 +312,7 @@ HOME_PAGE_CSS = f"""
 
 
 OBJECT_EXPLORER_CSS = f"""
-/* Object Explorer — fit setup + search/results in one viewport (no page scroll) */
+/* Object Explorer — 40/60 workspace, top/bottom stacks, no page scroll */
 .stApp:has(.ms-oe-marker) section.main .block-container {{
     display: flex !important;
     flex-direction: column !important;
@@ -325,51 +325,67 @@ OBJECT_EXPLORER_CSS = f"""
 .stApp:has(.ms-oe-marker) .st-key-oe_page_header {{
     flex: 0 0 auto !important;
 }}
-.stApp:has(.ms-oe-marker) .st-key-oe_section1 {{
-    flex: 0 0 auto !important;
-    max-height: 42vh !important;
-    overflow-y: auto !important;
-    margin-bottom: 0.75rem !important;
-}}
-.stApp:has(.ms-oe-marker) .st-key-oe_section2 {{
+.stApp:has(.ms-oe-marker) .st-key-oe_workspace {{
     flex: 1 1 auto !important;
     min-height: 0 !important;
     overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
 }}
-.stApp:has(.ms-oe-marker) .st-key-oe_section2 > div[data-testid="stVerticalBlock"] {{
+.stApp:has(.ms-oe-marker) .st-key-oe_workspace > div[data-testid="stVerticalBlock"] {{
     flex: 1 1 auto !important;
     min-height: 0 !important;
     height: 100% !important;
 }}
-.stApp:has(.ms-oe-marker) .st-key-oe_section2 [data-testid="stHorizontalBlock"] {{
+.stApp:has(.ms-oe-marker) .st-key-oe_workspace [data-testid="stHorizontalBlock"] {{
     align-items: stretch !important;
     height: 100% !important;
     min-height: 0 !important;
 }}
-.stApp:has(.ms-oe-marker) .st-key-oe_section2 [data-testid="column"] {{
+.stApp:has(.ms-oe-marker) .st-key-oe_workspace [data-testid="column"] {{
     height: 100% !important;
     min-height: 0 !important;
     display: flex !important;
     flex-direction: column !important;
 }}
-.stApp:has(.ms-oe-marker) .st-key-oe_section2 [data-testid="column"] > div {{
+.stApp:has(.ms-oe-marker) .st-key-oe_workspace [data-testid="column"] > div {{
     flex: 1 1 auto !important;
     min-height: 0 !important;
     display: flex !important;
     flex-direction: column !important;
 }}
-/* Search + results bordered panels fill column height */
-.stApp:has(.ms-oe-marker) .st-key-oe_search_panel,
+/* Left / right columns — top strip + hero panel */
+.stApp:has(.ms-oe-marker) .st-key-oe_left_column,
+.stApp:has(.ms-oe-marker) .st-key-oe_right_column {{
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_left_column > div[data-testid="stVerticalBlock"],
+.stApp:has(.ms-oe-marker) .st-key-oe_right_column > div[data-testid="stVerticalBlock"] {{
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_connection_panel,
+.stApp:has(.ms-oe-marker) .st-key-oe_search_panel {{
+    flex: 0 0 auto !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_fleet_panel,
 .stApp:has(.ms-oe-marker) .st-key-oe_results_panel {{
     flex: 1 1 auto !important;
     min-height: 0 !important;
-    height: 100% !important;
+    overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
 }}
-.stApp:has(.ms-oe-marker) .st-key-oe_search_panel [data-testid="stVerticalBlockBorderWrapper"],
+.stApp:has(.ms-oe-marker) .st-key-oe_fleet_panel [data-testid="stVerticalBlockBorderWrapper"],
 .stApp:has(.ms-oe-marker) .st-key-oe_results_panel [data-testid="stVerticalBlockBorderWrapper"] {{
     flex: 1 1 auto !important;
     min-height: 0 !important;
@@ -379,7 +395,7 @@ OBJECT_EXPLORER_CSS = f"""
     display: flex !important;
     flex-direction: column !important;
 }}
-.stApp:has(.ms-oe-marker) .st-key-oe_search_panel [data-testid="stVerticalBlockBorderWrapper"] > div,
+.stApp:has(.ms-oe-marker) .st-key-oe_fleet_panel [data-testid="stVerticalBlockBorderWrapper"] > div,
 .stApp:has(.ms-oe-marker) .st-key-oe_results_panel [data-testid="stVerticalBlockBorderWrapper"] > div {{
     flex: 1 1 auto !important;
     min-height: 0 !important;
@@ -387,9 +403,36 @@ OBJECT_EXPLORER_CSS = f"""
     flex-direction: column !important;
     overflow: hidden !important;
 }}
-.stApp:has(.ms-oe-marker) .st-key-oe_search_panel .st-key-oe_search_btn {{
-    margin-top: auto !important;
-    padding-top: 1rem;
+/* Compact search strip — horizontal match mode wraps on narrow widths */
+.stApp:has(.ms-oe-marker) .st-key-oe_search_panel [data-testid="stRadio"] > div {{
+    flex-wrap: wrap !important;
+    gap: 0.35rem 0.75rem !important;
+}}
+/* Fleet table fills remaining panel height */
+.stApp:has(.ms-oe-marker) .st-key-oe_fleet_table {{
+    flex: 1 1 auto !important;
+    min-height: 8rem !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_fleet_table > div {{
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_fleet_table [data-testid="stDataEditor"],
+.stApp:has(.ms-oe-marker) .st-key-oe_fleet_table [data-testid="stDataFrame"] {{
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    overflow: auto !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_fleet_table [data-testid="stDataEditor"] > div,
+.stApp:has(.ms-oe-marker) .st-key-oe_fleet_table [data-testid="stDataFrame"] > div {{
+    max-height: 100% !important;
+    min-height: 0 !important;
 }}
 /* Results: fixed summary + scrollable table */
 .stApp:has(.ms-oe-marker) .st-key-oe_results_summary {{
@@ -411,11 +454,12 @@ OBJECT_EXPLORER_CSS = f"""
 .stApp:has(.ms-oe-marker) .st-key-oe_results_table [data-testid="stDataFrame"] {{
     flex: 1 1 auto !important;
     min-height: 0 !important;
-    height: 100% !important;
+    max-height: 100% !important;
+    overflow: auto !important;
 }}
 .stApp:has(.ms-oe-marker) .st-key-oe_results_table [data-testid="stDataFrame"] > div,
 .stApp:has(.ms-oe-marker) .st-key-oe_results_table [data-testid="stDataFrame"] iframe {{
-    height: 100% !important;
+    max-height: 100% !important;
     min-height: 0 !important;
 }}
 /* Bordered inputs — username, password, object type, text to match */
