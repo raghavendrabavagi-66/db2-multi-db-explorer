@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-from ddl_normalizer import normalize_pair
-from deployment_parser import DeploymentObject
-from diff_viewer import side_by_side_diff_html
+from db2_explorer.ddl.normalizer import normalize_pair
+from db2_explorer.gitlab.deployment_parser import DeploymentObject
+from db2_explorer.ddl.diff_viewer import side_by_side_diff_html
 
 CompareStatusLiteral = Literal["identical", "different", "only_gitlab", "only_db"]
 

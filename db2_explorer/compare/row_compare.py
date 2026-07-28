@@ -8,8 +8,8 @@ from typing import Callable, Literal
 
 import pandas as pd
 
-from azure_client import AzureConnection, AzureQueryOutcome, query as azure_query
-from compare_queries import (
+from db2_explorer.clients.azure import AzureConnection, AzureQueryOutcome, query as azure_query
+from db2_explorer.data.compare_queries import (
     AZURE_TABLE_LIST,
     AZURE_UNION_GENERATOR,
     DB2_TABLE_LIST,
@@ -18,8 +18,8 @@ from compare_queries import (
     db2_count_sql,
     with_schema,
 )
-from connections_loader import Connection
-from db2_client import QueryOutcome, query_single
+from db2_explorer.data.connections import Connection
+from db2_explorer.clients.db2 import QueryOutcome, query_single
 
 # DB2 LISTAGG VARCHAR(32000) — treat near-limit output as risky.
 _DB2_UNION_MAX_LEN = 30000

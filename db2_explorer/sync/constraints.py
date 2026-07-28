@@ -6,10 +6,10 @@ import re
 from dataclasses import dataclass, field
 from typing import Literal
 
-from azure_client import AzureConnection, AzureExecuteOutcome, execute_batch, query
-from constraint_summary import parse_constraint_ddl
-from ddl_normalizer import strip_comments_and_headers
-from schema_compare_engine import ObjectCompareResult
+from db2_explorer.clients.azure import AzureConnection, AzureExecuteOutcome, execute_batch, query
+from db2_explorer.sync.constraint_summary import parse_constraint_ddl
+from db2_explorer.ddl.normalizer import strip_comments_and_headers
+from db2_explorer.compare.schema_compare import ObjectCompareResult
 
 ConstraintKind = Literal["PK", "FK", "CHECK", "UNIQUE", "DEFAULT", "UNKNOWN"]
 SyncAction = Literal["create", "replace", "drop_only", "none"]

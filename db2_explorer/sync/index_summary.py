@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from ddl_normalizer import strip_comments_and_headers, strip_index_preamble
+from db2_explorer.ddl.normalizer import strip_comments_and_headers, strip_index_preamble
 
 _INDEX_HEADER_RE = re.compile(
     r"CREATE\s+(?P<unique>UNIQUE\s+)?(?P<clustered>NONCLUSTERED\s+|CLUSTERED\s+)?INDEX\s+"

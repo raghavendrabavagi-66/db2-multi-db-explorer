@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import re
 
-from azure_client import AzureConnection, AzureQueryOutcome, query
-from deployment_parser import make_object_key
+from db2_explorer.clients.azure import AzureConnection, AzureQueryOutcome, query
+from db2_explorer.gitlab.deployment_parser import make_object_key
 
 
 def _bracket(name: str) -> str:

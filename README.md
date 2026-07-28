@@ -1,28 +1,18 @@
-# DB2 Multi-DB Object Explorer
+# DB2 Migration Studio
 
-A small web UI that connects to a list of **DB2 LUW** databases using one shared
-username/password, lets you pick an **object type** and a **name filter**, then
-traces matching objects across **every** database at once and shows the results
-as a table plus a summary. Think of it as running the same catalog lookup you'd
-do in DBeaver, but across all your databases in a single click.
+A premium **Streamlit** workspace for DB2 LUW → Azure SQL migration programs: catalog
+exploration, row-count validation, and GitLab deployment schema compare with drift sync.
 
 ## Features
 
-- One shared username/password applied to every database in the list.
-- Manage the database list **in-app** via an editable table (add/edit/delete
-  rows), with optional persistence to a file.
-- First-level filter: object-type buttons (Table, View, MQT, Index, Sequence,
-  Alias, Nickname, Trigger, XML Schema, Application Object).
-- Second-level filter: `begins with` / `ends with` / `anywhere` / `exact`, plus a
-  text box (e.g. `sp_refresh`).
-- Queries run in parallel across databases with a progress bar.
-- Per-database error capture (an unreachable host never aborts the run).
-- Aggregated results table + summary metrics ("X of N databases have MQT
-  objects") and a CSV download.
-- Read-only: only `SYSCAT` catalog views are queried, never any DDL/DML.
-- **DB2 vs Azure Compare** page: row-count comparison per table between one DB2
-  schema and one Azure SQL schema, with explicit schema mapping (e.g. USERID → dbo).
-- **Schema Compare** page: compare GitLab deployment DDL (`db2automation_logs/.../step4_deployment`) against live target SQL definitions with Redgate-style side-by-side diff.
+- **Home hub** — workflow cards for each service with unified navigation.
+- **Object Explorer** — search procedures, tables, views, and more across many DB2
+  databases in parallel (editable connection list, CSV export).
+- **Row Compare** — map DB2 schemas to Azure SQL and compare table row counts.
+- **Schema Compare** — GitLab deployment DDL vs live target, side-by-side diff,
+  constraint and index sync to staging.
+- Shared **design system** (UI UX Pro Max): data-dense dashboard, Fira Sans, enterprise blue palette.
+- Read-only catalog queries on DB2; Azure AD browser sign-in for cloud targets.
 
 ## Schema Compare — GitLab vs Target Database
 
@@ -218,34 +208,41 @@ streamlit run app.py
 
 Then in the browser:
 
-1. Enter username + password (sidebar).
-2. Click **Edit DB list**, add your databases, and (optionally) **Save to file**.
-3. Click an object-type button.
-4. Choose a match operator and type the text (e.g. `sp_refresh`).
-5. Click **Search across all databases**.
+1. Open **Home** and pick a workflow, or use the sidebar.
+2. **Object Explorer** — username/password in sidebar, edit DB list, search.
+3. **Row Compare** / **Schema Compare** — follow on-page connection panels.
 
 ## Project layout
 
-| File                    | Purpose                                                        |
-| ----------------------- | ------------------------------------------------------------- |
-| `app.py`                | Home: Object Explorer UI                                      |
-| `pages/2_DB2_Azure_Compare.py` | DB2 vs Azure table count comparison page               |
-| `pages/3_Schema_Compare.py` | GitLab deployment vs target DDL schema compare          |
-| `gitlab_client.py`      | GitLab API — list folders, fetch deployment SQL files         |
-| `deployment_parser.py`  | Parse deployment SQL into objects by type                     |
-| `azure_ddl_fetcher.py`  | Reconstruct live DDL from SQL Server catalog views              |
-| `ddl_normalizer.py`     | Normalize DDL before equality check                           |
-| `schema_compare_engine.py` | Match GitLab vs DB objects, classify status                |
-| `diff_viewer.py`        | Side-by-side red/green HTML diff                               |
-| `compare_queries.py`    | LISTAGG / STRING_AGG generator SQL templates                  |
-| `compare_engine.py`     | Comparison orchestration, merge, fallback counts              |
-| `azure_client.py`       | Azure SQL via pyodbc + `InteractiveBrowserCredential` token auth |
-| `db2_client.py`         | `ibm_db` connection + parallel per-database execution         |
-| `queries.py`            | Object-type -> catalog SQL registry, match-operator patterns  |
-| `connections_loader.py` | CSV/list parsing, row-to-connection helpers, save/load         |
-| `connections.csv`       | Persisted working list (created by "Save to file")            |
-| `sample_connections.csv`| Example connection list (copy to `connections.csv` to seed)   |
-| `requirements.txt`      | Python dependencies                                           |
+```
+app.py                          Home hub (navigation + workflow cards)
+pages/
+  1_Object_Explorer.py          Multi-DB catalog search
+  2_Row_Compare.py              DB2 vs Azure row counts
+  3_Schema_Compare.py           GitLab DDL vs target + sync
+db2_explorer/
+  clients/                      DB2 + Azure SQL connectivity
+  data/                         Connections, catalog queries, compare SQL
+  compare/                      Row + schema compare engines
+  ddl/                          Fetch, normalize, diff live DDL
+  gitlab/                       GitLab API + deployment parsing
+  sync/                         Constraint/index apply to target
+  ui/                           Theme tokens + shared Streamlit components
+design-system/db2-migration-studio/   Persisted UI UX Pro Max tokens
+.streamlit/config.toml          Streamlit theme (primary blue, Fira-friendly)
+.cursor/skills/                 Cursor UI/UX Pro Max skills (optional)
+```
+
+| Module | Purpose |
+| ------ | ------- |
+| `db2_explorer/clients/db2.py` | `ibm_db` parallel catalog queries |
+| `db2_explorer/clients/azure.py` | pyodbc + InteractiveBrowserCredential |
+| `db2_explorer/compare/row_compare.py` | Row-count comparison orchestration |
+| `db2_explorer/compare/schema_compare.py` | GitLab vs DB object matching |
+| `db2_explorer/gitlab/client.py` | GitLab deployment file fetch |
+| `db2_explorer/ui/theme.py` | Global CSS + page bootstrap |
+| `connections.csv` | Persisted DB list (Object Explorer) |
+| `requirements.txt` | Python dependencies |
 
 ## Security notes
 

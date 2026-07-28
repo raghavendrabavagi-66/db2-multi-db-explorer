@@ -12,8 +12,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from typing import Callable
 
-from connections_loader import Connection
-from queries import BuiltQuery, build_query
+from db2_explorer.data.connections import Connection
+from db2_explorer.data.queries import BuiltQuery, build_query
 
 try:  # ibm_db is an optional import so the module can be inspected without it.
     import ibm_db  # type: ignore

@@ -9,71 +9,74 @@ import streamlit.components.v1 as components
 import pandas as pd
 import streamlit as st
 
-from azure_client import AUTH_METHOD_LABELS, AzureConnection, test_connection as test_azure
-from azure_ddl_fetcher import fetch_all_objects, fetch_constraints, fetch_indexes
-from constraint_sync import (
-    apply_sync_script,
-    generate_batch_scripts,
-    generate_sync_script,
-    preflight_constraint,
-)
-from index_sync import (
-    apply_index_sync_script,
-    generate_index_batch_scripts,
-    generate_index_sync_script,
-    preflight_index,
-)
-from deployment_parser import OBJECT_TYPE_FILES, parse_all_deployment_files, parse_deployment_file
-from gitlab_client import (
-    GITLAB_BASE_URL,
-    GITLAB_PROJECT_ID,
-    GitLabClient,
-    make_gitlab_config,
-)
-from constraint_summary import fk_summary_table
-from index_summary import index_summary_table
-from diff_viewer import prepare_display_ddl, side_by_side_diff_html
-from schema_compare_engine import (
+from db2_explorer.clients.azure import AUTH_METHOD_LABELS, AzureConnection, test_connection as test_azure
+from db2_explorer.compare.schema_compare import (
     ObjectCompareResult,
     filter_results,
     merge_type_results,
     refresh_type_compare,
     run_schema_compare,
 )
+from db2_explorer.ddl.diff_viewer import prepare_display_ddl, side_by_side_diff_html
+from db2_explorer.ddl.fetcher import fetch_all_objects, fetch_constraints, fetch_indexes
+from db2_explorer.gitlab.client import (
+    GITLAB_BASE_URL,
+    GITLAB_PROJECT_ID,
+    GitLabClient,
+    make_gitlab_config,
+)
+from db2_explorer.gitlab.deployment_parser import (
+    OBJECT_TYPE_FILES,
+    parse_all_deployment_files,
+    parse_deployment_file,
+)
+from db2_explorer.sync.constraint_summary import fk_summary_table
+from db2_explorer.sync.constraints import (
+    apply_sync_script,
+    generate_batch_scripts,
+    generate_sync_script,
+    preflight_constraint,
+)
+from db2_explorer.sync.index_summary import index_summary_table
+from db2_explorer.sync.indexes import (
+    apply_index_sync_script,
+    generate_index_batch_scripts,
+    generate_index_sync_script,
+    preflight_index,
+)
+from db2_explorer.ui.components import page_header, sidebar_brand
+from db2_explorer.ui.theme import COLORS, apply_page
 
-st.set_page_config(page_title="Schema Compare", layout="wide")
+apply_page(title="Schema Compare", layout="wide", schema_compare=True)
 
-# 60% scrollable object list + 40% pinned bottom DDL pane
+# Split-pane layout: scrollable object list + pinned DDL pane
 st.markdown(
-    """
+    f"""
     <style>
-    /* Top object navigator — capped height with internal scroll */
-    .st-key-sch_objects_pane {
+    .st-key-sch_objects_pane {{
         max-height: calc(60vh - 8rem) !important;
         overflow-y: auto !important;
         overflow-x: hidden !important;
-    }
-    .st-key-sch_objects_pane [data-testid="stVerticalBlockBorderWrapper"] {
+    }}
+    .st-key-sch_objects_pane [data-testid="stVerticalBlockBorderWrapper"] {{
         max-height: calc(60vh - 8rem) !important;
         overflow-y: auto !important;
-    }
-    /* Native Streamlit bottom container (st.bottom / st._bottom) */
-    [data-testid="stBottomBlockContainer"] {
+    }}
+    [data-testid="stBottomBlockContainer"] {{
         max-height: 40vh !important;
         overflow-y: auto !important;
-        background: #ffffff !important;
-        border-top: 1px solid #e0e0e0 !important;
-        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1) !important;
-    }
-    [data-testid="stBottomBlockContainer"] iframe {
+        background: {COLORS['surface']} !important;
+        border-top: 1px solid {COLORS['border']} !important;
+        box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.08) !important;
+    }}
+    [data-testid="stBottomBlockContainer"] iframe {{
         height: calc(40vh - 11rem) !important;
         min-height: 160px !important;
-    }
-    /* Fallback when st.bottom is unavailable — fixed pane + main padding */
-    section.main:has(.sch-ddl-open-marker) {
+    }}
+    section.main:has(.sch-ddl-open-marker) {{
         padding-bottom: calc(40vh + 1.5rem) !important;
-    }
-    section.main .st-key-sch_ddl_pane {
+    }}
+    section.main .st-key-sch_ddl_pane {{
         position: fixed !important;
         bottom: 0 !important;
         left: 5.5rem !important;
@@ -82,14 +85,14 @@ st.markdown(
         max-height: 40vh !important;
         overflow-y: auto !important;
         z-index: 999 !important;
-        background: #ffffff !important;
-        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.12) !important;
-        border-top: 1px solid #e0e0e0 !important;
-    }
-    section.main .st-key-sch_ddl_pane iframe {
+        background: {COLORS['surface']} !important;
+        border-top: 1px solid {COLORS['border']} !important;
+        box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.1) !important;
+    }}
+    section.main .st-key-sch_ddl_pane iframe {{
         height: calc(40vh - 11rem) !important;
         min-height: 160px !important;
-    }
+    }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -678,8 +681,16 @@ if "sch_azure_conn" not in st.session_state:
 if "sch_apply_log" not in st.session_state:
     st.session_state.sch_apply_log = []
 
-st.title("Schema Compare")
-st.caption("Compare GitLab deployment DDL (source) against live target database definitions.")
+with st.sidebar:
+    sidebar_brand(tagline="GitLab DDL vs live target")
+    st.markdown("---")
+    st.page_link("app.py", label="Home", icon="🏠")
+
+page_header(
+    "Schema Compare",
+    subtitle="Compare GitLab deployment DDL (source) against live target database definitions.",
+    badge="Drift",
+)
 
 # ---------------------------------------------------------------------------
 # Header: GitLab source + Target connection

@@ -1,4 +1,4 @@
-"""DB2 vs Azure SQL — Table row-count comparison page."""
+"""Row Compare — DB2 vs Azure SQL table row-count comparison."""
 
 from __future__ import annotations
 
@@ -7,16 +7,20 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
-from azure_client import AUTH_METHOD_LABELS, AzureConnection, test_connection as test_azure
-from compare_engine import (
+from db2_explorer.clients.azure import AUTH_METHOD_LABELS, AzureConnection, test_connection as test_azure
+from db2_explorer.clients.db2 import query_single
+from db2_explorer.compare.row_compare import (
     CompareResult,
     comparison_metrics,
     filter_comparison,
     list_source_tables,
     run_comparison,
 )
-from connections_loader import Connection, parse_jdbc_db2_url
-from db2_client import query_single
+from db2_explorer.data.connections import Connection, parse_jdbc_db2_url
+from db2_explorer.ui.components import page_header, sidebar_brand
+from db2_explorer.ui.theme import apply_page, COLORS
+
+apply_page(title="Row Compare", layout="wide")
 
 
 def _table_checkbox_key(table_name: str) -> str:
@@ -46,22 +50,17 @@ def _split_tables_into_columns(tables: list[str], num_cols: int) -> list[list[st
 
 
 st.markdown(
-    """
+    f"""
     <style>
-    .compare-card {
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 1rem 1.25rem;
+    .compare-card {{
+        border: 1px solid {COLORS['border']};
+        border-radius: 14px;
+        padding: 1.1rem 1.25rem;
         margin-bottom: 0.5rem;
-        background: #fafafa;
-    }
-    .compare-card h4 { margin-top: 0; }
-    .schema-bridge {
-        text-align: center;
-        padding: 0.75rem 0;
-        color: #555;
-        font-size: 0.95rem;
-    }
+        background: {COLORS['surface']};
+        box-shadow: 0 1px 3px rgba(15,23,42,0.05);
+    }}
+    .compare-card h4 {{ margin-top: 0; color: {COLORS['primary_dark']}; }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -81,11 +80,15 @@ if "cmp_table_list_columns" not in st.session_state:
     st.session_state.cmp_table_list_columns = 3
 
 with st.sidebar:
-    st.caption("Connections are configured on this page (not shared with Object Explorer).")
+    sidebar_brand(tagline="Source vs target row counts")
+    st.markdown("---")
+    st.page_link("app.py", label="Home", icon="🏠")
+    st.caption("Connections are configured on this page.")
 
-st.title("DB2 vs Azure — Table Count Comparison")
-st.caption(
-    "Compare exact row counts per table: **Source** (DB2 LUW schema) vs **Target** (Azure SQL schema)."
+page_header(
+    "Row Compare",
+    subtitle="Compare exact row counts per table: DB2 LUW source schema vs Azure SQL target schema.",
+    badge="Validation",
 )
 if st.session_state.compare_ran_at:
     st.caption(f"Last run: {st.session_state.compare_ran_at}")

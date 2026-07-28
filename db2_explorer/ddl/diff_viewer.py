@@ -6,7 +6,7 @@ import html
 import difflib
 import re
 
-from ddl_normalizer import strip_comments_and_headers
+from db2_explorer.ddl.normalizer import strip_comments_and_headers
 
 _DIFF_STYLES = """
 html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }

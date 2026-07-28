@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from ddl_normalizer import strip_comments_and_headers
+from db2_explorer.ddl.normalizer import strip_comments_and_headers
 
 _ACTION = r"(CASCADE|NO\s+ACTION|SET\s+NULL|SET\s+DEFAULT)"
 _FK_RE = re.compile(
