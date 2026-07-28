@@ -8,7 +8,6 @@ from db2_explorer.ui.theme import COLORS
 
 
 def sidebar_brand(*, tagline: str = "Enterprise migration intelligence") -> None:
-    """Branded sidebar header."""
     st.markdown(
         f"""
         <div style="padding: 0.5rem 0 1.25rem 0;">
@@ -23,6 +22,40 @@ def sidebar_brand(*, tagline: str = "Enterprise migration intelligence") -> None
         """,
         unsafe_allow_html=True,
     )
+
+
+def service_top_bar(title: str, *, tagline: str = "", home_key: str = "home") -> None:
+    """Compact top navigation: back to home + service title + studio brand."""
+    col_back, col_title, col_brand = st.columns([1.2, 5, 2])
+    with col_back:
+        if st.button("← Home", key=home_key, type="secondary", use_container_width=True):
+            st.switch_page("app.py")
+    with col_title:
+        tagline_html = (
+            f'<span style="font-weight:400;color:{COLORS["text_muted"]};font-size:0.95rem;">'
+            f" — {tagline}</span>"
+            if tagline
+            else ""
+        )
+        st.markdown(
+            f"""
+            <div style="padding-top:0.35rem;">
+                <span style="font-size:1.15rem;font-weight:650;color:{COLORS['primary_dark']};">
+                    {title}{tagline_html}
+                </span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with col_brand:
+        st.markdown(
+            f"""
+            <div class="ms-service-topbar-brand" style="text-align:right;padding-top:0.5rem;">
+                DB2 Migration Studio
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 def page_header(

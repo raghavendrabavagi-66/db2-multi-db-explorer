@@ -13,34 +13,16 @@ from db2_explorer.ui.components import (
     ICON_SEARCH,
     feature_card,
     page_header,
-    sidebar_brand,
 )
-from db2_explorer.ui.theme import COLORS, inject_global_styles
+from db2_explorer.ui.theme import COLORS, apply_page
 
-st.set_page_config(
-    page_title="DB2 Migration Studio",
-    page_icon="🗄️",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
-inject_global_styles()
-
-with st.sidebar:
-    sidebar_brand()
-    st.markdown("---")
-    st.markdown("**Workspace**")
-    st.page_link("app.py", label="Home", icon="🏠")
-    st.page_link("pages/1_Object_Explorer.py", label="Object Explorer", icon="🔍")
-    st.page_link("pages/2_Row_Compare.py", label="Row Compare", icon="📊")
-    st.page_link("pages/3_Schema_Compare.py", label="Schema Compare", icon="🔄")
-    st.markdown("---")
-    st.caption("Design system: Data-Dense Dashboard · Fira Sans")
+apply_page(title="DB2 Migration Studio", layout="wide")
 
 page_header(
     "DB2 Migration Studio",
     subtitle=(
         "Explore DB2 catalogs across fleets, validate row counts against Azure SQL, "
-        "and reconcile GitLab deployment DDL with live target databases — in one workspace."
+        "and reconcile GitLab deployment DDL with live target databases."
     ),
     badge="Enterprise",
 )
@@ -65,7 +47,7 @@ st.markdown(
                 box-shadow: 0 8px 24px rgba(30, 64, 175, 0.25);">
         <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em;
                     opacity: 0.85; margin-bottom: 0.5rem;">Migration intelligence</div>
-        <div style="font-size: 1.35rem; font-weight: 650; line-height: 1.35; max-width: 640px;">
+        <div style="font-size: 1.35rem; font-weight: 650; line-height: 1.35; max-width: 720px;">
             From catalog discovery to schema drift remediation — purpose-built for DB2 LUW
             to Azure SQL migration programs.
         </div>
@@ -85,7 +67,7 @@ with col1:
         icon_svg=ICON_SEARCH,
         accent=COLORS["primary"],
     )
-    if st.button("Open Object Explorer", key="nav_obj", type="primary", width="stretch"):
+    if st.button("Open Object Explorer", key="nav_obj", type="primary", use_container_width=True):
         st.switch_page("pages/1_Object_Explorer.py")
 
 with col2:
@@ -96,7 +78,7 @@ with col2:
         icon_svg=ICON_COMPARE,
         accent=COLORS["secondary"],
     )
-    if st.button("Open Row Compare", key="nav_row", width="stretch"):
+    if st.button("Open Row Compare", key="nav_row", type="primary", use_container_width=True):
         st.switch_page("pages/2_Row_Compare.py")
 
 with col3:
@@ -107,7 +89,7 @@ with col3:
         icon_svg=ICON_SCHEMA,
         accent=COLORS["accent"],
     )
-    if st.button("Open Schema Compare", key="nav_schema", width="stretch"):
+    if st.button("Open Schema Compare", key="nav_schema", type="primary", use_container_width=True):
         st.switch_page("pages/3_Schema_Compare.py")
 
 st.markdown("---")

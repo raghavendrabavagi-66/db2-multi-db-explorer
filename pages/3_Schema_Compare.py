@@ -47,7 +47,7 @@ from db2_explorer.sync.indexes import (
     generate_index_sync_script,
     preflight_index,
 )
-from db2_explorer.ui.components import page_header, redgate_comparison_bar, sidebar_brand
+from db2_explorer.ui.components import redgate_comparison_bar, service_top_bar
 from db2_explorer.ui.theme import COLORS, apply_page
 
 apply_page(title="Schema Compare", layout="wide", schema_compare=True)
@@ -82,7 +82,7 @@ st.markdown(
     section.main .st-key-sch_ddl_pane {{
         position: fixed !important;
         bottom: 0 !important;
-        left: 5.5rem !important;
+        left: 1.25rem !important;
         right: 1.25rem !important;
         height: 40vh !important;
         max-height: 40vh !important;
@@ -665,15 +665,10 @@ if "sch_azure_conn" not in st.session_state:
 if "sch_apply_log" not in st.session_state:
     st.session_state.sch_apply_log = []
 
-with st.sidebar:
-    sidebar_brand(tagline="GitLab DDL vs live target")
-    st.markdown("---")
-    st.page_link("app.py", label="Home", icon="🏠")
-
-page_header(
+service_top_bar(
     "Schema Compare",
-    subtitle="Compare GitLab deployment DDL (source) against live target database definitions.",
-    badge="Drift",
+    tagline="Compare GitLab deployment DDL against live target database definitions.",
+    home_key="sch_home",
 )
 
 # ---------------------------------------------------------------------------

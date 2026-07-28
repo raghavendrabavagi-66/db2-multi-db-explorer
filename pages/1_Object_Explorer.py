@@ -17,7 +17,7 @@ from db2_explorer.data.connections import (
     save_connections,
 )
 from db2_explorer.data.queries import MATCH_ORDER, OBJECT_TYPES
-from db2_explorer.ui.components import page_header, section_card, sidebar_brand
+from db2_explorer.ui.components import section_card, service_top_bar
 from db2_explorer.ui.theme import apply_page
 
 apply_page(title="Object Explorer", layout="wide")
@@ -70,26 +70,26 @@ if "db_list_df" not in st.session_state:
 if "show_db_editor" not in st.session_state:
     st.session_state.show_db_editor = False
 
-with st.sidebar:
-    sidebar_brand(tagline="Multi-database catalog search")
-    st.markdown("---")
-    st.page_link("app.py", label="Home", icon="🏠")
-    st.header("Connection")
-    username = st.text_input("Username", key="username")
-    password = st.text_input("Password", type="password", key="password")
-    st.divider()
-    include_system = st.checkbox("Include system objects (SYS* schemas)", value=False)
-    max_workers = st.slider("Parallel connections", 1, 32, 8)
+service_top_bar(
+    "Object Explorer",
+    tagline="Trace database objects across many DB2 LUW databases at once.",
+    home_key="oe_home",
+)
 
 connections = connections_from_rows(
     st.session_state.db_list_df.itertuples(index=False, name=None)
 )
 
-page_header(
-    "Object Explorer",
-    subtitle="Trace database objects across many DB2 LUW databases at once.",
-    badge="Catalog",
-)
+with st.expander("Connection settings", expanded=True):
+    cred1, cred2, cred3, cred4 = st.columns([2, 2, 2, 2])
+    with cred1:
+        username = st.text_input("Username", key="username")
+    with cred2:
+        password = st.text_input("Password", type="password", key="password")
+    with cred3:
+        include_system = st.checkbox("Include system objects (SYS* schemas)", value=False)
+    with cred4:
+        max_workers = st.slider("Parallel connections", 1, 32, 8)
 
 section_card("Database fleet", help_text=f"{len(connections)} database(s) configured")
 dbcol1, dbcol2 = st.columns([3, 1])

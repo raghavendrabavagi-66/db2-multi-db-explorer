@@ -48,14 +48,26 @@ code, pre, .stCodeBlock {{
     font-family: 'Fira Code', ui-monospace, monospace !important;
 }}
 
-/* App chrome */
+/* App chrome — full width, no sidebar */
 .block-container {{
-    padding-top: 1.25rem;
+    padding-top: 1rem;
     padding-bottom: 2rem;
-    max-width: 1280px;
+    max-width: none;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
 }}
 
-/* Sidebar */
+section[data-testid="stSidebar"],
+section[data-testid="stSidebar"] ~ div[data-testid="collapsedControl"],
+[data-testid="collapsedControl"] {{
+    display: none !important;
+}}
+
+section.main > div {{
+    max-width: none;
+}}
+
+/* Legacy sidebar styles (unused when sidebar hidden) */
 section[data-testid="stSidebar"] {{
     background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
     border-right: 1px solid rgba(255,255,255,0.06);
@@ -70,6 +82,24 @@ section[data-testid="stSidebar"] .stTextInput input {{
     background: rgba(255,255,255,0.08);
     border: 1px solid rgba(255,255,255,0.12);
     color: #f8fafc;
+}}
+
+/* Service top bar */
+.ms-service-topbar {{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.5rem 0 1rem 0;
+    margin-bottom: 0.25rem;
+    border-bottom: 1px solid {COLORS['border']};
+}}
+.ms-service-topbar-brand {{
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: {COLORS['text_muted']};
+    letter-spacing: 0.02em;
+    white-space: nowrap;
 }}
 
 /* Primary buttons */
@@ -172,7 +202,7 @@ def apply_page(
     title: str,
     icon: str = "",
     layout: str = "wide",
-    sidebar_expanded: bool = True,
+    sidebar_expanded: bool = False,
     schema_compare: bool = False,
 ) -> None:
     """Standard page bootstrap: config + global styles."""

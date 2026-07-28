@@ -17,7 +17,7 @@ from db2_explorer.compare.row_compare import (
     run_comparison,
 )
 from db2_explorer.data.connections import Connection, parse_jdbc_db2_url
-from db2_explorer.ui.components import page_header, sidebar_brand
+from db2_explorer.ui.components import service_top_bar
 from db2_explorer.ui.theme import apply_page, COLORS
 
 apply_page(title="Row Compare", layout="wide")
@@ -79,16 +79,10 @@ if "cmp_tables_loaded_for_schema" not in st.session_state:
 if "cmp_table_list_columns" not in st.session_state:
     st.session_state.cmp_table_list_columns = 3
 
-with st.sidebar:
-    sidebar_brand(tagline="Source vs target row counts")
-    st.markdown("---")
-    st.page_link("app.py", label="Home", icon="🏠")
-    st.caption("Connections are configured on this page.")
-
-page_header(
+service_top_bar(
     "Row Compare",
-    subtitle="Compare exact row counts per table: DB2 LUW source schema vs Azure SQL target schema.",
-    badge="Validation",
+    tagline="Compare exact row counts per table: DB2 LUW source vs Azure SQL target.",
+    home_key="rc_home",
 )
 if st.session_state.compare_ran_at:
     st.caption(f"Last run: {st.session_state.compare_ran_at}")
