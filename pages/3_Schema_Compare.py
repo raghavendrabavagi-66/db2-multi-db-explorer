@@ -532,7 +532,7 @@ def _render_index_batch_sync(all_items: list[ObjectCompareResult]) -> None:
 
 
 def _render_ddl_pane(selected: ObjectCompareResult) -> None:
-    st.subheader("DDL comparison")
+    st.subheader("DDL Comparison")
     if selected.source_file:
         src_file = selected.source_file
     elif selected.status in ("identical", "different", "only_gitlab"):
@@ -677,7 +677,7 @@ service_top_bar(
 col_gl, col_tgt = st.columns(2)
 
 with col_gl:
-    st.markdown("#### Source — GitLab deployment")
+    st.markdown("#### Source — GitLab Deployment")
     st.caption(f"{GITLAB_BASE_URL} · project {GITLAB_PROJECT_ID}")
 
     gitlab_token = st.text_input(

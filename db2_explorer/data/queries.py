@@ -19,14 +19,14 @@ from dataclasses import dataclass
 
 # label -> function turning the user's text into a LIKE pattern.
 MATCH_OPERATORS: dict[str, "callable"] = {
-    "begins with": lambda t: f"{t}%",
-    "ends with": lambda t: f"%{t}",
-    "anywhere": lambda t: f"%{t}%",
-    "exact": lambda t: t,
+    "Begins with": lambda t: f"{t}%",
+    "Ends with": lambda t: f"%{t}",
+    "Anywhere": lambda t: f"%{t}%",
+    "Exact": lambda t: t,
 }
 
-# Order used to render UI radio buttons.
-MATCH_ORDER = ["begins with", "ends with", "anywhere", "exact"]
+# Order used to render UI radio buttons (Title Case labels).
+MATCH_ORDER = ["Begins with", "Ends with", "Anywhere", "Exact"]
 
 
 def build_pattern(operator: str, text: str) -> str:

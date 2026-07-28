@@ -40,7 +40,7 @@ def service_top_bar(title: str, *, tagline: str = "", home_key: str = "home") ->
         st.markdown(
             f"""
             <div style="padding-top:0.35rem;">
-                <span style="font-size:1.15rem;font-weight:650;color:{COLORS['primary_dark']};">
+                <span style="font-size:1.15rem;font-weight:650;color:{COLORS['text']};">
                     {title}{tagline_html}
                 </span>
             </div>
@@ -56,6 +56,55 @@ def service_top_bar(title: str, *, tagline: str = "", home_key: str = "home") ->
             """,
             unsafe_allow_html=True,
         )
+
+
+def panel_title(title: str) -> None:
+    """Panel section heading — pass Title Case; CSS renders uppercase."""
+    st.markdown(f'<p class="ms-oe-panel-title">{title}</p>', unsafe_allow_html=True)
+
+
+def home_hero(*, title: str, subtitle: str, kicker: str = "Migration intelligence") -> None:
+    """Centered minimal hero for the home launcher."""
+    st.markdown(
+        f"""
+        <div class="ms-home-marker" aria-hidden="true" style="display:none;"></div>
+        <div class="ms-home-hero">
+            <div class="ms-home-kicker">{kicker}</div>
+            <div class="ms-home-accent-line"></div>
+            <h1 class="ms-home-title">{title}</h1>
+            <p class="ms-home-subtitle">{subtitle}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def home_service_card(
+    title: str,
+    blurb: str,
+    *,
+    icon_svg: str,
+    accent: str | None = None,
+) -> None:
+    """Minimal service tile for the home page."""
+    accent = accent or COLORS["primary"]
+    st.markdown(
+        f"""
+        <div class="ms-home-card">
+            <div class="ms-home-card-icon" style="
+                background: linear-gradient(135deg, {accent}18, {accent}08);
+                color: {accent};
+            ">{icon_svg}</div>
+            <div class="ms-home-card-title">{title}</div>
+            <div class="ms-home-card-blurb">{blurb}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def home_footer(text: str = "DB2 LUW → Azure SQL · GitLab deployment validation") -> None:
+    st.markdown(f'<div class="ms-home-footer">{text}</div>', unsafe_allow_html=True)
 
 
 def page_header(
@@ -82,7 +131,7 @@ def page_header(
     st.markdown(
         f"""
         <div style="margin-bottom: 1.25rem;">
-            <h1 style="margin:0;font-size:1.85rem;font-weight:700;color:{COLORS['primary_dark']};
+            <h1 style="margin:0;font-size:1.85rem;font-weight:700;color:{COLORS['text']};
                        letter-spacing:-0.03em;line-height:1.2;">
                 {title}{badge_html}
             </h1>
@@ -119,7 +168,7 @@ def feature_card(
                         margin-bottom:0.85rem;color:{accent};">
                 {icon_svg}
             </div>
-            <div style="font-size:1.05rem;font-weight:650;color:{COLORS['primary_dark']};
+            <div style="font-size:1.05rem;font-weight:650;color:{COLORS['text']};
                         margin-bottom:0.4rem;">{title}</div>
             <div style="font-size:0.88rem;color:{COLORS['text_muted']};line-height:1.55;">
                 {description}
@@ -144,7 +193,7 @@ def section_card(title: str, *, help_text: str = "") -> None:
                     border-bottom: 2px solid {COLORS['border']};">
             <span style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
                          letter-spacing: 0.08em; color: {COLORS['accent']};">Section</span>
-            <div style="font-size: 1.1rem; font-weight: 650; color: {COLORS['primary_dark']};">
+            <div style="font-size: 1.1rem; font-weight: 650; color: {COLORS['text']};">
                 {title}{help_html}
             </div>
         </div>

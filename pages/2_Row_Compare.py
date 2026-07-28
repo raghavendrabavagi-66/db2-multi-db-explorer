@@ -60,7 +60,7 @@ st.markdown(
         background: {COLORS['surface']};
         box-shadow: 0 1px 3px rgba(15,23,42,0.05);
     }}
-    .compare-card h4 {{ margin-top: 0; color: {COLORS['primary_dark']}; }}
+    .compare-card h4 {{ margin-top: 0; color: {COLORS['text']}; }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -189,7 +189,7 @@ with col_az:
 # ---------------------------------------------------------------------------
 # Schema mapping
 # ---------------------------------------------------------------------------
-st.markdown("#### Schema mapping")
+st.markdown("#### Schema Mapping")
 map_col1, map_mid, map_col2 = st.columns([2, 1, 2])
 with map_col1:
     db2_schema = st.text_input("Source schema", value="USERID", key="cmp_db2_schema")

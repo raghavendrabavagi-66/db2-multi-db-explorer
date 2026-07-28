@@ -4,18 +4,18 @@ from __future__ import annotations
 
 import streamlit as st
 
-# Design tokens (design-system/db2-migration-studio/MASTER.md)
+# Design tokens — clean white UI, blue primary (no navy/purple foreground)
 COLORS = {
-    "primary": "#1E40AF",
-    "primary_dark": "#1E3A8A",
+    "primary": "#2563EB",
+    "primary_dark": "#1D4ED8",
     "secondary": "#3B82F6",
     "accent": "#D97706",
-    "background": "#F8FAFC",
+    "background": "#FFFFFF",
     "surface": "#FFFFFF",
-    "muted": "#E9EEF6",
-    "border": "#DBEAFE",
-    "text": "#1E3A8A",
-    "text_muted": "#475569",
+    "muted": "#F1F5F9",
+    "border": "#E2E8F0",
+    "text": "#0F172A",
+    "text_muted": "#64748B",
     "success": "#059669",
     "destructive": "#DC2626",
 }
@@ -44,13 +44,17 @@ html, body, [class*="css"] {{
     font-family: 'Fira Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 }}
 
+.stApp, section.main, .block-container {{
+    background-color: {COLORS['background']} !important;
+}}
+
 code, pre, .stCodeBlock {{
     font-family: 'Fira Code', ui-monospace, monospace !important;
 }}
 
-/* App chrome — full width, no sidebar */
+/* App chrome — full width, no sidebar; top padding clears Streamlit stHeader (Deploy / menu) */
 .block-container {{
-    padding-top: 1rem;
+    padding-top: 2rem;
     padding-bottom: 2rem;
     max-width: none;
     padding-left: 1.5rem;
@@ -112,7 +116,7 @@ section[data-testid="stSidebar"] .stTextInput input {{
 }}
 .stButton > button[kind="primary"]:hover {{
     transform: translateY(-1px);
-    box-shadow: 0 4px 14px rgba(30, 64, 175, 0.35);
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
 }}
 
 /* Metrics */
@@ -130,7 +134,7 @@ div[data-testid="stMetric"] label {{
     letter-spacing: 0.04em;
 }}
 div[data-testid="stMetric"] [data-testid="stMetricValue"] {{
-    color: {COLORS['primary_dark']} !important;
+    color: {COLORS['text']} !important;
     font-weight: 700;
 }}
 
@@ -188,12 +192,292 @@ SCHEMA_COMPARE_CSS = """
 }
 """
 
+HOME_PAGE_CSS = f"""
+/* Home — minimal launcher (UI UX Pro Max: Minimal Single Column, density 2) */
+.stApp:has(.ms-home-marker) {{
+    background: {COLORS['background']};
+}}
+.stApp:has(.ms-home-marker) header,
+.stApp:has(.ms-home-marker) footer,
+.stApp:has(.ms-home-marker) #MainMenu {{
+    visibility: hidden;
+}}
+.stApp:has(.ms-home-marker) .block-container {{
+    max-width: 920px;
+    margin: 0 auto;
+    padding-top: min(14vh, 7rem);
+    padding-bottom: 4rem;
+}}
+.ms-home-hero {{
+    text-align: center;
+    margin-bottom: 3.5rem;
+}}
+.ms-home-kicker {{
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: {COLORS['text_muted']};
+    margin-bottom: 1rem;
+}}
+.ms-home-accent-line {{
+    width: 40px;
+    height: 3px;
+    margin: 0 auto 1.25rem auto;
+    border-radius: 2px;
+    background: linear-gradient(90deg, {COLORS['primary']}, {COLORS['secondary']});
+}}
+.ms-home-title {{
+    margin: 0;
+    font-size: clamp(2rem, 4.5vw, 2.85rem);
+    font-weight: 700;
+    letter-spacing: -0.045em;
+    line-height: 1.12;
+    color: {COLORS['text']};
+}}
+.ms-home-subtitle {{
+    margin: 1rem auto 0 auto;
+    max-width: 34rem;
+    font-size: 1.05rem;
+    font-weight: 400;
+    line-height: 1.6;
+    color: {COLORS['text_muted']};
+}}
+.ms-home-card {{
+    background: {COLORS['surface']};
+    border: 1px solid {COLORS['border']};
+    border-radius: 16px;
+    padding: 1.5rem 1.35rem 1.25rem;
+    height: 100%;
+    min-height: 168px;
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    cursor: default;
+}}
+.ms-home-card:hover {{
+    border-color: rgba(37, 99, 235, 0.35);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}}
+.ms-home-card-icon {{
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+}}
+.ms-home-card-title {{
+    font-size: 1.02rem;
+    font-weight: 650;
+    color: {COLORS['text']};
+    margin-bottom: 0.35rem;
+    letter-spacing: -0.02em;
+}}
+.ms-home-card-blurb {{
+    font-size: 0.86rem;
+    line-height: 1.55;
+    color: {COLORS['text_muted']};
+    flex: 1;
+}}
+.ms-home-footer {{
+    text-align: center;
+    margin-top: 3rem;
+    font-size: 0.75rem;
+    color: {COLORS['text_muted']};
+    letter-spacing: 0.02em;
+}}
+.stApp:has(.ms-home-marker) .st-key-home_nav_obj button,
+.stApp:has(.ms-home-marker) .st-key-home_nav_row button,
+.stApp:has(.ms-home-marker) .st-key-home_nav_sch button {{
+    background: transparent !important;
+    color: {COLORS['primary']} !important;
+    border: 1px solid {COLORS['border']} !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+    margin-top: 0.65rem;
+    transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease !important;
+}}
+.stApp:has(.ms-home-marker) .st-key-home_nav_obj button:hover,
+.stApp:has(.ms-home-marker) .st-key-home_nav_row button:hover,
+.stApp:has(.ms-home-marker) .st-key-home_nav_sch button:hover {{
+    background: {COLORS['muted']} !important;
+    border-color: {COLORS['primary']} !important;
+    transform: none !important;
+    box-shadow: none !important;
+}}
+"""
 
-def inject_global_styles(*, schema_compare: bool = False) -> None:
+
+OBJECT_EXPLORER_CSS = f"""
+/* Object Explorer — fit setup + search/results in one viewport (no page scroll) */
+.stApp:has(.ms-oe-marker) section.main .block-container {{
+    display: flex !important;
+    flex-direction: column !important;
+    height: calc(100vh - 5.5rem) !important;
+    max-height: calc(100vh - 5.5rem) !important;
+    overflow: hidden !important;
+    padding-bottom: 1rem !important;
+    box-sizing: border-box !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_page_header {{
+    flex: 0 0 auto !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_section1 {{
+    flex: 0 0 auto !important;
+    max-height: 42vh !important;
+    overflow-y: auto !important;
+    margin-bottom: 0.75rem !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_section2 {{
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_section2 > div[data-testid="stVerticalBlock"] {{
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: 100% !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_section2 [data-testid="stHorizontalBlock"] {{
+    align-items: stretch !important;
+    height: 100% !important;
+    min-height: 0 !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_section2 [data-testid="column"] {{
+    height: 100% !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_section2 [data-testid="column"] > div {{
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+}}
+/* Search + results bordered panels fill column height */
+.stApp:has(.ms-oe-marker) .st-key-oe_search_panel,
+.stApp:has(.ms-oe-marker) .st-key-oe_results_panel {{
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_search_panel [data-testid="stVerticalBlockBorderWrapper"],
+.stApp:has(.ms-oe-marker) .st-key-oe_results_panel [data-testid="stVerticalBlockBorderWrapper"] {{
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_search_panel [data-testid="stVerticalBlockBorderWrapper"] > div,
+.stApp:has(.ms-oe-marker) .st-key-oe_results_panel [data-testid="stVerticalBlockBorderWrapper"] > div {{
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_search_panel .st-key-oe_search_btn {{
+    margin-top: auto !important;
+    padding-top: 1rem;
+}}
+/* Results: fixed summary + scrollable table */
+.stApp:has(.ms-oe-marker) .st-key-oe_results_summary {{
+    flex: 0 0 auto !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_results_table {{
+    flex: 1 1 auto !important;
+    min-height: 8rem !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_results_table > div {{
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_results_table [data-testid="stDataFrame"] {{
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: 100% !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_results_table [data-testid="stDataFrame"] > div,
+.stApp:has(.ms-oe-marker) .st-key-oe_results_table [data-testid="stDataFrame"] iframe {{
+    height: 100% !important;
+    min-height: 0 !important;
+}}
+/* Bordered inputs — username, password, object type, text to match */
+.stApp:has(.ms-oe-marker) .st-key-username input,
+.stApp:has(.ms-oe-marker) .st-key-password input,
+.stApp:has(.ms-oe-marker) .st-key-oe_filter_text input {{
+    border: 2px solid {COLORS['border']} !important;
+    border-radius: 8px !important;
+    background: {COLORS['surface']} !important;
+    padding: 0.5rem 0.75rem !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-username input:focus,
+.stApp:has(.ms-oe-marker) .st-key-password input:focus,
+.stApp:has(.ms-oe-marker) .st-key-oe_filter_text input:focus {{
+    border-color: {COLORS['primary']} !important;
+    border-width: 2px !important;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12) !important;
+    outline: none !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_object_type [data-testid="stSelectbox"] [data-baseweb="select"] > div,
+.stApp:has(.ms-oe-marker) .st-key-oe_object_type [data-baseweb="select"] > div {{
+    border: 2px solid {COLORS['border']} !important;
+    border-radius: 8px !important;
+    background: {COLORS['surface']} !important;
+}}
+.stApp:has(.ms-oe-marker) .st-key-oe_object_type [data-testid="stSelectbox"]:focus-within [data-baseweb="select"] > div,
+.stApp:has(.ms-oe-marker) .st-key-oe_object_type [data-baseweb="select"]:focus-within > div {{
+    border-color: {COLORS['primary']} !important;
+    border-width: 2px !important;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12) !important;
+}}
+.ms-oe-panel-title {{
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: {COLORS['primary']};
+    margin: 0 0 0.75rem 0;
+}}
+.ms-oe-empty {{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 auto;
+    min-height: 0;
+    color: {COLORS['text_muted']};
+    font-size: 0.95rem;
+    text-align: center;
+    padding: 2rem;
+}}
+"""
+
+
+def inject_global_styles(*, schema_compare: bool = False, home: bool = False, object_explorer: bool = False) -> None:
     """Inject design-system CSS once per run."""
     css = GLOBAL_CSS
     if schema_compare:
         css += SCHEMA_COMPARE_CSS
+    if home:
+        css += HOME_PAGE_CSS
+    if object_explorer:
+        css += OBJECT_EXPLORER_CSS
     st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
 
 
@@ -204,6 +488,8 @@ def apply_page(
     layout: str = "wide",
     sidebar_expanded: bool = False,
     schema_compare: bool = False,
+    home: bool = False,
+    object_explorer: bool = False,
 ) -> None:
     """Standard page bootstrap: config + global styles."""
     page_title = f"{icon} {title}".strip() if icon else title
@@ -213,4 +499,4 @@ def apply_page(
         layout=layout,
         initial_sidebar_state="expanded" if sidebar_expanded else "collapsed",
     )
-    inject_global_styles(schema_compare=schema_compare)
+    inject_global_styles(schema_compare=schema_compare, home=home, object_explorer=object_explorer)

@@ -1,4 +1,4 @@
-"""DB2 Migration Studio — home and navigation hub.
+"""DB2 Migration Studio — home launcher.
 
 Run:  streamlit run app.py
 """
@@ -11,95 +11,49 @@ from db2_explorer.ui.components import (
     ICON_COMPARE,
     ICON_SCHEMA,
     ICON_SEARCH,
-    feature_card,
-    page_header,
+    home_footer,
+    home_hero,
+    home_service_card,
 )
 from db2_explorer.ui.theme import COLORS, apply_page
 
-apply_page(title="DB2 Migration Studio", layout="wide")
+apply_page(title="DB2 Migration Studio", layout="wide", home=True)
 
-page_header(
-    "DB2 Migration Studio",
-    subtitle=(
-        "Explore DB2 catalogs across fleets, validate row counts against Azure SQL, "
-        "and reconcile GitLab deployment DDL with live target databases."
-    ),
-    badge="Enterprise",
+home_hero(
+    title="DB2 Migration Studio",
+    subtitle="Choose a workflow to explore catalogs, validate row counts, or reconcile schema drift.",
 )
 
-# Hero metrics strip
-c1, c2, c3, c4 = st.columns(4)
-with c1:
-    st.metric("Services", "3", "Multipage")
-with c2:
-    st.metric("Sources", "DB2 + GitLab", "")
-with c3:
-    st.metric("Targets", "Azure / SQL Server", "")
-with c4:
-    st.metric("Sync", "Constraints + Indexes", "")
-
-st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
-
-st.markdown(
-    f"""
-    <div style="background: linear-gradient(135deg, {COLORS['primary']} 0%, {COLORS['primary_dark']} 100%);
-                color: white; border-radius: 18px; padding: 1.75rem 2rem; margin-bottom: 1.5rem;
-                box-shadow: 0 8px 24px rgba(30, 64, 175, 0.25);">
-        <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em;
-                    opacity: 0.85; margin-bottom: 0.5rem;">Migration intelligence</div>
-        <div style="font-size: 1.35rem; font-weight: 650; line-height: 1.35; max-width: 720px;">
-            From catalog discovery to schema drift remediation — purpose-built for DB2 LUW
-            to Azure SQL migration programs.
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-st.subheader("Choose a workflow")
-col1, col2, col3 = st.columns(3)
+col1, col2, col3 = st.columns(3, gap="large")
 
 with col1:
-    feature_card(
+    home_service_card(
         "Object Explorer",
-        "Search procedures, tables, views, and more across many DB2 databases in parallel. "
-        "Paste JDBC URLs or manage connection lists inline.",
+        "Search tables, procedures, and views across many DB2 databases.",
         icon_svg=ICON_SEARCH,
         accent=COLORS["primary"],
     )
-    if st.button("Open Object Explorer", key="nav_obj", type="primary", use_container_width=True):
+    if st.button("Enter →", key="home_nav_obj", use_container_width=True):
         st.switch_page("pages/1_Object_Explorer.py")
 
 with col2:
-    feature_card(
+    home_service_card(
         "Row Compare",
-        "Map DB2 schemas to Azure SQL and compare table row counts. "
-        "Bulk LISTAGG with per-table fallback for large fleets.",
+        "Compare table row counts between DB2 source and Azure SQL target.",
         icon_svg=ICON_COMPARE,
         accent=COLORS["secondary"],
     )
-    if st.button("Open Row Compare", key="nav_row", type="primary", use_container_width=True):
+    if st.button("Enter →", key="home_nav_row", use_container_width=True):
         st.switch_page("pages/2_Row_Compare.py")
 
 with col3:
-    feature_card(
+    home_service_card(
         "Schema Compare",
-        "Load GitLab deployment DDL, diff against live target definitions, "
-        "and apply constraint or index drift with transactional sync.",
+        "Diff GitLab deployment DDL against live target definitions.",
         icon_svg=ICON_SCHEMA,
         accent=COLORS["accent"],
     )
-    if st.button("Open Schema Compare", key="nav_schema", type="primary", use_container_width=True):
+    if st.button("Enter →", key="home_nav_sch", use_container_width=True):
         st.switch_page("pages/3_Schema_Compare.py")
 
-st.markdown("---")
-with st.expander("Quick start"):
-    st.markdown(
-        """
-        1. **Object Explorer** — Add databases under *Edit DB list*, pick an object type, filter, and search.
-        2. **Row Compare** — Connect DB2 source + Azure target, map schemas, run comparison.
-        3. **Schema Compare** — Enter GitLab PAT, load deployment, connect target, *Compare all*.
-
-        Azure AD sign-in opens once per session. On-prem SQL Server targets use Windows integrated auth on Windows hosts.
-        """
-    )
+home_footer()
