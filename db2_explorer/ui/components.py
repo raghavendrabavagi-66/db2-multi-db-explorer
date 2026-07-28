@@ -150,6 +150,56 @@ def status_banner(message: str, *, kind: str = "info") -> None:
     )
 
 
+def redgate_comparison_bar(
+    counts: dict[str, int],
+    *,
+    active_bucket: str,
+    session_key: str = "sch_status_bucket",
+) -> None:
+    """Redgate-style clickable comparison summary (status buckets)."""
+    bucket_specs: list[tuple[str, str, str, str]] = [
+        ("drift", "Needs attention", str(counts.get("drift", 0)), COLORS["accent"]),
+        ("identical", "In both — identical", str(counts.get("identical", 0)), COLORS["success"]),
+        ("different", "In both — different", str(counts.get("different", 0)), "#EA580C"),
+        ("only_gitlab", "Only in GitLab", str(counts.get("only_gitlab", 0)), COLORS["primary"]),
+        ("only_db", "Only in database", str(counts.get("only_db", 0)), "#7C3AED"),
+    ]
+    cols = st.columns(len(bucket_specs))
+    for col, (bucket_id, label, value, accent) in zip(cols, bucket_specs):
+        with col:
+            is_active = active_bucket == bucket_id
+            st.markdown(
+                f"""
+                <div style="
+                    border: 2px solid {accent if is_active else COLORS['border']};
+                    border-radius: 12px;
+                    padding: 0.65rem 0.75rem;
+                    background: {accent + '14' if is_active else COLORS['surface']};
+                    margin-bottom: 0.35rem;
+                ">
+                    <div style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+                                letter-spacing: 0.06em; color: {COLORS['text_muted']};">
+                        {label}
+                    </div>
+                    <div style="font-size: 1.65rem; font-weight: 700; color: {accent};
+                                line-height: 1.2; margin-top: 0.15rem;">
+                        {value}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            if st.button(
+                "Show" if not is_active else "Showing",
+                key=f"sch_bucket_{bucket_id}",
+                type="primary" if is_active else "secondary",
+                use_container_width=True,
+                disabled=is_active,
+            ):
+                st.session_state[session_key] = bucket_id
+                st.rerun()
+
+
 # SVG icons (Lucide-style, no emoji per design checklist)
 ICON_SEARCH = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>'
 ICON_COMPARE = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>'

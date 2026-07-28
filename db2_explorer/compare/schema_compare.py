@@ -10,6 +10,27 @@ from db2_explorer.gitlab.deployment_parser import DeploymentObject
 from db2_explorer.ddl.diff_viewer import side_by_side_diff_html
 
 CompareStatusLiteral = Literal["identical", "different", "only_gitlab", "only_db"]
+StatusBucket = Literal["all", "drift", "identical", "different", "only_gitlab", "only_db"]
+
+REDGATE_STATUS_LABELS: dict[CompareStatusLiteral, str] = {
+    "identical": "In both — identical",
+    "different": "In both — different",
+    "only_gitlab": "Only in GitLab (source)",
+    "only_db": "Only in database (target)",
+}
+
+STATUS_BUCKET_LABELS: dict[StatusBucket, str] = {
+    "all": "All objects",
+    "drift": "Needs attention (all drift)",
+    "identical": REDGATE_STATUS_LABELS["identical"],
+    "different": REDGATE_STATUS_LABELS["different"],
+    "only_gitlab": REDGATE_STATUS_LABELS["only_gitlab"],
+    "only_db": REDGATE_STATUS_LABELS["only_db"],
+}
+
+DRIFT_STATUSES: frozenset[CompareStatusLiteral] = frozenset(
+    {"different", "only_gitlab", "only_db"}
+)
 
 
 @dataclass
@@ -147,26 +168,53 @@ def _parse_key(key: str, object_type: str) -> tuple[str, str, str]:
     return "", rest, ""
 
 
+def redgate_status_label(status: CompareStatusLiteral) -> str:
+    return REDGATE_STATUS_LABELS.get(status, status)
+
+
+def flatten_results(results: SchemaCompareResult) -> list[ObjectCompareResult]:
+    """All compared objects in a single list (sorted by type, schema, name)."""
+    flat: list[ObjectCompareResult] = []
+    for object_type in sorted(results.by_type.keys()):
+        flat.extend(results.by_type[object_type])
+    flat.sort(key=lambda i: (i.object_type, i.schema, i.parent, i.name))
+    return flat
+
+
+def _status_matches_bucket(status: CompareStatusLiteral, bucket: StatusBucket) -> bool:
+    if bucket == "all":
+        return True
+    if bucket == "drift":
+        return status in DRIFT_STATUSES
+    return status == bucket
+
+
 def filter_results(
     results: SchemaCompareResult,
-    view: str,
+    status_bucket: StatusBucket = "drift",
     search: str = "",
+    object_types: list[str] | None = None,
 ) -> SchemaCompareResult:
+    """Filter by Redgate-style comparison bucket, optional type list, and search."""
     search_l = search.strip().lower()
+    type_filter = set(object_types) if object_types else None
     filtered = SchemaCompareResult(
         missing_files=results.missing_files,
         bundle_path=results.bundle_path,
     )
     summary = CompareSummary()
     for object_type, items in results.by_type.items():
+        if type_filter is not None and object_type not in type_filter:
+            continue
         kept: list[ObjectCompareResult] = []
         for item in items:
-            if view == "Differences only" and item.status not in ("different", "only_gitlab", "only_db"):
-                continue
-            if view == "Missing in DB" and item.status != "only_gitlab":
+            if not _status_matches_bucket(item.status, status_bucket):
                 continue
             if search_l:
-                blob = f"{item.name} {item.parent} {item.schema} {item.object_key}".lower()
+                blob = (
+                    f"{item.name} {item.parent} {item.schema} {item.object_key} "
+                    f"{item.object_type} {redgate_status_label(item.status)}"
+                ).lower()
                 if search_l not in blob:
                     continue
             kept.append(item)
@@ -178,7 +226,8 @@ def filter_results(
                 summary.only_gitlab += 1
             else:
                 summary.only_db += 1
-        filtered.by_type[object_type] = kept
+        if kept:
+            filtered.by_type[object_type] = kept
     filtered.summary = summary
     return filtered
 

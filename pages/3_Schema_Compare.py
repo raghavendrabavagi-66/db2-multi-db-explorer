@@ -12,8 +12,11 @@ import streamlit as st
 from db2_explorer.clients.azure import AUTH_METHOD_LABELS, AzureConnection, test_connection as test_azure
 from db2_explorer.compare.schema_compare import (
     ObjectCompareResult,
+    StatusBucket,
     filter_results,
+    flatten_results,
     merge_type_results,
+    redgate_status_label,
     refresh_type_compare,
     run_schema_compare,
 )
@@ -44,7 +47,7 @@ from db2_explorer.sync.indexes import (
     generate_index_sync_script,
     preflight_index,
 )
-from db2_explorer.ui.components import page_header, sidebar_brand
+from db2_explorer.ui.components import page_header, redgate_comparison_bar, sidebar_brand
 from db2_explorer.ui.theme import COLORS, apply_page
 
 apply_page(title="Schema Compare", layout="wide", schema_compare=True)
@@ -122,25 +125,6 @@ _TYPE_LABELS = {
     "TRIGGER": "Triggers",
     "ROLE": "Roles",
 }
-
-
-def _type_summary(items: list[ObjectCompareResult]) -> str:
-    if not items:
-        return "0 objects"
-    identical = sum(1 for i in items if i.status == "identical")
-    different = sum(1 for i in items if i.status == "different")
-    only_gl = sum(1 for i in items if i.status == "only_gitlab")
-    only_db = sum(1 for i in items if i.status == "only_db")
-    parts = [f"{len(items)} objects"]
-    if identical:
-        parts.append(f"{identical} identical")
-    if different:
-        parts.append(f"{different} different")
-    if only_gl:
-        parts.append(f"{only_gl} only GitLab")
-    if only_db:
-        parts.append(f"{only_db} only DB")
-    return ", ".join(parts)
 
 
 def _get_bottom_container():
@@ -561,7 +545,7 @@ def _render_ddl_pane(selected: ObjectCompareResult) -> None:
         f"**{type_label}** · `{selected.schema}.{selected.name}`"
         + (f" on `{selected.parent}`" if selected.parent else "")
         + f" · {src_file}{line_info}"
-        + f" · status: **{selected.status}**"
+        + f" · {redgate_status_label(selected.status)}"
     )
     tab_sql, tab_summary, tab_sync = st.tabs(["SQL view", "Summary view", "Sync"])
     with tab_sql:
@@ -590,7 +574,7 @@ def _render_ddl_pane(selected: ObjectCompareResult) -> None:
             {
                 "Property": ["Status", "Object type", "Schema", "Name", "Parent table", "Source file", "GitLab line"],
                 "Value": [
-                    selected.status,
+                    redgate_status_label(selected.status),
                     _TYPE_LABELS.get(selected.object_type, selected.object_type),
                     selected.schema,
                     selected.name,
@@ -835,15 +819,12 @@ with col_tgt:
                 st.error(out.error)
 
 # ---------------------------------------------------------------------------
-# Compare action
+# Compare action + Redgate-style filters
 # ---------------------------------------------------------------------------
+if "sch_status_bucket" not in st.session_state:
+    st.session_state.sch_status_bucket = "drift"
+
 search = st.text_input("Search objects", key="sch_search", placeholder="Filter by name, schema, table…")
-view_filter = st.radio(
-    "Show",
-    ["All", "Differences only", "Missing in DB"],
-    horizontal=True,
-    key="sch_view_filter",
-)
 
 compare_clicked = st.button("Compare all", type="primary", key="sch_compare_all")
 
@@ -870,6 +851,9 @@ if compare_clicked:
         compare_result.bundle_path = st.session_state.sch_bundle_path
         st.session_state.sch_compare_result = compare_result
         st.session_state.sch_azure_conn = azure_conn
+        st.session_state.sch_status_bucket = "drift"
+        st.session_state.sch_selected_object_key = ""
+        st.session_state.sch_selected_object_type = ""
         progress.progress(1.0, text="Done")
         progress.empty()
         if fetch_err:
@@ -878,21 +862,77 @@ if compare_clicked:
         st.rerun()
 
 # ---------------------------------------------------------------------------
-# Results
+# Results — Redgate-style status buckets + flat object grid
 # ---------------------------------------------------------------------------
 raw_result = st.session_state.sch_compare_result
 if raw_result is None:
     st.info("Load a GitLab deployment, connect to the target database, then click **Compare all**.")
     st.stop()
 
-result = filter_results(raw_result, view_filter, search)
-summary = result.summary
+full_summary = raw_result.summary
+drift_total = full_summary.different + full_summary.only_gitlab + full_summary.only_db
+redgate_comparison_bar(
+    {
+        "drift": drift_total,
+        "identical": full_summary.identical,
+        "different": full_summary.different,
+        "only_gitlab": full_summary.only_gitlab,
+        "only_db": full_summary.only_db,
+    },
+    active_bucket=st.session_state.sch_status_bucket,
+)
 
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("Identical", summary.identical)
-m2.metric("Different", summary.different)
-m3.metric("Only in GitLab", summary.only_gitlab)
-m4.metric("Only in DB", summary.only_db)
+available_types = [
+    object_type
+    for object_type in OBJECT_TYPE_FILES
+    if raw_result.by_type.get(object_type)
+]
+type_label_map = {t: _TYPE_LABELS.get(t, t) for t in available_types}
+label_type_map = {v: k for k, v in type_label_map.items()}
+
+filter_col1, filter_col2 = st.columns([2, 1])
+with filter_col1:
+    bucket_label = st.session_state.sch_status_bucket.replace("_", " ")
+    if st.session_state.sch_status_bucket == "drift":
+        st.caption(
+            f"Showing objects that **need attention** ({drift_total} total drift) "
+            f"— GitLab source vs target database."
+        )
+    elif st.session_state.sch_status_bucket == "all":
+        st.caption("Showing **all** compared objects — GitLab source vs target database.")
+    else:
+        st.caption(
+            f"Showing **{bucket_label}** objects — GitLab source vs target database."
+        )
+    if st.session_state.sch_status_bucket != "all":
+        if st.button("Show all objects", key="sch_show_all_objects"):
+            st.session_state.sch_status_bucket = "all"
+            st.rerun()
+    elif st.session_state.sch_status_bucket == "all":
+        if st.button("Back to drift view", key="sch_back_to_drift"):
+            st.session_state.sch_status_bucket = "drift"
+            st.rerun()
+with filter_col2:
+    selected_type_labels = st.multiselect(
+        "Object types",
+        options=sorted(type_label_map.values()),
+        default=[],
+        key="sch_type_filter",
+        placeholder="All types",
+    )
+object_type_filter = (
+    [label_type_map[label] for label in selected_type_labels] if selected_type_labels else None
+)
+
+status_bucket: StatusBucket = st.session_state.sch_status_bucket  # type: ignore[assignment]
+result = filter_results(
+    raw_result,
+    status_bucket=status_bucket,
+    search=search,
+    object_types=object_type_filter,
+)
+filtered_items = flatten_results(result)
+filtered_count = len(filtered_items)
 
 skipped_types: list[str] = []
 for object_type in OBJECT_TYPE_FILES:
@@ -908,54 +948,55 @@ if skipped_types:
 
 st.divider()
 
+constraint_drift = _constraint_drift_items(raw_result.by_type.get("CONSTRAINT", []))
+index_drift = _index_drift_items(raw_result.by_type.get("INDEX", []))
+if constraint_drift or index_drift:
+    with st.expander("Batch sync — constraints & indexes", expanded=False):
+        if constraint_drift:
+            _render_constraint_batch_sync(raw_result.by_type.get("CONSTRAINT", []))
+        if index_drift:
+            _render_index_batch_sync(raw_result.by_type.get("INDEX", []))
+
 with st.container(border=True, key="sch_objects_pane", height=520):
-    st.subheader("Objects by type")
+    st.subheader(f"Objects ({filtered_count})")
 
-    for object_type in OBJECT_TYPE_FILES:
-        filename = OBJECT_TYPE_FILES[object_type]
-        label = _TYPE_LABELS.get(object_type, object_type)
-        items = result.by_type.get(object_type, [])
-
-        if filename in result.missing_files and not items:
-            continue
-
-        header = f"{label} ({filename}) — {_type_summary(items)}"
-        with st.expander(header, expanded=object_type in ("CONSTRAINT", "TABLE") and bool(items)):
-            if not items:
-                st.caption("No objects.")
-                continue
-            if object_type == "CONSTRAINT":
-                _render_constraint_batch_sync(raw_result.by_type.get("CONSTRAINT", []))
-            if object_type == "INDEX":
-                _render_index_batch_sync(raw_result.by_type.get("INDEX", []))
-            rows = []
-            for item in items:
-                rows.append(
-                    {
-                        "Status": f"{_STATUS_ICON.get(item.status, '?')} {item.status}",
-                        "Owner": item.schema,
-                        "Object": item.name,
-                        "Parent": item.parent,
-                        "Line": str(item.gitlab_line) if item.gitlab_line is not None else "—",
-                        "Key": item.object_key,
-                    }
-                )
-            df = pd.DataFrame(rows)
-            event = st.dataframe(
-                df.drop(columns=["Key"]),
-                width="stretch",
-                hide_index=True,
-                on_select="rerun",
-                selection_mode="single-row",
-                key=f"sch_df_{object_type}",
+    if not filtered_items:
+        st.caption("No objects match the current filters.")
+    else:
+        rows = []
+        for item in filtered_items:
+            icon = _STATUS_ICON.get(item.status, "?")
+            type_label = _TYPE_LABELS.get(item.object_type, item.object_type)
+            src_file = item.source_file or OBJECT_TYPE_FILES.get(item.object_type, "—")
+            rows.append(
+                {
+                    "Comparison": f"{icon} {redgate_status_label(item.status)}",
+                    "Type": type_label,
+                    "Schema": item.schema,
+                    "Object": item.name,
+                    "Parent": item.parent or "—",
+                    "Source file": src_file,
+                    "Line": str(item.gitlab_line) if item.gitlab_line is not None else "—",
+                    "Key": item.object_key,
+                    "ObjectType": item.object_type,
+                }
             )
-            sel = event.selection
-            if sel and sel.rows:
-                idx = sel.rows[0]
-                st.session_state.sch_selected_object_key = df.iloc[idx]["Key"]
-                st.session_state.sch_selected_object_type = object_type
+        df = pd.DataFrame(rows)
+        event = st.dataframe(
+            df.drop(columns=["Key", "ObjectType"]),
+            width="stretch",
+            hide_index=True,
+            on_select="rerun",
+            selection_mode="single-row",
+            key="sch_df_objects",
+        )
+        sel = event.selection
+        if sel and sel.rows:
+            idx = sel.rows[0]
+            st.session_state.sch_selected_object_key = df.iloc[idx]["Key"]
+            st.session_state.sch_selected_object_type = df.iloc[idx]["ObjectType"]
 
-selected = _resolve_selected(result)
+selected = _resolve_selected(raw_result)
 
 if selected:
     bottom = _get_bottom_container()
