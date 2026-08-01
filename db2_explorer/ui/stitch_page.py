@@ -13,7 +13,7 @@ import streamlit.components.v1 as components
 
 from db2_explorer.clients.db2 import DBResult
 from db2_explorer.data.queries import MATCH_ORDER, OBJECT_TYPES
-from db2_explorer.api.register import ensure_oe_search_api, oe_search_api_path
+from db2_explorer.api.register import oe_search_api_path, oe_search_api_ready
 from db2_explorer.ui.fleet_panel import OE_CLEAR_QUERY_PARAM
 from db2_explorer.ui.oe_results import (
     empty_results_row_html,
@@ -1135,7 +1135,7 @@ def _wire_match_operator(doc: str, operator: str) -> str:
 def render_object_explorer_page(view: ObjectExplorerView) -> None:
     """Exact stitch 02-object-explorer index.html — full document with live data."""
     inject_shell_component(tailwind_config_source="object_explorer")
-    if not ensure_oe_search_api():
+    if not oe_search_api_ready():
         st.warning(
             "Object Explorer search API is not ready yet. "
             "Refresh this page or restart the app if search fails.",

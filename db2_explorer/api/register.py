@@ -5,6 +5,8 @@ from __future__ import annotations
 import gc
 import json
 import logging
+import os
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 from streamlit import config
@@ -15,6 +17,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 OE_SEARCH_API_PATH = "/api/oe/search"
+_ASGI_SEARCH_ENV = "DB2_MIGRATION_STUDIO_ASGI_SEARCH"
 _CREATE_APP_PATCHED = False
 _OE_ROUTE_REGISTERED = False
 _SEARCH_HANDLER_CLS: type[Any] | None = None
@@ -241,3 +244,46 @@ def ensure_oe_search_api() -> bool:
         _OE_ROUTE_REGISTERED = True
         return True
     return False
+
+
+def _asgi_search_api_active() -> bool:
+    """True when Streamlit 1.53+ is running via studio_app ASGI entry."""
+    if os.environ.get(_ASGI_SEARCH_ENV) == "1":
+        return True
+
+    try:
+        from streamlit.web.server import server as st_server
+    except ImportError:
+        return False
+
+    if hasattr(st_server.Server, "_create_app"):
+        return False
+
+    try:
+        from db2_explorer import studio_app
+    except ImportError:
+        return False
+
+    if studio_app.app is None:
+        return False
+
+    try:
+        from streamlit.runtime.scriptrunner_utils.script_run_context import (
+            get_script_run_ctx,
+        )
+
+        ctx = get_script_run_ctx()
+        if ctx is None or not ctx.main_script_path:
+            return False
+        main = Path(ctx.main_script_path).resolve()
+        entry = Path(studio_app.__file__).resolve()
+        return main == entry
+    except Exception:
+        return False
+
+
+def oe_search_api_ready() -> bool:
+    """Return whether /api/oe/search should be reachable (Tornado or ASGI)."""
+    if ensure_oe_search_api():
+        return True
+    return _asgi_search_api_active()
