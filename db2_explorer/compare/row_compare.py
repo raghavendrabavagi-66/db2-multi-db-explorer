@@ -400,6 +400,10 @@ def _merge_counts(
         delta = None
         if db2_count is not None and azure_count is not None:
             delta = azure_count - db2_count
+        elif azure_count is not None:
+            delta = azure_count
+        elif db2_count is not None:
+            delta = -db2_count
 
         source_label = d.table_name if d else key
         records.append(

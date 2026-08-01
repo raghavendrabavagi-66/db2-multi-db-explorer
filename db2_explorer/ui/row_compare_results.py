@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import math
 from typing import Any
 
 
@@ -24,6 +25,50 @@ def status_badge_html(status: str) -> str:
     )
 
 
+def _is_missing(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
+        return True
+    return False
+
+
+def format_count_value(value: Any) -> str:
+    """Render row counts without spurious float precision (``767.0`` → ``767``)."""
+    if _is_missing(value):
+        return "N/A"
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if math.isnan(number) or math.isinf(number):
+        return "N/A"
+    if number == int(number):
+        return str(int(number))
+    return str(number).rstrip("0").rstrip(".")
+
+
+def format_delta_value(value: Any) -> str:
+    """Render delta; prefix positives with ``+`` (e.g. target-only → ``+94``)."""
+    if _is_missing(value):
+        return "N/A"
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if math.isnan(number) or math.isinf(number):
+        return "N/A"
+    if number == int(number):
+        whole = int(number)
+        if whole > 0:
+            return f"+{whole}"
+        return str(whole)
+    text = str(number).rstrip("0").rstrip(".")
+    if number > 0 and not text.startswith("+"):
+        return f"+{text}"
+    return text
+
+
 def comparison_rows_html(rows: list[dict[str, Any]]) -> str:
     if not rows:
         return (
@@ -33,13 +78,10 @@ def comparison_rows_html(rows: list[dict[str, Any]]) -> str:
     parts: list[str] = []
     for row in rows:
         name = html.escape(str(row.get("Table Name") or row.get("Table") or ""))
-        src = row.get("Source Count", "N/A")
-        tgt = row.get("Target Count", "N/A")
-        delta = row.get("Delta", "N/A")
+        src_s = html.escape(format_count_value(row.get("Source Count")))
+        tgt_s = html.escape(format_count_value(row.get("Target Count")))
+        delta_s = html.escape(format_delta_value(row.get("Delta")))
         badge = status_badge_html(str(row.get("Status", "")))
-        src_s = html.escape(str(src))
-        tgt_s = html.escape(str(tgt))
-        delta_s = html.escape(str(delta))
         parts.append(
             f'<tr class="hover:bg-surface-container transition-colors">'
             f'<td class="px-md py-2 font-code-sm text-xs text-on-surface">{name}</td>'
