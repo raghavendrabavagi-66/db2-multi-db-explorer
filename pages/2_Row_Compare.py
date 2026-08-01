@@ -7,6 +7,7 @@ from datetime import datetime
 import streamlit as st
 
 from db2_explorer.api.register import ensure_oe_search_api
+from db2_explorer.api.rc_credential_store import get_connect_payload
 from db2_explorer.clients.azure import AUTH_METHOD_LABELS, AzureConnection
 from db2_explorer.data.connections import Connection
 from db2_explorer.compare.row_compare import (
@@ -53,6 +54,7 @@ def _init_session() -> None:
         "cmp_az_auth": "entra",
         "cmp_az_trust_cert": True,
         "rc_setup_done": False,
+        "rc_sid": "",
         "rc_toast_message": "",
         "rc_toast_error": False,
     }
@@ -79,11 +81,27 @@ def _apply_connect_params() -> None:
     except ValueError:
         st.session_state.cmp_db2_port = 50000
     st.session_state.cmp_db2_user = st.query_params.get("cmp_db2_user", "")
-    st.session_state.cmp_db2_password = st.query_params.get("cmp_db2_password", "")
+    password = st.query_params.get("cmp_db2_password")
+    if password:
+        st.session_state.cmp_db2_password = password
     st.session_state.cmp_az_server = st.query_params.get("cmp_az_server", "")
     st.session_state.cmp_az_database = st.query_params.get("cmp_az_database", "")
     st.session_state.cmp_az_auth = st.query_params.get("cmp_az_auth", "entra")
     st.session_state.cmp_az_trust_cert = st.query_params.get("cmp_az_trust_cert", "1") == "1"
+
+
+def _apply_rc_sid() -> bool:
+    """Load saved credentials from the server-side cache when ``rc_sid`` is present."""
+    sid = str(st.query_params.get("rc_sid", "")).strip()
+    if not sid:
+        return False
+    payload = get_connect_payload(sid)
+    if not payload:
+        return False
+    for key, val in payload.items():
+        st.session_state[key] = val
+    st.session_state.rc_sid = sid
+    return True
 
 
 def _handle_query_actions() -> None:
@@ -91,8 +109,11 @@ def _handle_query_actions() -> None:
     if not action:
         return
 
+    restored = _apply_rc_sid()
+
     if action == "connect":
-        _apply_connect_params()
+        if not restored:
+            _apply_connect_params()
         missing = []
         if not all([
             st.session_state.cmp_db2_database,
@@ -113,9 +134,17 @@ def _handle_query_actions() -> None:
         st.session_state.rc_setup_done = False
         _set_toast("Edit connection settings below.")
     elif action == "run":
+        if not restored:
+            sid = str(st.session_state.get("rc_sid", "")).strip()
+            if sid:
+                payload = get_connect_payload(sid)
+                if payload:
+                    for key, val in payload.items():
+                        st.session_state[key] = val
         mode = st.query_params.get("cmp_target_table_mode", "original")
         if mode in {"original", "staging"}:
             st.session_state.cmp_target_table_mode = mode
+        st.session_state.rc_setup_done = True
         _run_comparison()
 
     st.query_params.clear()
@@ -147,6 +176,7 @@ def _run_comparison() -> None:
         errors.append("Schema names are required.")
     if errors:
         _set_toast(" ".join(errors), error=True)
+        st.session_state.rc_setup_done = True
         return
 
     db2_conn = Connection(dbname=db2_database, host=db2_host, port=db2_port)
@@ -171,6 +201,7 @@ def _run_comparison() -> None:
 
     if result.status != "ok":
         _set_toast(result.error or "Comparison failed.", error=True)
+        st.session_state.rc_setup_done = True
         return
 
     st.session_state.compare_result = result

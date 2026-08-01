@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from db2_explorer.api.rc_credential_store import save_connect_payload
 from db2_explorer.clients.azure import AUTH_METHOD_LABELS, AzureConnection, query as azure_query, test_connection as test_azure
 from db2_explorer.clients.db2 import query_single
 from db2_explorer.data.connections import Connection
@@ -63,6 +64,47 @@ def test_azure_json(body: dict[str, Any]) -> dict[str, Any]:
         label = AUTH_METHOD_LABELS.get(auth_method, auth_method)
         return {"ok": True, "message": f"Target connection OK ({label})."}
     return {"ok": False, "error": out.error or "Target connection failed."}
+
+
+def save_connect_json(body: dict[str, Any]) -> dict[str, Any]:
+    """Persist Row Compare credentials server-side (password never in URL)."""
+    rc_sid = str(body.get("rc_sid", "")).strip()
+    if not rc_sid:
+        return {"ok": False, "error": "Session id is required."}
+
+    database = str(body.get("database", "")).strip()
+    host = str(body.get("host", "")).strip()
+    username = str(body.get("username", "")).strip()
+    password = str(body.get("password", ""))
+    port = _parse_int(body.get("port"), 50000)
+    server = str(body.get("server", "")).strip()
+    az_database = str(body.get("az_database", "")).strip()
+    auth_raw = str(body.get("auth_method", "entra")).strip().lower()
+    trust = bool(body.get("trust_server_certificate", False))
+
+    missing: list[str] = []
+    if not all([database, host, username, password]):
+        missing.append("DB2 connection fields")
+    if not all([server, az_database]):
+        missing.append("Azure connection fields")
+    if missing:
+        return {"ok": False, "error": "Missing: " + ", ".join(missing)}
+
+    save_connect_payload(
+        rc_sid,
+        {
+            "cmp_db2_database": database,
+            "cmp_db2_host": host,
+            "cmp_db2_port": port,
+            "cmp_db2_user": username,
+            "cmp_db2_password": password,
+            "cmp_az_server": server,
+            "cmp_az_database": az_database,
+            "cmp_az_auth": auth_raw,
+            "cmp_az_trust_cert": trust,
+        },
+    )
+    return {"ok": True, "message": "Credentials saved."}
 
 
 def list_azure_databases_json(body: dict[str, Any]) -> dict[str, Any]:

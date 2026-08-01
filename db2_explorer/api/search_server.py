@@ -15,6 +15,7 @@ from typing import Callable
 from db2_explorer.api.oe_search_service import execute_search_json
 from db2_explorer.api.rc_connect_service import (
     list_azure_databases_json,
+    save_connect_json,
     test_azure_json,
     test_db2_json,
 )
@@ -36,6 +37,7 @@ _POST_ROUTES: dict[str, Callable[[dict], dict]] = {
     "/api/rc/test-db2": test_db2_json,
     "/api/rc/test-azure": test_azure_json,
     "/api/rc/list-azure-databases": list_azure_databases_json,
+    "/api/rc/save-connect": save_connect_json,
 }
 
 

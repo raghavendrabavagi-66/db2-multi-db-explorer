@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import streamlit as st
 
+from db2_explorer.api.rc_credential_store import clear_connect_payload
+
 RC_CLEAR_QUERY_PARAM = "rc_clear"
 
 RC_SESSION_KEYS = (
@@ -25,6 +27,7 @@ RC_SESSION_KEYS = (
     "cmp_az_auth",
     "cmp_az_trust_cert",
     "rc_setup_done",
+    "rc_sid",
     "rc_toast_message",
     "rc_toast_error",
 )
@@ -37,6 +40,9 @@ def row_compare_home_clear_url() -> str:
 
 def clear_row_compare_session() -> None:
     """Drop all Row Compare session keys, including credentials and results."""
+    sid = str(st.session_state.get("rc_sid", "")).strip()
+    if sid:
+        clear_connect_payload(sid)
     for key in RC_SESSION_KEYS:
         st.session_state.pop(key, None)
 

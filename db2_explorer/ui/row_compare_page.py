@@ -13,6 +13,7 @@ import streamlit.components.v1 as components
 
 from db2_explorer.api.register import (
     rc_list_azure_databases_api_url,
+    rc_save_connect_api_url,
     rc_test_db2_api_url,
 )
 from db2_explorer.ui.rc_session import row_compare_home_clear_url
@@ -122,6 +123,7 @@ def _azure_database_options_html(selected: str, databases: list[str]) -> str:
 def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
     test_db2_url = rc_test_db2_api_url()
     list_az_url = rc_list_azure_databases_api_url()
+    save_connect_url = rc_save_connect_api_url()
     return f"""
 <script>
 (function () {{
@@ -129,6 +131,23 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
   const HOME_CLEAR_URL = {json.dumps(_HOME_CLEAR_URL)};
   const TEST_DB2_URL = {json.dumps(test_db2_url)};
   const LIST_AZ_URL = {json.dumps(list_az_url)};
+  const SAVE_CONNECT_URL = {json.dumps(save_connect_url)};
+  const RC_SID_KEY = "rc_sid";
+
+  function rcSessionId() {{
+    try {{
+      let sid = sessionStorage.getItem(RC_SID_KEY);
+      if (!sid) {{
+        sid = (window.crypto && window.crypto.randomUUID)
+          ? window.crypto.randomUUID()
+          : "rc-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+        sessionStorage.setItem(RC_SID_KEY, sid);
+      }}
+      return sid;
+    }} catch (err) {{
+      return "rc-" + Date.now();
+    }}
+  }}
 
   function navigateHomeClear() {{
     window.parent.postMessage({{ type: "stitch-oe-nav", url: HOME_CLEAR_URL }}, "*");
@@ -426,18 +445,43 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
       toast("Complete Azure server and database.", true);
       return;
     }}
-    const params = new URLSearchParams();
-    params.set("rc_action", "connect");
-    params.set("cmp_db2_database", db2.database);
-    params.set("cmp_db2_host", db2.host);
-    params.set("cmp_db2_port", db2.port || "50000");
-    params.set("cmp_db2_user", db2.username);
-    params.set("cmp_db2_password", db2.password);
-    params.set("cmp_az_server", az.server);
-    params.set("cmp_az_database", az.database);
-    params.set("cmp_az_auth", az.auth_method);
-    params.set("cmp_az_trust_cert", az.trust_server_certificate ? "1" : "0");
-    rcNavigate(params);
+    const sid = rcSessionId();
+    const compareBtn = document.getElementById("rc-compare-btn");
+    if (compareBtn) {{
+      compareBtn.disabled = true;
+      compareBtn.classList.add("opacity-70", "cursor-wait");
+    }}
+    postJson(SAVE_CONNECT_URL, {{
+      rc_sid: sid,
+      database: db2.database,
+      host: db2.host,
+      port: db2.port || "50000",
+      username: db2.username,
+      password: db2.password,
+      server: az.server,
+      az_database: az.database,
+      auth_method: az.auth_method,
+      trust_server_certificate: az.trust_server_certificate,
+    }}).then(function (payload) {{
+      if (compareBtn) {{
+        compareBtn.disabled = false;
+        compareBtn.classList.remove("opacity-70", "cursor-wait");
+      }}
+      if (!payload.ok) {{
+        toast(payload.error || payload.message || "Could not save credentials.", true);
+        return;
+      }}
+      const params = new URLSearchParams();
+      params.set("rc_action", "connect");
+      params.set("rc_sid", sid);
+      rcNavigate(params);
+    }}).catch(function (err) {{
+      if (compareBtn) {{
+        compareBtn.disabled = false;
+        compareBtn.classList.remove("opacity-70", "cursor-wait");
+      }}
+      toast(err.message || "Connect request failed.", true);
+    }});
   }}
 
   function wireSetup() {{
@@ -592,6 +636,22 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
 (function () {{
   const RC_PAGE = {json.dumps(ROW_COMPARE_PAGE)};
   const HOME_CLEAR_URL = {json.dumps(_HOME_CLEAR_URL)};
+  const RC_SID_KEY = "rc_sid";
+
+  function rcSessionId() {{
+    try {{
+      let sid = sessionStorage.getItem(RC_SID_KEY);
+      if (!sid) {{
+        sid = (window.crypto && window.crypto.randomUUID)
+          ? window.crypto.randomUUID()
+          : "rc-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+        sessionStorage.setItem(RC_SID_KEY, sid);
+      }}
+      return sid;
+    }} catch (err) {{
+      return "rc-" + Date.now();
+    }}
+  }}
 
   function rcPagePath() {{
     try {{
@@ -604,7 +664,12 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
   function rcNavigate(params) {{
     const url = rcPagePath() + "?" + params.toString();
     window.parent.postMessage({{ type: "stitch-oe-nav", url: url }}, "*");
-    try {{ window.top.location.href = url; }} catch (err) {{}}
+    if (window.top && window.top !== window) {{
+      window.top.postMessage({{ type: "stitch-oe-nav", url: url }}, "*");
+    }}
+    try {{
+      window.top.location.href = url;
+    }} catch (err) {{}}
   }}
 
   function toast(msg, isError) {{
@@ -639,7 +704,10 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
     const mode = staging && staging.checked ? "staging" : "original";
     const p = new URLSearchParams();
     p.set("rc_action", "run");
+    p.set("rc_sid", rcSessionId());
     p.set("cmp_target_table_mode", mode);
+    runBtn.disabled = true;
+    runBtn.classList.add("opacity-70", "cursor-wait");
     rcNavigate(p);
   }});
 
