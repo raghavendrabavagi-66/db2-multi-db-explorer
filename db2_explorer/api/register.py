@@ -1,9 +1,13 @@
-"""Register custom HTTP routes on the Streamlit/Tornado server.
+"""Register the Object Explorer search API endpoint.
 
-Best-effort: if Tornado is available and Streamlit uses the Tornado server,
-we mount POST /api/oe/search.  If not, the JS client falls back to a full
-page reload via ``oe_action=search`` query params (handled server-side in
-``pages/1_Object_Explorer.py``).
+Strategy (tried in order):
+1. Tornado route injection — works on Streamlit <1.53 where the server is Tornado.
+2. Background HTTP server — a tiny daemon-thread server on a separate port,
+   works on ALL Streamlit versions regardless of its internal server stack.
+
+The JS client gets the correct URL at render time and uses ``fetch()`` for
+in-place results.  If both approaches somehow fail, the client falls back to
+a full page reload via ``oe_action=search`` query params.
 """
 
 from __future__ import annotations
@@ -17,6 +21,8 @@ from streamlit import config
 
 if TYPE_CHECKING:
     from tornado.web import Application
+
+from db2_explorer.api.search_server import get_search_server_port, start_search_server
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,11 +59,22 @@ def _make_url_path_regex(
         return path_format % "/".join(filtered_paths)
 
 
-def oe_search_api_path() -> str:
-    """Browser fetch path respecting Streamlit ``server.baseUrlPath``."""
-    base = (config.get_option("server.baseUrlPath") or "").strip("/")
-    if base:
-        return f"/{base}/api/oe/search"
+def oe_search_api_url() -> str:
+    """Return the absolute URL the JS client should ``fetch()`` for search.
+
+    If the Tornado route is registered, returns the same-origin path.
+    Otherwise returns the background server URL on its separate port.
+    """
+    if _OE_ROUTE_REGISTERED:
+        base = (config.get_option("server.baseUrlPath") or "").strip("/")
+        if base:
+            return f"/{base}/api/oe/search"
+        return OE_SEARCH_API_PATH
+
+    port = get_search_server_port()
+    if port is not None:
+        return f"http://localhost:{port}/api/oe/search"
+
     return OE_SEARCH_API_PATH
 
 
@@ -145,7 +162,7 @@ def _register_route_on_app(app: Application) -> bool:
     handler_cls = _search_handler_cls()
     rule = router.process_rule(Rule(PathMatches(pattern), handler_cls))
     router.rules.insert(0, rule)
-    _LOGGER.info("Registered Object Explorer search API at %s", oe_search_api_path())
+    _LOGGER.info("Registered Object Explorer search API on Tornado at %s", OE_SEARCH_API_PATH)
     return True
 
 
@@ -172,7 +189,6 @@ def _find_live_app() -> Application | None:
 
 
 def _try_patch_create_app() -> bool:
-    """Monkey-patch Server._create_app to insert our route (Tornado-based Streamlit only)."""
     global _CREATE_APP_PATCHED
     if _CREATE_APP_PATCHED:
         return _OE_ROUTE_REGISTERED
@@ -200,13 +216,8 @@ def _try_patch_create_app() -> bool:
     return True
 
 
-def ensure_oe_search_api() -> bool:
-    """Best-effort: mount POST /api/oe/search on the Tornado server.
-
-    Returns True if the route is registered.  Returns False silently when
-    Tornado is unavailable (e.g. Streamlit 1.53+ ASGI) — the JS client
-    will use the page-reload fallback automatically.
-    """
+def _try_tornado_registration() -> bool:
+    """Attempt Tornado-based route registration (best for older Streamlit)."""
     if not _tornado_available():
         return False
 
@@ -234,3 +245,25 @@ def ensure_oe_search_api() -> bool:
         _OE_ROUTE_REGISTERED = True
         return True
     return False
+
+
+def _get_streamlit_port() -> int:
+    try:
+        return int(config.get_option("server.port") or 8501)
+    except Exception:
+        return 8501
+
+
+def ensure_oe_search_api() -> bool:
+    """Ensure the search API is reachable — Tornado route or background server.
+
+    Returns True when the API is available via either mechanism.
+    """
+    if _try_tornado_registration():
+        return True
+
+    if get_search_server_port() is not None:
+        return True
+
+    port = start_search_server(_get_streamlit_port())
+    return port is not None

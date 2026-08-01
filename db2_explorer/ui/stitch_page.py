@@ -13,7 +13,7 @@ import streamlit.components.v1 as components
 
 from db2_explorer.clients.db2 import DBResult
 from db2_explorer.data.queries import MATCH_ORDER, OBJECT_TYPES
-from db2_explorer.api.register import oe_search_api_path
+from db2_explorer.api.register import oe_search_api_url
 from db2_explorer.ui.fleet_panel import OE_CLEAR_QUERY_PARAM
 from db2_explorer.ui.oe_results import (
     empty_results_row_html,
@@ -387,7 +387,7 @@ def _oe_bridge_script(view: ObjectExplorerView) -> str:
     empty_results_html = _empty_results_row_html()
     oe_page = OBJECT_EXPLORER_URL
     home_clear_url = f"/?{OE_CLEAR_QUERY_PARAM}=1"
-    search_api_url = oe_search_api_path()
+    search_api_url = oe_search_api_url()
     return f"""
 <script>
 (function () {{
@@ -397,16 +397,17 @@ def _oe_bridge_script(view: ObjectExplorerView) -> str:
   const FLEET_STORAGE_KEY = "db2_migration_studio_oe_fleet";
   const FLEET_HYDRATED_KEY = "db2_migration_studio_oe_fleet_hydrated";
   const EMPTY_RESULTS_HTML = {json.dumps(empty_results_html)};
-  const OE_SEARCH_API_PATH = {json.dumps(search_api_url)};
+  const OE_SEARCH_API_URL = {json.dumps(search_api_url)};
 
   function searchApiUrl() {{
+    if (OE_SEARCH_API_URL.startsWith("http")) return OE_SEARCH_API_URL;
     try {{
       const origin = window.top.location.origin;
-      if (origin && origin !== "null") return origin + OE_SEARCH_API_PATH;
+      if (origin && origin !== "null") return origin + OE_SEARCH_API_URL;
     }} catch (err) {{
       /* cross-frame access blocked */
     }}
-    return OE_SEARCH_API_PATH;
+    return OE_SEARCH_API_URL;
   }}
 
   let savedFleetJson = "[]";
