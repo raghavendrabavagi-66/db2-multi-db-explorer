@@ -32,4 +32,4 @@ fi
 pip install ibm_db
 
 echo ""
-echo "Done. Run:  source .venv/bin/activate && streamlit run app.py"
+echo "Done. Run:  source .venv/bin/activate && python -m db2_explorer run app.py"

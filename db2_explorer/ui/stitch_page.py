@@ -13,7 +13,7 @@ import streamlit.components.v1 as components
 
 from db2_explorer.clients.db2 import DBResult
 from db2_explorer.data.queries import MATCH_ORDER, OBJECT_TYPES
-from db2_explorer.api.register import OE_SEARCH_API_PATH, ensure_oe_search_api
+from db2_explorer.api.register import ensure_oe_search_api, oe_search_api_path
 from db2_explorer.ui.fleet_panel import OE_CLEAR_QUERY_PARAM
 from db2_explorer.ui.oe_results import (
     empty_results_row_html,
@@ -387,6 +387,7 @@ def _oe_bridge_script(view: ObjectExplorerView) -> str:
     empty_results_html = _empty_results_row_html()
     oe_page = OBJECT_EXPLORER_URL
     home_clear_url = f"/?{OE_CLEAR_QUERY_PARAM}=1"
+    search_api_url = oe_search_api_path()
     return f"""
 <script>
 (function () {{
@@ -396,7 +397,17 @@ def _oe_bridge_script(view: ObjectExplorerView) -> str:
   const FLEET_STORAGE_KEY = "db2_migration_studio_oe_fleet";
   const FLEET_HYDRATED_KEY = "db2_migration_studio_oe_fleet_hydrated";
   const EMPTY_RESULTS_HTML = {json.dumps(empty_results_html)};
-  const OE_SEARCH_API = {json.dumps(OE_SEARCH_API_PATH)};
+  const OE_SEARCH_API_PATH = {json.dumps(search_api_url)};
+
+  function searchApiUrl() {{
+    try {{
+      const origin = window.top.location.origin;
+      if (origin && origin !== "null") return origin + OE_SEARCH_API_PATH;
+    }} catch (err) {{
+      /* cross-frame access blocked */
+    }}
+    return OE_SEARCH_API_PATH;
+  }}
 
   let savedFleetJson = "[]";
   let lastSearchResponse = null;
@@ -654,6 +665,21 @@ def _oe_bridge_script(view: ObjectExplorerView) -> str:
     params.set("max_workers", (document.getElementById("oe-max-workers") || {{ value: "8" }}).value || "8");
   }}
 
+  function navigateSearchFallback() {{
+    const params = new URLSearchParams();
+    params.set("oe_action", "search");
+    connectionParams(params);
+    params.set("filter_text", (document.getElementById("oe-filter-text") || {{ value: "" }}).value || "");
+    const typeSelect = document.getElementById("oe-object-type");
+    if (typeSelect) params.set("object_type", typeSelect.options[typeSelect.selectedIndex].text);
+    const checked = document.querySelector('input[name="match_mode"]:checked');
+    const radios = Array.from(document.querySelectorAll('input[name="match_mode"]'));
+    const modeIdx = checked ? radios.indexOf(checked) : 0;
+    params.set("operator", MATCH_MODES[modeIdx] || {json.dumps(view.operator)!r});
+    appendFleetParams(params);
+    oeNavigate(params);
+  }}
+
   function buildSearchBody() {{
     const checked = document.querySelector('input[name="match_mode"]:checked');
     const radios = Array.from(document.querySelectorAll('input[name="match_mode"]'));
@@ -707,26 +733,35 @@ def _oe_bridge_script(view: ObjectExplorerView) -> str:
         '<span class="material-symbols-outlined animate-spin text-sm">sync</span> Searching...';
     }}
     try {{
-      const response = await fetch(OE_SEARCH_API, {{
+      const response = await fetch(searchApiUrl(), {{
         method: "POST",
         headers: {{ "Content-Type": "application/json" }},
         body: JSON.stringify(buildSearchBody()),
       }});
+      const contentType = (response.headers.get("content-type") || "").toLowerCase();
+      if (!contentType.includes("application/json")) {{
+        showToast("Search API unavailable — reloading with server search.");
+        navigateSearchFallback();
+        return;
+      }}
       let payload = {{ ok: false, error: "Search failed." }};
       try {{
         payload = await response.json();
       }} catch (parseErr) {{
-        payload = {{ ok: false, error: "Invalid search response." }};
+        showToast("Search API unavailable — reloading with server search.");
+        navigateSearchFallback();
+        return;
       }}
       if (!response.ok || !payload.ok) {{
-        showToast(payload.error || "Search failed.");
+        showToast(payload.error || ("Search failed (HTTP " + response.status + ")."));
         return;
       }}
       lastSearchResponse = payload;
       const matchesOnly = document.getElementById("oe-matches-only");
       applySearchResults(payload, !!(matchesOnly && matchesOnly.checked));
     }} catch (err) {{
-      showToast("Search request failed. Restart the app if this persists.");
+      showToast("Search request failed — reloading with server search.");
+      navigateSearchFallback();
     }} finally {{
       searchInFlight = false;
       if (searchBtn) {{
@@ -1099,8 +1134,13 @@ def _wire_match_operator(doc: str, operator: str) -> str:
 
 def render_object_explorer_page(view: ObjectExplorerView) -> None:
     """Exact stitch 02-object-explorer index.html — full document with live data."""
-    ensure_oe_search_api()
     inject_shell_component(tailwind_config_source="object_explorer")
+    if not ensure_oe_search_api():
+        st.warning(
+            "Object Explorer search API is not ready yet. "
+            "Refresh this page or restart the app if search fails.",
+            icon="⚠️",
+        )
     doc = _wire_oe_document(_read_html("object_explorer"), view)
     st.markdown(f"<style>{shell_iframe_css()}</style>", unsafe_allow_html=True)
     components.html(doc, height=900, scrolling=False)
