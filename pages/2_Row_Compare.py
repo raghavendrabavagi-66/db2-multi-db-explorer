@@ -21,7 +21,7 @@ from db2_explorer.ui.row_compare_page import (
     render_row_compare_setup_page,
     render_row_compare_workspace_page,
 )
-from db2_explorer.ui.row_compare_results import comparison_rows_html
+from db2_explorer.ui.row_compare_results import comparison_rows_html, comparison_tbody_views
 from db2_explorer.ui.theme import apply_page
 
 apply_page(title="Row Compare", layout="wide")
@@ -230,6 +230,7 @@ def _workspace_view() -> RowCompareWorkspaceView:
     result: CompareResult | None = st.session_state.get("compare_result")
     metrics: dict[str, object] = {}
     rows_html = comparison_rows_html([])
+    tbody_views: dict[str, str] = {}
     has_results = False
 
     if result is not None and result.status == "ok" and not result.comparison.empty:
@@ -237,7 +238,8 @@ def _workspace_view() -> RowCompareWorkspaceView:
         metrics = comparison_metrics(result.comparison)
         metrics["rows_label"] = f"{metrics.get('tables_source', 0):,}"
         records = result.comparison.to_dict(orient="records")
-        rows_html = comparison_rows_html(records)
+        tbody_views = comparison_tbody_views(records)
+        rows_html = tbody_views.get("all", comparison_rows_html(records))
 
     auth = _azure_auth_method()
     return RowCompareWorkspaceView(
@@ -250,6 +252,7 @@ def _workspace_view() -> RowCompareWorkspaceView:
         target_table_mode=str(st.session_state.get("cmp_target_table_mode", "original")),
         metrics=metrics,
         result_rows_html=rows_html,
+        result_tbody_views=tbody_views,
         has_results=has_results,
         toast_message=str(st.session_state.get("rc_toast_message", "")),
         toast_error=bool(st.session_state.get("rc_toast_error", False)),

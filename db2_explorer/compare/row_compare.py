@@ -513,6 +513,8 @@ def filter_comparison(df: pd.DataFrame, view: str) -> pd.DataFrame:
         return df[df["Status"] == "Source only"].copy()
     if view == "Target only":
         return df[df["Status"] == "Target only"].copy()
+    if view in {"Failed", "Failed only"}:
+        return df[df["Status"].isin(["Source only", "Target only"])].copy()
     return df.copy()
 
 

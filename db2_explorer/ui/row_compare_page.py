@@ -90,6 +90,7 @@ class RowCompareWorkspaceView:
     compare_scope: str = "all"
     metrics: dict[str, Any] = field(default_factory=dict)
     result_rows_html: str = ""
+    result_tbody_views: dict[str, str] = field(default_factory=dict)
     has_results: bool = False
     status_message: str = ""
     toast_message: str = ""
@@ -597,6 +598,7 @@ def _table_type_original_checked(mode: str) -> str:
 
 def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
     run_compare_url = rc_run_comparison_api_url()
+    initial_views = json.dumps(view.result_tbody_views) if view.result_tbody_views else "null"
     return f"""
 <script>
 (function () {{
@@ -604,7 +606,13 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
   const HOME_CLEAR_URL = {json.dumps(_HOME_CLEAR_URL)};
   const RUN_COMPARE_URL = {json.dumps(run_compare_url)};
   const RC_SID_KEY = "rc_sid";
+  const FILTER_ACTIVE =
+    "h-10 px-md text-body-sm font-bold text-primary border-b-2 border-primary transition-all";
+  const FILTER_IDLE =
+    "h-10 px-md text-body-sm font-medium text-secondary hover:bg-surface-container-high hover:text-on-surface transition-all";
   let runInFlight = false;
+  let lastComparisonViews = {initial_views};
+  let currentFilter = "all";
 
   function rcSessionId() {{
     try {{
@@ -664,6 +672,28 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
     if (el) el.textContent = text;
   }}
 
+  function setActiveFilter(filter) {{
+    const buttons = {{
+      all: document.getElementById("rc-filter-all"),
+      mismatch: document.getElementById("rc-filter-mismatch"),
+      match: document.getElementById("rc-filter-match"),
+      failed: document.getElementById("rc-filter-failed"),
+    }};
+    Object.keys(buttons).forEach(function (key) {{
+      const btn = buttons[key];
+      if (btn) btn.className = key === filter ? FILTER_ACTIVE : FILTER_IDLE;
+    }});
+  }}
+
+  function applyResultFilter(filter) {{
+    if (!lastComparisonViews) return;
+    currentFilter = filter;
+    setActiveFilter(filter);
+    const tbody = document.getElementById("rc-results-tbody");
+    if (!tbody) return;
+    tbody.innerHTML = lastComparisonViews[filter] || lastComparisonViews.all || "";
+  }}
+
   function applyComparisonResults(payload) {{
     const m = payload.metrics || {{}};
     setText("rc-metric-total", String(m.tables_source ?? 0));
@@ -671,10 +701,28 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
     setText("rc-metric-mismatches", String(m.mismatched ?? 0));
     setText("rc-metric-failed", String(m.missing ?? 0));
     setText("rc-metric-rows", String(m.rows_label ?? "—"));
-    const tbody = document.getElementById("rc-results-tbody");
-    if (tbody && payload.tbody_html) {{
-      tbody.innerHTML = payload.tbody_html;
-    }}
+    lastComparisonViews = payload.tbody_views || {{
+      all: payload.tbody_html || "",
+    }};
+    applyResultFilter(currentFilter);
+  }}
+
+  function wireResultFilters() {{
+    const filters = [
+      ["rc-filter-all", "all"],
+      ["rc-filter-mismatch", "mismatch"],
+      ["rc-filter-match", "match"],
+      ["rc-filter-failed", "failed"],
+    ];
+    filters.forEach(function (pair) {{
+      const btn = document.getElementById(pair[0]);
+      if (!btn) return;
+      btn.addEventListener("click", function (e) {{
+        e.preventDefault();
+        applyResultFilter(pair[1]);
+      }});
+    }});
+    setActiveFilter(currentFilter);
   }}
 
   function runCompareFallback(mode) {{
@@ -758,6 +806,8 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
     e.preventDefault();
     runComparison();
   }});
+
+  wireResultFilters();
 
   {f'toast({_js_literal(view.toast_message)}, {json.dumps(view.toast_error)});' if view.toast_message else ''}
 }})();

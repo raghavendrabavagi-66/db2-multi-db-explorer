@@ -177,16 +177,12 @@
 <section class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT overflow-hidden shadow-sm">
 <div class="px-md py-sm bg-surface-container-low border-b border-outline-variant">
 <h2 class="font-headline-md text-[20px] font-bold text-on-surface mb-sm">Comparison Details</h2>
-<div class="flex items-center justify-between">
 <div class="flex items-center gap-xs">
-<button class="h-10 px-md text-body-sm font-bold text-primary border-b-2 border-primary transition-all">All</button>
-<button class="h-10 px-md text-body-sm font-medium text-secondary hover:bg-surface-container-high hover:text-on-surface transition-all">Mismatches Only</button>
-<button class="h-10 px-md text-body-sm font-medium text-secondary hover:bg-surface-container-high hover:text-on-surface transition-all">Matches Only</button>
+<button id="rc-filter-all" type="button" class="h-10 px-md text-body-sm font-bold text-primary border-b-2 border-primary transition-all">All</button>
+<button id="rc-filter-mismatch" type="button" class="h-10 px-md text-body-sm font-medium text-secondary hover:bg-surface-container-high hover:text-on-surface transition-all">Mismatches Only</button>
+<button id="rc-filter-match" type="button" class="h-10 px-md text-body-sm font-medium text-secondary hover:bg-surface-container-high hover:text-on-surface transition-all">Matches Only</button>
+<button id="rc-filter-failed" type="button" class="h-10 px-md text-body-sm font-medium text-secondary hover:bg-surface-container-high hover:text-on-surface transition-all">Failed</button>
 </div>
-<button class="flex items-center gap-sm px-sm py-1.5 rounded hover:bg-surface-container-high text-on-surface-variant transition-colors border border-transparent hover:border-outline-variant">
-<span class="material-symbols-outlined text-[20px]">filter_list</span>
-<span class="text-label-caps">Filter Results</span>
-</button>
 </div>
 </div><div class="overflow-x-auto overflow-y-auto" style="max-height: 700px;">
 <table class="w-full text-left border-collapse">

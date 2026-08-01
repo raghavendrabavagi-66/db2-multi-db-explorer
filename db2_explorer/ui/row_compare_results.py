@@ -6,6 +6,10 @@ import html
 import math
 from typing import Any
 
+import pandas as pd
+
+from db2_explorer.compare.row_compare import filter_comparison
+
 
 def status_badge_html(status: str) -> str:
     s = (status or "").upper()
@@ -69,11 +73,16 @@ def format_delta_value(value: Any) -> str:
     return text
 
 
-def comparison_rows_html(rows: list[dict[str, Any]]) -> str:
+def comparison_rows_html(
+    rows: list[dict[str, Any]],
+    *,
+    empty_message: str | None = None,
+) -> str:
     if not rows:
+        msg = empty_message or "No comparison results yet. Click RUN COMPARISON."
         return (
             '<tr><td colspan="5" class="px-md py-4 text-center text-secondary font-body-sm">'
-            "No comparison results yet. Click RUN COMPARISON.</td></tr>"
+            f"{html.escape(msg)}</td></tr>"
         )
     parts: list[str] = []
     for row in rows:
@@ -91,3 +100,27 @@ def comparison_rows_html(rows: list[dict[str, Any]]) -> str:
             f'<td class="px-md py-2">{badge}</td></tr>'
         )
     return "".join(parts)
+
+
+def comparison_tbody_views(records: list[dict[str, Any]]) -> dict[str, str]:
+    """Pre-render tbody HTML for All / Mismatch / Match / Failed filters."""
+    if not records:
+        empty = comparison_rows_html([])
+        return {"all": empty, "mismatch": empty, "match": empty, "failed": empty}
+
+    df = pd.DataFrame.from_records(records)
+    return {
+        "all": comparison_rows_html(records),
+        "mismatch": comparison_rows_html(
+            filter_comparison(df, "Mismatches only").to_dict(orient="records"),
+            empty_message="No mismatches in this comparison.",
+        ),
+        "match": comparison_rows_html(
+            filter_comparison(df, "Matches only").to_dict(orient="records"),
+            empty_message="No matches in this comparison.",
+        ),
+        "failed": comparison_rows_html(
+            filter_comparison(df, "Failed").to_dict(orient="records"),
+            empty_message="No failed or one-sided tables in this comparison.",
+        ),
+    }

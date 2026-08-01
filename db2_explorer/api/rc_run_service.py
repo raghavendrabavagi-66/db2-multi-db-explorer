@@ -8,7 +8,7 @@ from db2_explorer.api.rc_credential_store import get_connect_payload
 from db2_explorer.clients.azure import AzureConnection
 from db2_explorer.compare.row_compare import comparison_metrics, run_comparison
 from db2_explorer.data.connections import Connection
-from db2_explorer.ui.row_compare_results import comparison_rows_html
+from db2_explorer.ui.row_compare_results import comparison_rows_html, comparison_tbody_views
 
 _AZ_AUTH_MAP = {
     "entra": "azure_ad_interactive",
@@ -88,5 +88,6 @@ def run_comparison_json(body: dict[str, Any]) -> dict[str, Any]:
         "message": f"Comparison complete — {len(result.comparison)} table(s).",
         "metrics": metrics,
         "tbody_html": comparison_rows_html(records),
+        "tbody_views": comparison_tbody_views(records),
         "table_count": len(result.comparison),
     }
