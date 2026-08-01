@@ -1,12 +1,16 @@
-"""Register custom HTTP routes on the Streamlit/Tornado server."""
+"""Register custom HTTP routes on the Streamlit/Tornado server.
+
+Best-effort: if Tornado is available and Streamlit uses the Tornado server,
+we mount POST /api/oe/search.  If not, the JS client falls back to a full
+page reload via ``oe_action=search`` query params (handled server-side in
+``pages/1_Object_Explorer.py``).
+"""
 
 from __future__ import annotations
 
 import gc
 import json
 import logging
-import os
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 from streamlit import config
@@ -17,7 +21,6 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 OE_SEARCH_API_PATH = "/api/oe/search"
-_ASGI_SEARCH_ENV = "DB2_MIGRATION_STUDIO_ASGI_SEARCH"
 _CREATE_APP_PATCHED = False
 _OE_ROUTE_REGISTERED = False
 _SEARCH_HANDLER_CLS: type[Any] | None = None
@@ -35,7 +38,6 @@ def _make_url_path_regex(
     *path: str,
     trailing_slash: Literal["optional", "required", "prohibited"] = "optional",
 ) -> str:
-    """Build a Tornado path regex compatible with Streamlit route patterns."""
     try:
         from streamlit.web.server.server_util import make_url_path_regex
 
@@ -60,7 +62,7 @@ def oe_search_api_path() -> str:
 
 
 def _search_handler_cls() -> type[Any]:
-    """Build the Tornado handler lazily so import works without tornado installed."""
+    """Build the Tornado RequestHandler lazily."""
     global _SEARCH_HANDLER_CLS
     if _SEARCH_HANDLER_CLS is not None:
         return _SEARCH_HANDLER_CLS
@@ -70,9 +72,8 @@ def _search_handler_cls() -> type[Any]:
     from db2_explorer.api.oe_search_service import execute_search_json
 
     class _OESearchHandler(RequestHandler):
-        """POST /api/oe/search — fleet catalog search for the Object Explorer iframe."""
 
-        check_xsrf_cookie = lambda self: None  # noqa: E731 — iframe fetch has no XSRF token
+        check_xsrf_cookie = lambda self: None  # noqa: E731
 
         def set_default_headers(self) -> None:
             self.set_header("Access-Control-Allow-Origin", "*")
@@ -100,7 +101,7 @@ def _search_handler_cls() -> type[Any]:
 
             try:
                 payload = execute_search_json(body)
-            except Exception as exc:  # pragma: no cover - DB/driver failures
+            except Exception as exc:
                 _LOGGER.exception("Object Explorer search API failed")
                 self.set_status(500)
                 self.set_header("Content-Type", "application/json")
@@ -170,124 +171,66 @@ def _find_live_app() -> Application | None:
     return max(apps, key=lambda app: len(getattr(_wildcard_router(app), "rules", [])))
 
 
-def install_oe_search_api() -> bool:
-    """Patch Streamlit server startup so /api/oe/search exists before the first request.
-
-    Returns True when a startup patch was applied or is not needed; False when only
-    runtime registration remains available.
-    """
+def _try_patch_create_app() -> bool:
+    """Monkey-patch Server._create_app to insert our route (Tornado-based Streamlit only)."""
     global _CREATE_APP_PATCHED
     if _CREATE_APP_PATCHED:
         return _OE_ROUTE_REGISTERED
 
     _CREATE_APP_PATCHED = True
 
-    if not _tornado_available():
-        _LOGGER.warning(
-            "Object Explorer search API skipped: tornado is not installed. "
-            "Install with: pip install tornado"
-        )
-        return False
-
     try:
         from streamlit.web.server import server as st_server
     except ImportError:
-        _LOGGER.debug("Object Explorer search API: Streamlit server module unavailable")
         return False
 
     if not hasattr(st_server.Server, "_create_app"):
-        _LOGGER.debug(
-            "Object Explorer search API: Server._create_app unavailable "
-            "(use python -m db2_explorer run app.py on Streamlit 1.53+)"
-        )
         return False
 
-    original_create_app = st_server.Server._create_app
+    original = st_server.Server._create_app
 
-    def _create_app_with_oe_search(self):  # noqa: ANN001
-        app = original_create_app(self)
+    def _patched(self):  # noqa: ANN001
+        app = original(self)
         _register_route_on_app(app)
         global _OE_ROUTE_REGISTERED
         _OE_ROUTE_REGISTERED = True
         return app
 
-    st_server.Server._create_app = _create_app_with_oe_search
+    st_server.Server._create_app = _patched
     return True
 
 
 def ensure_oe_search_api() -> bool:
-    """Ensure POST /api/oe/search is mounted on the running Tornado app."""
-    global _OE_ROUTE_REGISTERED
+    """Best-effort: mount POST /api/oe/search on the Tornado server.
+
+    Returns True if the route is registered.  Returns False silently when
+    Tornado is unavailable (e.g. Streamlit 1.53+ ASGI) — the JS client
+    will use the page-reload fallback automatically.
+    """
     if not _tornado_available():
-        _LOGGER.debug("Object Explorer search API: tornado not available")
         return False
 
+    global _OE_ROUTE_REGISTERED
+    if _OE_ROUTE_REGISTERED:
+        return True
+
     try:
-        install_oe_search_api()
-    except (ImportError, AttributeError):
-        _LOGGER.debug("Object Explorer search API: startup patch unavailable")
-        return False
+        _try_patch_create_app()
+    except Exception:
+        pass
 
     if _OE_ROUTE_REGISTERED:
         return True
 
     try:
         app = _find_live_app()
-    except ImportError:
+    except Exception:
         return False
 
     if app is None:
-        _LOGGER.debug("Object Explorer search API: live Tornado app not found yet")
         return False
 
     if _register_route_on_app(app):
         _OE_ROUTE_REGISTERED = True
         return True
     return False
-
-
-def _asgi_search_api_active() -> bool:
-    """True when Streamlit 1.53+ is running via repo-root studio_entry ASGI entry."""
-    if os.environ.get(_ASGI_SEARCH_ENV) == "1":
-        return True
-
-    try:
-        from streamlit.web.server import server as st_server
-    except ImportError:
-        return False
-
-    if hasattr(st_server.Server, "_create_app"):
-        return False
-
-    repo_root = Path(__file__).resolve().parent.parent.parent
-    entry = repo_root / "studio_entry.py"
-    if not entry.is_file():
-        return False
-
-    try:
-        from db2_explorer import studio_app
-    except ImportError:
-        return False
-
-    if studio_app.app is None:
-        return False
-
-    try:
-        from streamlit.runtime.scriptrunner_utils.script_run_context import (
-            get_script_run_ctx,
-        )
-
-        ctx = get_script_run_ctx()
-        if ctx is None or not ctx.main_script_path:
-            return False
-        main = Path(ctx.main_script_path).resolve()
-        return main == entry.resolve()
-    except Exception:
-        return False
-
-
-def oe_search_api_ready() -> bool:
-    """Return whether /api/oe/search should be reachable (Tornado or ASGI)."""
-    if ensure_oe_search_api():
-        return True
-    return _asgi_search_api_active()

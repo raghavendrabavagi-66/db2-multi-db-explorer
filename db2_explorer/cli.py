@@ -1,54 +1,12 @@
-"""Streamlit CLI wrapper that registers Object Explorer API routes at startup."""
+"""Streamlit CLI wrapper — pre-registers OE search API on Tornado-based Streamlit."""
 
 from __future__ import annotations
 
-import os
-import sys
-from pathlib import Path
-
-from db2_explorer.api.register import install_oe_search_api
-
-_ASGI_SEARCH_ENV = "DB2_MIGRATION_STUDIO_ASGI_SEARCH"
-_REPO_ROOT = Path(__file__).resolve().parent.parent
-_STUDIO_ENTRY = _REPO_ROOT / "studio_entry.py"
-
-
-def _rewrite_argv_for_starlette_entry() -> bool:
-    """On Streamlit 1.53+, run the ASGI entry that declares /api/oe/search."""
-    if len(sys.argv) < 3 or sys.argv[1] != "run":
-        return False
-
-    target = Path(sys.argv[2]).name
-    if target not in {"app.py", "app"}:
-        return False
-
-    try:
-        from streamlit.web.server import server as st_server
-    except ImportError:
-        return False
-
-    if hasattr(st_server.Server, "_create_app"):
-        return False
-
-    try:
-        from db2_explorer import studio_app
-    except ImportError:
-        return False
-
-    if studio_app.app is None:
-        return False
-
-    if not _STUDIO_ENTRY.is_file():
-        return False
-
-    sys.argv[2] = str(_STUDIO_ENTRY.resolve())
-    os.environ[_ASGI_SEARCH_ENV] = "1"
-    return True
+from db2_explorer.api.register import ensure_oe_search_api
 
 
 def main() -> None:
-    install_oe_search_api()
-    _rewrite_argv_for_starlette_entry()
+    ensure_oe_search_api()
     from streamlit.web.cli import main as streamlit_main
 
     streamlit_main()

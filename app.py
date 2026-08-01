@@ -9,7 +9,7 @@ from db2_explorer.ui.theme import apply_page
 
 apply_page(title="DB2 Migration Studio", layout="wide", home=True)
 
-ensure_oe_search_api()
+ensure_oe_search_api()  # best-effort; search falls back to page reload if unavailable
 handle_object_explorer_home_clear()
 
 render_home_page()
