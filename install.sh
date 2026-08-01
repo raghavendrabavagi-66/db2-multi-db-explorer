@@ -14,7 +14,7 @@ fi
 source .venv/bin/activate
 
 pip install --upgrade pip
-pip install streamlit pandas
+pip install -r requirements.txt
 
 PY_VER=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 PY_INCLUDE=$(python3 -c "import sysconfig, os; print(os.path.join(sysconfig.get_path('include')))")
