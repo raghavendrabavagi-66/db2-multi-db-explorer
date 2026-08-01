@@ -41,6 +41,21 @@ _FULL_HEIGHT_SCRIPT = """
 </script>
 """
 
+_WORKSPACE_FRAME_HEIGHT_SCRIPT = """
+<script>
+(function () {
+  function syncRcFrameHeight() {
+    var h = window.innerHeight;
+    window.parent.postMessage({ type: "streamlit:setFrameHeight", height: h }, "*");
+  }
+  window.syncRcFrameHeight = syncRcFrameHeight;
+  syncRcFrameHeight();
+  window.addEventListener("load", syncRcFrameHeight);
+  window.addEventListener("resize", syncRcFrameHeight);
+})();
+</script>
+"""
+
 _RC_SETUP_MICRO = re.compile(
     r'<script id="rc-setup-bridge-placeholder"></script>',
     re.DOTALL,
@@ -743,6 +758,7 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
     const tbody = document.getElementById("rc-results-tbody");
     if (!tbody) return;
     tbody.innerHTML = lastComparisonViews[filter] || lastComparisonViews.all || "";
+    if (typeof window.syncRcFrameHeight === "function") window.syncRcFrameHeight();
   }}
 
   function applyComparisonResults(payload) {{
@@ -923,7 +939,7 @@ def _wire_rc_workspace_document(source: str, view: RowCompareWorkspaceView) -> s
         1,
     )
     doc = _regex_inject(_RC_WORKSPACE_MICRO, _rc_workspace_bridge_script(view), doc, count=1)
-    doc = doc.replace("</body>", _FULL_HEIGHT_SCRIPT + "</body>")
+    doc = doc.replace("</body>", _WORKSPACE_FRAME_HEIGHT_SCRIPT + "</body>")
     return doc
 
 
@@ -945,4 +961,4 @@ def render_row_compare_workspace_page(view: RowCompareWorkspaceView) -> None:
     _shell._HTML_CACHE.pop("row_workspace", None)
     doc = _wire_rc_workspace_document(_read_html("row_workspace"), view)
     st.markdown(f"<style>{shell_iframe_css()}</style>", unsafe_allow_html=True)
-    components.html(doc, height=900, scrolling=False)
+    components.html(doc, height=1000, scrolling=False)

@@ -34,6 +34,10 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+        /* Comparison table fills remaining viewport; scroll stays inside this panel. */
+        #rc-results-scroll {
+            -webkit-overflow-scrolling: touch;
+        }
     </style>
 <script id="tailwind-config">
         tailwind.config = {
@@ -130,7 +134,7 @@
         }
     </script>
 </head>
-<body class="bg-background text-on-surface min-h-screen flex flex-col">
+<body class="bg-background text-on-surface h-screen flex flex-col overflow-hidden">
 <!-- TopNavBar -->
 <header class="bg-surface-container-low text-primary font-body-md text-body-md border-b border-outline-variant flex justify-between items-center h-12 px-margin-edge w-full sticky top-0 z-50">
 <div class="flex items-center gap-md">
@@ -145,13 +149,13 @@
 <div class="flex items-center gap-sm"><button id="rc-home-back" type="button" class="flex items-center gap-1 text-on-secondary-container hover:text-primary transition-colors text-sm font-medium"><span class="material-symbols-outlined text-sm">arrow_back</span>Home</button><div class="h-4 w-[1px] bg-outline-variant mx-sm"></div><button id="rc-edit-creds" type="button" class="flex items-center gap-xs px-sm py-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded text-body-sm transition-colors"><span class="material-symbols-outlined text-[18px]">edit_note</span>Edit Credentials</button><button class="flex items-center gap-xs px-sm py-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded text-body-sm transition-colors"><span class="material-symbols-outlined text-[18px]">settings</span>Configuration</button></div>
 <div class="flex items-center gap-md"><div class="relative"><span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span><input class="pl-8 pr-md py-1 border border-outline-variant rounded bg-surface w-64 text-body-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" placeholder="Search objects..." type="text"></div><button class="bg-primary text-on-primary px-md py-1 rounded font-bold active:opacity-80 transition-opacity text-body-sm">Export</button></div>
 </div>
-<main class="flex-1 max-w-[1440px] mx-auto w-full px-margin-edge py-lg">
+<main class="flex-1 min-h-0 max-w-[1440px] mx-auto w-full px-margin-edge py-lg flex flex-col overflow-hidden">
 <!-- Header Section -->
 <!-- Configuration Cards -->
-<section class="bg-surface-container-lowest border border-outline-variant p-md rounded-DEFAULT mb-md"><div class="flex items-center justify-between"><div class="space-y-1"><label class="text-label-caps text-secondary block">TABLE TYPE</label><div class="flex items-center gap-md pt-1"><label class="flex items-center gap-xs cursor-pointer"><input class="w-4 h-4 text-primary border-outline-variant focus:ring-primary" name="table_type" type="radio" value="staging"><span class="text-body-sm">Staging tables</span></label><label class="flex items-center gap-xs cursor-pointer"><input checked="" class="w-4 h-4 text-primary border-outline-variant focus:ring-primary" name="table_type" type="radio" value="original"><span class="text-body-sm">Main tables</span></label></div></div><button class="bg-primary text-on-primary px-lg py-2 rounded-DEFAULT font-label-caps flex items-center gap-sm transition-all hover:brightness-110 active:scale-95" id="rc-run-btn" type="button"><span class="material-symbols-outlined">play_arrow</span> RUN COMPARISON</button></div></section>
+<section class="bg-surface-container-lowest border border-outline-variant p-md rounded-DEFAULT mb-md flex-none"><div class="flex items-center justify-between"><div class="space-y-1"><label class="text-label-caps text-secondary block">TABLE TYPE</label><div class="flex items-center gap-md pt-1"><label class="flex items-center gap-xs cursor-pointer"><input class="w-4 h-4 text-primary border-outline-variant focus:ring-primary" name="table_type" type="radio" value="staging"><span class="text-body-sm">Staging tables</span></label><label class="flex items-center gap-xs cursor-pointer"><input checked="" class="w-4 h-4 text-primary border-outline-variant focus:ring-primary" name="table_type" type="radio" value="original"><span class="text-body-sm">Main tables</span></label></div></div><button class="bg-primary text-on-primary px-lg py-2 rounded-DEFAULT font-label-caps flex items-center gap-sm transition-all hover:brightness-110 active:scale-95" id="rc-run-btn" type="button"><span class="material-symbols-outlined">play_arrow</span> RUN COMPARISON</button></div></section>
 <!-- Action Bar -->
 <!-- Metrics Grid -->
-<section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-md mb-lg">
+<section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-md mb-lg flex-none">
 <div class="bg-surface-container-lowest border border-outline-variant p-md flex flex-col gap-xs py-lg">
 <p class="text-label-caps text-secondary">TOTAL TABLES</p>
 <p class="font-headline-md text-headline-md font-bold">142</p>
@@ -174,8 +178,8 @@
 </div>
 </section>
 <!-- Detailed Results Table -->
-<section class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT overflow-hidden shadow-sm">
-<div class="px-md py-sm bg-surface-container-low border-b border-outline-variant">
+<section class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT flex-1 min-h-0 flex flex-col shadow-sm">
+<div class="px-md py-sm bg-surface-container-low border-b border-outline-variant flex-none">
 <h2 class="font-headline-md text-[20px] font-bold text-on-surface mb-sm">Comparison Details</h2>
 <div class="flex items-center gap-xs">
 <button id="rc-filter-all" type="button" class="h-10 px-md text-body-sm font-bold text-primary border-b-2 border-primary transition-all">All</button>
@@ -184,7 +188,7 @@
 <button id="rc-filter-failed" type="button" class="h-10 px-md text-body-sm font-medium text-secondary hover:bg-surface-container-high hover:text-on-surface transition-all">Failed</button>
 </div>
 </div>
-</div><div class="overflow-x-auto overflow-y-auto" style="max-height: 700px;">
+<div id="rc-results-scroll" class="flex-1 min-h-0 overflow-x-auto overflow-y-auto pb-md">
 <table class="w-full text-left border-collapse">
 <thead>
 <tr class="bg-surface-container-low border-b border-outline-variant sticky top-0 z-10">
