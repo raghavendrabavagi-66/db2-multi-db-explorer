@@ -1,0 +1,292 @@
+<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>DB2 Migration Studio - Row Compare Setup</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&amp;family=Fira+Code:wght@400;500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-fixed": "#2f1500",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "tertiary-fixed": "#ffdcc3",
+                        "tertiary-container": "#a65900",
+                        "surface-bright": "#faf8ff",
+                        "surface-container-low": "#f2f3ff",
+                        "error-container": "#ffdad6",
+                        "on-secondary-container": "#54647a",
+                        "primary": "#004ac6",
+                        "tertiary": "#824500",
+                        "primary-fixed-dim": "#b4c5ff",
+                        "secondary-fixed-dim": "#b7c8e1",
+                        "outline-variant": "#c3c6d7",
+                        "on-error": "#ffffff",
+                        "surface-container-high": "#e2e7ff",
+                        "on-primary-fixed-variant": "#003ea8",
+                        "surface-container-highest": "#dae2fd",
+                        "on-background": "#131b2e",
+                        "inverse-on-surface": "#eef0ff",
+                        "on-error-container": "#93000a",
+                        "surface-dim": "#d2d9f4",
+                        "on-surface": "#131b2e",
+                        "on-tertiary-container": "#ffede1",
+                        "on-primary-container": "#eeefff",
+                        "inverse-surface": "#283044",
+                        "secondary-fixed": "#d3e4fe",
+                        "on-secondary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "primary-fixed": "#dbe1ff",
+                        "outline": "#737686",
+                        "surface-container": "#eaedff",
+                        "background": "#faf8ff",
+                        "on-surface-variant": "#434655",
+                        "tertiary-fixed-dim": "#ffb77d",
+                        "surface": "#faf8ff",
+                        "secondary": "#505f76",
+                        "inverse-primary": "#b4c5ff",
+                        "on-tertiary-fixed-variant": "#6e3900",
+                        "primary-container": "#2563eb",
+                        "error": "#ba1a1a",
+                        "surface-variant": "#dae2fd",
+                        "surface-tint": "#0053db",
+                        "secondary-container": "#d0e1fb",
+                        "on-primary-fixed": "#00174b",
+                        "on-secondary-fixed": "#0b1c30",
+                        "surface-container-lowest": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sm": "8px",
+                        "lg": "24px",
+                        "xl": "32px",
+                        "md": "16px",
+                        "margin-edge": "24px",
+                        "gutter": "16px",
+                        "base": "4px",
+                        "xs": "4px"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["Fira Sans"],
+                        "headline-md": ["Fira Sans"],
+                        "display-lg": ["Fira Sans"],
+                        "code-sm": ["Fira Code"],
+                        "body-sm": ["Fira Sans"],
+                        "title-sm": ["Fira Sans"],
+                        "code-md": ["Fira Code"],
+                        "body-md": ["Fira Sans"]
+                    },
+                    "fontSize": {
+                        "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "display-lg": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "code-sm": ["12px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "title-sm": ["18px", {"lineHeight": "24px", "fontWeight": "500"}],
+                        "code-md": ["13px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+            line-height: 1;
+        }
+        .modal-overlay {
+            background-color: rgba(19, 27, 46, 0.4);
+            backdrop-filter: blur(4px);
+        }
+        .studio-input {
+            @apply bg-surface-container-lowest border-outline text-on-surface focus:border-primary focus:ring-1 focus:ring-primary rounded-xs transition-all duration-150 h-10 px-md;
+        }
+        .studio-label {
+            @apply text-on-surface font-label-caps text-label-caps mb-xs block uppercase;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen">
+<!-- Background Screen (Dimmed Home Screen Mockup) -->
+<div class="fixed inset-0 z-0 overflow-hidden select-none pointer-events-none opacity-40 grayscale blur-[2px]">
+<header class="flex justify-between items-center h-12 px-margin-edge w-full sticky top-0 z-50 bg-surface-container-low border-b border-outline-variant">
+<div class="font-headline-md text-headline-md font-bold text-on-surface">DB2 Migration Studio</div>
+<nav class="hidden md:flex gap-md">
+<span class="text-primary font-bold border-b-2 border-primary pb-1 font-body-md text-body-md">Home</span>
+<span class="text-secondary">Projects</span>
+<span class="text-secondary">Migrations</span>
+<span class="text-secondary">Monitoring</span>
+</nav>
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined">notifications</span>
+<div class="w-8 h-8 rounded-full bg-primary-container"></div>
+</div>
+</header>
+<main class="pl-[280px] pt-md p-lg space-y-lg">
+<div class="grid grid-cols-12 gap-lg">
+<div class="col-span-12 h-96 bg-surface-container-lowest border border-outline-variant rounded"></div>
+</div>
+</main>
+<aside class="fixed left-0 top-12 bottom-0 w-[280px] flex flex-col py-md bg-surface-container-low border-r border-outline-variant"></aside>
+</div>
+<!-- Login Popup / Setup Modal Overlay -->
+<div class="fixed inset-0 z-[100] flex items-center justify-center modal-overlay p-margin-edge">
+<div class="bg-surface-container-lowest w-full max-w-[900px] shadow-2xl border border-outline-variant flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300">
+<!-- Modal Header -->
+<div class="px-xl py-lg border-b border-outline-variant flex justify-between items-start">
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface">Compare Connection Setup</h2>
+<p class="font-body-sm text-body-sm text-secondary mt-xs">Configure your source and target data environments</p>
+</div>
+<button aria-label="Close modal" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors text-outline">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Content Area: Two Columns with Vertical Divider -->
+<div class="flex divide-x divide-outline-variant bg-surface-container-lowest">
+<!-- Left Column (Source) -->
+<div class="flex-1 p-xl">
+<div class="flex items-center gap-sm mb-lg">
+<div class="w-10 h-10 bg-surface-container flex items-center justify-center rounded">
+<span class="material-symbols-outlined text-primary">database</span>
+</div>
+<div>
+<h3 class="font-title-sm text-title-sm text-on-surface">DB2 LUW SOURCE</h3>
+<p class="font-label-caps text-label-caps text-secondary uppercase">Local DB2 Instance</p>
+</div>
+</div>
+<div class="space-y-md">
+<div>
+<label class="studio-label">Database Name</label>
+<div class="flex gap-sm">
+<input class="flex-1 studio-input" type="text" value="PROD_DB_MIGRATION">
+
+</div>
+</div>
+<div class="grid grid-cols-3 gap-md">
+<div class="col-span-2">
+<label class="studio-label">Host</label>
+<input class="w-full studio-input" placeholder="10.0.4.12" type="text">
+</div>
+<div>
+<label class="studio-label">Port</label>
+<input class="w-full studio-input" type="text" value="50000">
+</div>
+</div>
+<div>
+<label class="studio-label">Username</label>
+<input class="w-full studio-input" type="text" value="db2admin">
+</div>
+<div>
+<label class="studio-label">Password</label>
+<input class="w-full studio-input" type="password" value="********">
+</div>
+<div class="pt-md"><button class="w-full h-10 border border-primary text-primary font-title-sm rounded hover:bg-surface-container-low transition-colors flex items-center justify-center gap-sm"><span class="material-symbols-outlined text-[20px]">check_circle</span>Test Connection</button></div></div>
+</div>
+<!-- Right Column (Target) -->
+<div class="flex-1 p-xl">
+<div class="flex items-center gap-sm mb-lg">
+<div class="w-10 h-10 bg-surface-container flex items-center justify-center rounded">
+<span class="material-symbols-outlined text-tertiary">cloud</span>
+</div>
+<div>
+<h3 class="font-title-sm text-title-sm text-on-surface">AZURE SQL TARGET</h3>
+<p class="font-label-caps text-label-caps text-secondary uppercase">Production Instance</p>
+</div>
+</div>
+<div class="space-y-md"><div class="space-y-xs">
+<label class="font-label-caps text-label-caps text-on-surface uppercase">Azure SQL Server</label>
+<input class="w-full h-10 px-md border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" placeholder="az-db-prod-sql.database.windows.net" type="text">
+</div>
+<div class="space-y-xs">
+<label class="font-label-caps text-label-caps text-on-surface uppercase">AUTHENTICATION</label>
+<div class="flex flex-col gap-sm py-1">
+  <label class="flex items-center gap-sm cursor-pointer group">
+    <input type="radio" name="auth_type_modal" value="entra" class="w-4 h-4 text-primary border-outline focus:ring-primary" checked="">
+    <span class="text-body-sm text-on-surface group-hover:text-primary transition-colors">Microsoft Entra MFA</span>
+  </label>
+  <label class="flex items-center gap-sm cursor-pointer group">
+    <input type="radio" name="auth_type_modal" value="windows" class="w-4 h-4 text-primary border-outline focus:ring-primary">
+    <span class="text-body-sm text-on-surface group-hover:text-primary transition-colors">Windows Authentication</span>
+  </label>
+  <label class="flex items-center gap-sm cursor-pointer group mt-1 ml-6">
+    <input type="checkbox" class="rounded border-outline text-primary focus:ring-primary w-4 h-4">
+    <span class="text-body-sm text-on-surface group-hover:text-primary transition-colors">Trust Server certificate</span>
+  </label>
+</div>
+</div>
+<div class="space-y-xs"><label class="font-label-caps text-label-caps text-on-surface uppercase">Database Name</label>
+<div class="flex gap-sm items-center">
+  <div class="relative flex-1">
+    <select class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">
+      <option>CRM_PROD_EASTUS</option>
+      <option>CRM_STAGING_EASTUS</option>
+      <option>CRM_DEV_EASTUS</option>
+    </select>
+    <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined pointer-events-none text-outline">expand_more</span>
+  </div>
+  <button class="h-10 w-10 rounded border border-outline-variant hover:bg-surface-container-low text-secondary transition-colors flex items-center justify-center shrink-0" title="Refresh databases">
+    <span class="material-symbols-outlined text-[20px]">refresh</span>
+  </button>
+</div></div><div class="pt-md"><button class="w-full h-10 border border-primary text-primary font-title-sm rounded hover:bg-surface-container-low transition-colors flex items-center justify-center gap-sm"><span class="material-symbols-outlined text-[20px]">check_circle</span>Test Connection</button></div></div>
+</div>
+</div>
+<!-- Modal Footer -->
+<div class="p-xl bg-surface-container-lowest border-t border-outline-variant">
+<button class="w-full h-14 bg-primary text-on-primary font-title-sm flex items-center justify-center gap-md hover:brightness-110 active:opacity-90 transition-all shadow-lg" id="compareBtn">
+                    Connect &amp; Compare
+                    <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+
+</div>
+</div>
+</div>
+<!-- Micro-interaction Script -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const overlay = document.querySelector('.modal-overlay');
+            const closeBtn = document.querySelector('button[aria-label="Close modal"]');
+            const cancelBtn = document.querySelector('.text-center button');
+            const compareBtn = document.getElementById('compareBtn');
+
+            const closeModal = () => {
+                const modal = document.querySelector('.bg-surface-container-lowest.shadow-2xl');
+                modal.classList.add('scale-95', 'opacity-0');
+                overlay.classList.add('opacity-0');
+                setTimeout(() => {
+                    console.log('Modal closed');
+                }, 200);
+            };
+
+            closeBtn.addEventListener('click', closeModal);
+            cancelBtn.addEventListener('click', closeModal);
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) closeModal();
+            });
+
+            compareBtn.addEventListener('click', function() {
+                this.innerHTML = '<span class="material-symbols-outlined animate-spin">refresh</span> Connecting...';
+                this.classList.add('pointer-events-none', 'opacity-80');
+                setTimeout(() => {
+                    alert('Connection established. Initiating comparison.');
+                    this.innerHTML = 'Connect & Compare <span class="material-symbols-outlined">arrow_forward</span>';
+                    this.classList.remove('pointer-events-none', 'opacity-80');
+                }, 1500);
+            });
+        });
+    </script>
+
+
+</body></html>

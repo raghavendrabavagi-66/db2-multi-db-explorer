@@ -47,59 +47,17 @@ from db2_explorer.sync.indexes import (
     generate_index_sync_script,
     preflight_index,
 )
-from db2_explorer.ui.components import redgate_comparison_bar, service_top_bar
+from db2_explorer.ui.components import redgate_comparison_bar
+from db2_explorer.ui.stitch_shell import (
+    render_html,
+    row_toolbar_html,
+    schema_setup_gitlab_header_html,
+    schema_setup_target_header_html,
+    workspace_nav,
+)
 from db2_explorer.ui.theme import COLORS, apply_page
 
 apply_page(title="Schema Compare", layout="wide", schema_compare=True)
-
-# Split-pane layout: scrollable object list + pinned DDL pane
-st.markdown(
-    f"""
-    <style>
-    .st-key-sch_objects_pane {{
-        max-height: calc(60vh - 8rem) !important;
-        overflow-y: auto !important;
-        overflow-x: hidden !important;
-    }}
-    .st-key-sch_objects_pane [data-testid="stVerticalBlockBorderWrapper"] {{
-        max-height: calc(60vh - 8rem) !important;
-        overflow-y: auto !important;
-    }}
-    [data-testid="stBottomBlockContainer"] {{
-        max-height: 40vh !important;
-        overflow-y: auto !important;
-        background: {COLORS['surface']} !important;
-        border-top: 1px solid {COLORS['border']} !important;
-        box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.08) !important;
-    }}
-    [data-testid="stBottomBlockContainer"] iframe {{
-        height: calc(40vh - 11rem) !important;
-        min-height: 160px !important;
-    }}
-    section.main:has(.sch-ddl-open-marker) {{
-        padding-bottom: calc(40vh + 1.5rem) !important;
-    }}
-    section.main .st-key-sch_ddl_pane {{
-        position: fixed !important;
-        bottom: 0 !important;
-        left: 1.25rem !important;
-        right: 1.25rem !important;
-        height: 40vh !important;
-        max-height: 40vh !important;
-        overflow-y: auto !important;
-        z-index: 999 !important;
-        background: {COLORS['surface']} !important;
-        border-top: 1px solid {COLORS['border']} !important;
-        box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.1) !important;
-    }}
-    section.main .st-key-sch_ddl_pane iframe {{
-        height: calc(40vh - 11rem) !important;
-        min-height: 160px !important;
-    }}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
 
 # Fallback iframe height when CSS calc is not applied (components.html requires pixels)
 _DDL_IFRAME_HEIGHT = 260
@@ -665,20 +623,19 @@ if "sch_azure_conn" not in st.session_state:
 if "sch_apply_log" not in st.session_state:
     st.session_state.sch_apply_log = []
 
-service_top_bar(
-    "Schema Compare",
-    tagline="Compare GitLab deployment DDL against live target database definitions.",
-    home_key="sch_home",
+workspace_nav(
+    "migrations",
+    page_title="Schema Compare",
+    page_subtitle="GitLab DDL vs live target",
 )
+render_html(row_toolbar_html())
 
-# ---------------------------------------------------------------------------
-# Header: GitLab source + Target connection
-# ---------------------------------------------------------------------------
-col_gl, col_tgt = st.columns(2)
+with st.container(key="sch_workspace"):
+    setup_col1, setup_col2 = st.columns(2)
 
-with col_gl:
-    st.markdown("#### Source — GitLab Deployment")
-    st.caption(f"{GITLAB_BASE_URL} · project {GITLAB_PROJECT_ID}")
+    with setup_col1:
+        render_html(schema_setup_gitlab_header_html())
+        st.caption(f"{GITLAB_BASE_URL} · project {GITLAB_PROJECT_ID}")
 
     gitlab_token = st.text_input(
         "GitLab personal access token",
@@ -783,8 +740,8 @@ with col_gl:
     if st.session_state.sch_missing_files:
         st.caption(f"Missing in repo: {', '.join(st.session_state.sch_missing_files)}")
 
-with col_tgt:
-    st.markdown("#### Target — SQL Server / Azure SQL")
+    with setup_col2:
+        render_html(schema_setup_target_header_html())
     az_server = st.text_input("Server", key="sch_az_server")
     az_database = st.text_input("Database", key="sch_az_database")
     az_auth = st.radio(
@@ -864,7 +821,33 @@ if raw_result is None:
     st.info("Load a GitLab deployment, connect to the target database, then click **Compare all**.")
     st.stop()
 
+src_name = st.session_state.get("sch_database") or "GitLab Source"
+tgt_name = st.session_state.get("sch_az_database") or "Azure SQL Target"
 full_summary = raw_result.summary
+total_objects = (
+    full_summary.identical
+    + full_summary.different
+    + full_summary.only_gitlab
+    + full_summary.only_db
+)
+st.markdown(
+    f"""
+    <div class="studio-ws-toolbar" style="margin-bottom:0.75rem;">
+      <div><span class="studio-metric-label">Source</span>
+        <div class="studio-source-title">{src_name}</div></div>
+      <div style="text-align:center;">
+        <span class="studio-metric-label">Compared</span>
+        <div class="studio-metric-value">{total_objects}</div>
+      </div>
+      <div style="text-align:right;">
+        <span class="studio-metric-label">Target</span>
+        <div class="studio-source-title">{tgt_name}</div>
+      </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
 drift_total = full_summary.different + full_summary.only_gitlab + full_summary.only_db
 redgate_comparison_bar(
     {

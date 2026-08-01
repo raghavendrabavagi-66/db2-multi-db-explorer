@@ -1,0 +1,93 @@
+{
+  "projectId": "8887243422242195897",
+  "projectTitle": "DB2 Object Explorer Studio",
+  "screens": [
+    {
+      "folder": "01-row-compare-setup-redgate-style",
+      "title": "Row Compare Setup - Redgate Style",
+      "screenId": "ce7e7088fac7495aa316810ac71dd90c",
+      "status": "ok",
+      "fetchedTitle": "Row Compare Setup - Redgate Style",
+      "width": "2560",
+      "height": "2048",
+      "deviceType": "DESKTOP",
+      "screenshot": "screenshot.png",
+      "html": "index.html"
+    },
+    {
+      "folder": "02-object-explorer-db2-migration-studio",
+      "title": "Object Explorer - DB2 Migration Studio",
+      "screenId": "faa9c714830b41e3982cd64346b28921",
+      "status": "ok",
+      "fetchedTitle": "Object Explorer - DB2 Migration Studio",
+      "width": "2560",
+      "height": "2048",
+      "deviceType": "DESKTOP",
+      "screenshot": "screenshot.png",
+      "html": "index.html"
+    },
+    {
+      "folder": "03-home-db2-migration-studio",
+      "title": "Home - DB2 Migration Studio",
+      "screenId": "0184a9f0149f427fa7cecb45891f61a8",
+      "status": "ok",
+      "fetchedTitle": "Home - DB2 Migration Studio",
+      "width": "2560",
+      "height": "2048",
+      "deviceType": "DESKTOP",
+      "screenshot": "screenshot.png",
+      "html": "index.html"
+    },
+    {
+      "folder": "04-design-system",
+      "title": "Design System",
+      "screenId": "asset-stub-assets_f5667b9ce77c4b039dab22297e25dccd",
+      "status": "ok",
+      "fetchedTitle": "Studio Precision",
+      "note": "Asset stub \u2014 exported via list_design_systems (no screenshot/HTML)",
+      "files": [
+        "DESIGN.md",
+        "style-guidelines.md",
+        "theme.json",
+        "design_systems.json",
+        "README.md"
+      ]
+    },
+    {
+      "folder": "05-row-compare-workspace-configuration-panel",
+      "title": "Row Compare - Workspace with Configuration Panel",
+      "screenId": "7dad9dc0661344218f6cc5fc62c2cca6",
+      "status": "ok",
+      "fetchedTitle": "Row Compare - Workspace with Configuration Panel",
+      "width": "2560",
+      "height": "2048",
+      "deviceType": "DESKTOP",
+      "screenshot": "screenshot.png",
+      "html": "index.html"
+    },
+    {
+      "folder": "06-schema-compare-setup-redgate-style",
+      "title": "Schema Compare Setup - Redgate Style",
+      "screenId": "7ddf1577a7a1489db6c515a502a8fc93",
+      "status": "ok",
+      "fetchedTitle": "Schema Compare Setup - Redgate Style",
+      "width": "2560",
+      "height": "2144",
+      "deviceType": "DESKTOP",
+      "screenshot": "screenshot.png",
+      "html": "index.html"
+    },
+    {
+      "folder": "07-schema-compare-updated-table-structure",
+      "title": "Schema Compare - Updated Table Structure",
+      "screenId": "01d49ffaec9d4196ba28607880add143",
+      "status": "ok",
+      "fetchedTitle": "Schema Compare - Updated Table Structure",
+      "width": "2560",
+      "height": "2048",
+      "deviceType": "DESKTOP",
+      "screenshot": "screenshot.png",
+      "html": "index.html"
+    }
+  ]
+}

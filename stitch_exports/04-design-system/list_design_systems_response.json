@@ -1,0 +1,155 @@
+{
+  "id": 1,
+  "jsonrpc": "2.0",
+  "result": {
+    "content": [
+      {
+        "text": "{\"designSystems\":[{\"name\":\"assets/f5667b9ce77c4b039dab22297e25dccd\",\"designSystem\":{\"displayName\":\"Studio Precision\",\"styleGuidelines\":\"## Brand & Style\\n\\nThe design system is engineered for the high-stakes environment of database administration and migration. It prioritizes clarity, technical density, and reliability over decorative elements. The visual language is rooted in **Modern Corporate** aesthetics, utilizing a \\\"system-first\\\" approach that reduces cognitive load during complex schema mapping and data ETL processes. \\n\\nThe emotional response should be one of control and confidence. By using a white-label inspired foundation with precise accents, the UI recedes to let the data become the primary interface. There are no gradients, no playful roundedness, and no unnecessary animations. Every pixel serves a functional purpose, facilitating long-form technical work without visual fatigue.\\n\\n## Layout & Spacing\\n\\nThe system follows a strict **4px baseline grid** to maintain alignment in dense data environments. \\n\\n- **Layout:** A fluid grid system is used for workspace areas (query editors, mapping canvases), while a fixed 280px sidebar is used for object navigation. \\n- **Density:** Padding is kept tight (8px-12px) within component containers to maximize the \\\"above-the-fold\\\" data visibility. \\n- **Breakpoints:**\\n  - Desktop (1280px+): Full multi-column view with persistent navigation.\\n  - Tablet (768px - 1279px): Navigation collapses into an icon-only rail; content remains fluid.\\n  - Mobile: Not prioritized, but follows a single-column stack for monitoring dashboards only.\\n\\n## Elevation & Depth\\n\\nTo maintain a clean, professional aesthetic, this design system avoids soft ambient shadows. Instead, it uses **Tonal Layers** and **Low-Contrast Outlines** to communicate hierarchy.\\n\\n- **Level 0 (Background):** #FFFFFF. The base canvas.\\n- **Level 1 (Sub-surface):** #F1F5F9. Used for sidebars, header bars, and empty states.\\n- **Level 2 (Interactions):** Elements like cards and modals use a 1px solid border (#E2E8F0).\\n- **Active State:** A 2px #2563EB left-border or stroke is used to indicate the currently selected database object or active input, providing a clear \\\"focus\\\" anchor without needing depth.\\n\\n## Components\\n\\n- **Buttons:** \\n  - *Primary:* Solid #2563EB with white text. \\n  - *Secondary:* 1px #E2E8F0 border, #0F172A text, white background.\\n  - *Ghost:* No border, #64748B text, used for secondary actions in toolbars.\\n- **Inputs:** \\n  - Background: #FFFFFF, Border: #E2E8F0 (shifts to #2563EB on focus). \\n  - Labels use `body-sm` in #0F172A.\\n- **Data Tables:**\\n  - The core of the system. Header cells use #F1F5F9 background with `label-caps`. \\n  - Row height: 32px (compact) or 40px (default). \\n  - Borders are horizontal-only to emphasize data flow.\\n- **Status Badges:** \\n  - Small, rectangular with 4px radius. \\n  - Success: Emerald/100 background, Emerald/700 text. \\n  - Warning (Amber): #D97706 text for high-visibility alerts.\\n- **Code Blocks:** \\n  - Background: #F1F5F9, utilizing `code-sm` typography. No syntax highlighting gradients; use distinct shades of primary blue and neutral slate for code tokens.\",\"theme\":{\"colorMode\":\"LIGHT\",\"font\":\"FIRA_SANS\",\"roundness\":\"ROUND_EIGHT\",\"customColor\":\"#2563eb\",\"headlineFont\":\"FIRA_SANS\",\"bodyFont\":\"FIRA_SANS\",\"labelFont\":\"FIRA_SANS\",\"namedColors\":{\"background\":\"#faf8ff\",\"error\":\"#ba1a1a\",\"error_container\":\"#ffdad6\",\"inverse_on_surface\":\"#eef0ff\",\"inverse_primary\":\"#b4c5ff\",\"inverse_surface\":\"#283044\",\"on_background\":\"#131b2e\",\"on_error\":\"#ffffff\",\"on_error_container\":\"#93000a\",\"on_primary\":\"#ffffff\",\"on_primary_container\":\"#eeefff\",\"on_primary_fixed\":\"#00174b\",\"on_primary_fixed_variant\":\"#003ea8\",\"on_secondary\":\"#ffffff\",\"on_secondary_container\":\"#54647a\",\"on_secondary_fixed\":\"#0b1c30\",\"on_secondary_fixed_variant\":\"#38485d\",\"on_surface\":\"#131b2e\",\"on_surface_variant\":\"#434655\",\"on_tertiary\":\"#ffffff\",\"on_tertiary_container\":\"#ffede1\",\"on_tertiary_fixed\":\"#2f1500\",\"on_tertiary_fixed_variant\":\"#6e3900\",\"outline\":\"#737686\",\"outline_variant\":\"#c3c6d7\",\"primary\":\"#004ac6\",\"primary_container\":\"#2563eb\",\"primary_fixed\":\"#dbe1ff\",\"primary_fixed_dim\":\"#b4c5ff\",\"secondary\":\"#505f76\",\"secondary_container\":\"#d0e1fb\",\"secondary_fixed\":\"#d3e4fe\",\"secondary_fixed_dim\":\"#b7c8e1\",\"surface\":\"#faf8ff\",\"surface_bright\":\"#faf8ff\",\"surface_container\":\"#eaedff\",\"surface_container_high\":\"#e2e7ff\",\"surface_container_highest\":\"#dae2fd\",\"surface_container_low\":\"#f2f3ff\",\"surface_container_lowest\":\"#ffffff\",\"surface_dim\":\"#d2d9f4\",\"surface_tint\":\"#0053db\",\"surface_variant\":\"#dae2fd\",\"tertiary\":\"#824500\",\"tertiary_container\":\"#a65900\",\"tertiary_fixed\":\"#ffdcc3\",\"tertiary_fixed_dim\":\"#ffb77d\"},\"designMd\":\"---\\nname: Studio Precision\\ncolors:\\n  surface: '#faf8ff'\\n  surface-dim: '#d2d9f4'\\n  surface-bright: '#faf8ff'\\n  surface-container-lowest: '#ffffff'\\n  surface-container-low: '#f2f3ff'\\n  surface-container: '#eaedff'\\n  surface-container-high: '#e2e7ff'\\n  surface-container-highest: '#dae2fd'\\n  on-surface: '#131b2e'\\n  on-surface-variant: '#434655'\\n  inverse-surface: '#283044'\\n  inverse-on-surface: '#eef0ff'\\n  outline: '#737686'\\n  outline-variant: '#c3c6d7'\\n  surface-tint: '#0053db'\\n  primary: '#004ac6'\\n  on-primary: '#ffffff'\\n  primary-container: '#2563eb'\\n  on-primary-container: '#eeefff'\\n  inverse-primary: '#b4c5ff'\\n  secondary: '#505f76'\\n  on-secondary: '#ffffff'\\n  secondary-container: '#d0e1fb'\\n  on-secondary-container: '#54647a'\\n  tertiary: '#824500'\\n  on-tertiary: '#ffffff'\\n  tertiary-container: '#a65900'\\n  on-tertiary-container: '#ffede1'\\n  error: '#ba1a1a'\\n  on-error: '#ffffff'\\n  error-container: '#ffdad6'\\n  on-error-container: '#93000a'\\n  primary-fixed: '#dbe1ff'\\n  primary-fixed-dim: '#b4c5ff'\\n  on-primary-fixed: '#00174b'\\n  on-primary-fixed-variant: '#003ea8'\\n  secondary-fixed: '#d3e4fe'\\n  secondary-fixed-dim: '#b7c8e1'\\n  on-secondary-fixed: '#0b1c30'\\n  on-secondary-fixed-variant: '#38485d'\\n  tertiary-fixed: '#ffdcc3'\\n  tertiary-fixed-dim: '#ffb77d'\\n  on-tertiary-fixed: '#2f1500'\\n  on-tertiary-fixed-variant: '#6e3900'\\n  background: '#faf8ff'\\n  on-background: '#131b2e'\\n  surface-variant: '#dae2fd'\\ntypography:\\n  display-lg:\\n    fontFamily: Fira Sans\\n    fontSize: 30px\\n    fontWeight: '600'\\n    lineHeight: 38px\\n    letterSpacing: -0.02em\\n  headline-md:\\n    fontFamily: Fira Sans\\n    fontSize: 24px\\n    fontWeight: '600'\\n    lineHeight: 32px\\n    letterSpacing: -0.01em\\n  title-sm:\\n    fontFamily: Fira Sans\\n    fontSize: 18px\\n    fontWeight: '500'\\n    lineHeight: 24px\\n  body-md:\\n    fontFamily: Fira Sans\\n    fontSize: 14px\\n    fontWeight: '400'\\n    lineHeight: 20px\\n  body-sm:\\n    fontFamily: Fira Sans\\n    fontSize: 13px\\n    fontWeight: '400'\\n    lineHeight: 18px\\n  label-caps:\\n    fontFamily: Fira Sans\\n    fontSize: 11px\\n    fontWeight: '700'\\n    lineHeight: 16px\\n    letterSpacing: 0.05em\\n  code-md:\\n    fontFamily: Fira Code\\n    fontSize: 13px\\n    fontWeight: '400'\\n    lineHeight: 20px\\n  code-sm:\\n    fontFamily: Fira Code\\n    fontSize: 12px\\n    fontWeight: '400'\\n    lineHeight: 18px\\nrounded:\\n  sm: 0.25rem\\n  DEFAULT: 0.5rem\\n  md: 0.75rem\\n  lg: 1rem\\n  xl: 1.5rem\\n  full: 9999px\\nspacing:\\n  base: 4px\\n  xs: 4px\\n  sm: 8px\\n  md: 16px\\n  lg: 24px\\n  xl: 32px\\n  gutter: 16px\\n  margin-edge: 24px\\n---\\n\\n## Brand & Style\\n\\nThe design system is engineered for the high-stakes environment of database administration and migration. It prioritizes clarity, technical density, and reliability over decorative elements. The visual language is rooted in **Modern Corporate** aesthetics, utilizing a \\\"system-first\\\" approach that reduces cognitive load during complex schema mapping and data ETL processes. \\n\\nThe emotional response should be one of control and confidence. By using a white-label inspired foundation with precise accents, the UI recedes to let the data become the primary interface. There are no gradients, no playful roundedness, and no unnecessary animations. Every pixel serves a functional purpose, facilitating long-form technical work without visual fatigue.\\n\\n## Colors\\n\\nThe palette is strictly functional, optimized for a light-mode enterprise environment. \\n\\n- **Primary (#2563EB):** Used for critical paths, active states, and primary action buttons. It signals focus and progression.\\n- **Neutral/Text (#0F172A):** High-contrast slate for maximum legibility in data grids and documentation.\\n- **Secondary/Muted (#64748B):** Used for metadata, helper text, and inactive tab states to create visual hierarchy.\\n- **Accent (#D97706):** Reserved for \\\"Warning\\\" states, pending migrations, or high-priority technical alerts that require immediate but non-critical attention.\\n- **Surface & Border:** A hierarchy of grays (#F1F5F9 and #E2E8F0) is used to define containment and structure without the use of shadows.\\n\\n## Typography\\n\\nThis design system utilizes **Fira Sans** for all UI-related communication due to its exceptional legibility and professional humanist qualities. For technical values\u2014such as SQL snippets, connection strings, and table names\u2014**Fira Code** is mandated to ensure character distinction (e.g., distinguishing `0` from `O`).\\n\\nTypography is optimized for data density. Body text is set at 14px to allow for high information display on standard monitors. All caps labels are used sparingly for section headers within sidebars or small utility labels to differentiate from interactive text.\\n\\n## Layout & Spacing\\n\\nThe system follows a strict **4px baseline grid** to maintain alignment in dense data environments. \\n\\n- **Layout:** A fluid grid system is used for workspace areas (query editors, mapping canvases), while a fixed 280px sidebar is used for object navigation. \\n- **Density:** Padding is kept tight (8px-12px) within component containers to maximize the \\\"above-the-fold\\\" data visibility. \\n- **Breakpoints:**\\n  - Desktop (1280px+): Full multi-column view with persistent navigation.\\n  - Tablet (768px - 1279px): Navigation collapses into an icon-only rail; content remains fluid.\\n  - Mobile: Not prioritized, but follows a single-column stack for monitoring dashboards only.\\n\\n## Elevation & Depth\\n\\nTo maintain a clean, professional aesthetic, this design system avoids soft ambient shadows. Instead, it uses **Tonal Layers** and **Low-Contrast Outlines** to communicate hierarchy.\\n\\n- **Level 0 (Background):** #FFFFFF. The base canvas.\\n- **Level 1 (Sub-surface):** #F1F5F9. Used for sidebars, header bars, and empty states.\\n- **Level 2 (Interactions):** Elements like cards and modals use a 1px solid border (#E2E8F0).\\n- **Active State:** A 2px #2563EB left-border or stroke is used to indicate the currently selected database object or active input, providing a clear \\\"focus\\\" anchor without needing depth.\\n\\n## Shapes\\n\\nA consistent **8px (0.5rem)** corner radius is applied to all primary containers, buttons, and input fields. This \\\"Rounded\\\" setting strikes a balance between modern software expectations and the geometric rigor required for professional tools. \\n\\nSmall utility elements (tags, badges) use the same 8px radius or may scale down to 4px for very small items, but never \\\"pill\\\" shapes, to maintain the architectural integrity of the layout.\\n\\n## Components\\n\\n- **Buttons:** \\n  - *Primary:* Solid #2563EB with white text. \\n  - *Secondary:* 1px #E2E8F0 border, #0F172A text, white background.\\n  - *Ghost:* No border, #64748B text, used for secondary actions in toolbars.\\n- **Inputs:** \\n  - Background: #FFFFFF, Border: #E2E8F0 (shifts to #2563EB on focus). \\n  - Labels use `body-sm` in #0F172A.\\n- **Data Tables:**\\n  - The core of the system. Header cells use #F1F5F9 background with `label-caps`. \\n  - Row height: 32px (compact) or 40px (default). \\n  - Borders are horizontal-only to emphasize data flow.\\n- **Status Badges:** \\n  - Small, rectangular with 4px radius. \\n  - Success: Emerald/100 background, Emerald/700 text. \\n  - Warning (Amber): #D97706 text for high-visibility alerts.\\n- **Code Blocks:** \\n  - Background: #F1F5F9, utilizing `code-sm` typography. No syntax highlighting gradients; use distinct shades of primary blue and neutral slate for code tokens.\",\"colorVariant\":\"FIDELITY\",\"overridePrimaryColor\":\"#2563eb\",\"overrideSecondaryColor\":\"#64748b\",\"overrideTertiaryColor\":\"#d97706\",\"overrideNeutralColor\":\"#0f172a\",\"spacingScale\":2,\"typography\":{\"body-md\":{\"fontFamily\":\"Fira Sans\",\"fontSize\":\"14px\",\"fontWeight\":\"400\",\"lineHeight\":\"20px\"},\"body-sm\":{\"fontFamily\":\"Fira Sans\",\"fontSize\":\"13px\",\"fontWeight\":\"400\",\"lineHeight\":\"18px\"},\"code-md\":{\"fontFamily\":\"Fira Code\",\"fontSize\":\"13px\",\"fontWeight\":\"400\",\"lineHeight\":\"20px\"},\"code-sm\":{\"fontFamily\":\"Fira Code\",\"fontSize\":\"12px\",\"fontWeight\":\"400\",\"lineHeight\":\"18px\"},\"display-lg\":{\"fontFamily\":\"Fira Sans\",\"fontSize\":\"30px\",\"fontWeight\":\"600\",\"lineHeight\":\"38px\",\"letterSpacing\":\"-0.02em\"},\"headline-md\":{\"fontFamily\":\"Fira Sans\",\"fontSize\":\"24px\",\"fontWeight\":\"600\",\"lineHeight\":\"32px\",\"letterSpacing\":\"-0.01em\"},\"label-caps\":{\"fontFamily\":\"Fira Sans\",\"fontSize\":\"11px\",\"fontWeight\":\"700\",\"lineHeight\":\"16px\",\"letterSpacing\":\"0.05em\"},\"title-sm\":{\"fontFamily\":\"Fira Sans\",\"fontSize\":\"18px\",\"fontWeight\":\"500\",\"lineHeight\":\"24px\"}},\"spacing\":{\"base\":\"4px\",\"gutter\":\"16px\",\"lg\":\"24px\",\"margin-edge\":\"24px\",\"md\":\"16px\",\"sm\":\"8px\",\"xl\":\"32px\",\"xs\":\"4px\"},\"headlineFontFamily\":\"Fira Sans\",\"bodyFontFamily\":\"Fira Sans\",\"labelFontFamily\":\"Fira Sans\"}},\"version\":\"1\"}]}",
+        "type": "text"
+      }
+    ],
+    "structuredContent": {
+      "designSystems": [
+        {
+          "designSystem": {
+            "displayName": "Studio Precision",
+            "styleGuidelines": "## Brand & Style\n\nThe design system is engineered for the high-stakes environment of database administration and migration. It prioritizes clarity, technical density, and reliability over decorative elements. The visual language is rooted in **Modern Corporate** aesthetics, utilizing a \"system-first\" approach that reduces cognitive load during complex schema mapping and data ETL processes. \n\nThe emotional response should be one of control and confidence. By using a white-label inspired foundation with precise accents, the UI recedes to let the data become the primary interface. There are no gradients, no playful roundedness, and no unnecessary animations. Every pixel serves a functional purpose, facilitating long-form technical work without visual fatigue.\n\n## Layout & Spacing\n\nThe system follows a strict **4px baseline grid** to maintain alignment in dense data environments. \n\n- **Layout:** A fluid grid system is used for workspace areas (query editors, mapping canvases), while a fixed 280px sidebar is used for object navigation. \n- **Density:** Padding is kept tight (8px-12px) within component containers to maximize the \"above-the-fold\" data visibility. \n- **Breakpoints:**\n  - Desktop (1280px+): Full multi-column view with persistent navigation.\n  - Tablet (768px - 1279px): Navigation collapses into an icon-only rail; content remains fluid.\n  - Mobile: Not prioritized, but follows a single-column stack for monitoring dashboards only.\n\n## Elevation & Depth\n\nTo maintain a clean, professional aesthetic, this design system avoids soft ambient shadows. Instead, it uses **Tonal Layers** and **Low-Contrast Outlines** to communicate hierarchy.\n\n- **Level 0 (Background):** #FFFFFF. The base canvas.\n- **Level 1 (Sub-surface):** #F1F5F9. Used for sidebars, header bars, and empty states.\n- **Level 2 (Interactions):** Elements like cards and modals use a 1px solid border (#E2E8F0).\n- **Active State:** A 2px #2563EB left-border or stroke is used to indicate the currently selected database object or active input, providing a clear \"focus\" anchor without needing depth.\n\n## Components\n\n- **Buttons:** \n  - *Primary:* Solid #2563EB with white text. \n  - *Secondary:* 1px #E2E8F0 border, #0F172A text, white background.\n  - *Ghost:* No border, #64748B text, used for secondary actions in toolbars.\n- **Inputs:** \n  - Background: #FFFFFF, Border: #E2E8F0 (shifts to #2563EB on focus). \n  - Labels use `body-sm` in #0F172A.\n- **Data Tables:**\n  - The core of the system. Header cells use #F1F5F9 background with `label-caps`. \n  - Row height: 32px (compact) or 40px (default). \n  - Borders are horizontal-only to emphasize data flow.\n- **Status Badges:** \n  - Small, rectangular with 4px radius. \n  - Success: Emerald/100 background, Emerald/700 text. \n  - Warning (Amber): #D97706 text for high-visibility alerts.\n- **Code Blocks:** \n  - Background: #F1F5F9, utilizing `code-sm` typography. No syntax highlighting gradients; use distinct shades of primary blue and neutral slate for code tokens.",
+            "theme": {
+              "bodyFont": "FIRA_SANS",
+              "bodyFontFamily": "Fira Sans",
+              "colorMode": "LIGHT",
+              "colorVariant": "FIDELITY",
+              "customColor": "#2563eb",
+              "designMd": "---\nname: Studio Precision\ncolors:\n  surface: '#faf8ff'\n  surface-dim: '#d2d9f4'\n  surface-bright: '#faf8ff'\n  surface-container-lowest: '#ffffff'\n  surface-container-low: '#f2f3ff'\n  surface-container: '#eaedff'\n  surface-container-high: '#e2e7ff'\n  surface-container-highest: '#dae2fd'\n  on-surface: '#131b2e'\n  on-surface-variant: '#434655'\n  inverse-surface: '#283044'\n  inverse-on-surface: '#eef0ff'\n  outline: '#737686'\n  outline-variant: '#c3c6d7'\n  surface-tint: '#0053db'\n  primary: '#004ac6'\n  on-primary: '#ffffff'\n  primary-container: '#2563eb'\n  on-primary-container: '#eeefff'\n  inverse-primary: '#b4c5ff'\n  secondary: '#505f76'\n  on-secondary: '#ffffff'\n  secondary-container: '#d0e1fb'\n  on-secondary-container: '#54647a'\n  tertiary: '#824500'\n  on-tertiary: '#ffffff'\n  tertiary-container: '#a65900'\n  on-tertiary-container: '#ffede1'\n  error: '#ba1a1a'\n  on-error: '#ffffff'\n  error-container: '#ffdad6'\n  on-error-container: '#93000a'\n  primary-fixed: '#dbe1ff'\n  primary-fixed-dim: '#b4c5ff'\n  on-primary-fixed: '#00174b'\n  on-primary-fixed-variant: '#003ea8'\n  secondary-fixed: '#d3e4fe'\n  secondary-fixed-dim: '#b7c8e1'\n  on-secondary-fixed: '#0b1c30'\n  on-secondary-fixed-variant: '#38485d'\n  tertiary-fixed: '#ffdcc3'\n  tertiary-fixed-dim: '#ffb77d'\n  on-tertiary-fixed: '#2f1500'\n  on-tertiary-fixed-variant: '#6e3900'\n  background: '#faf8ff'\n  on-background: '#131b2e'\n  surface-variant: '#dae2fd'\ntypography:\n  display-lg:\n    fontFamily: Fira Sans\n    fontSize: 30px\n    fontWeight: '600'\n    lineHeight: 38px\n    letterSpacing: -0.02em\n  headline-md:\n    fontFamily: Fira Sans\n    fontSize: 24px\n    fontWeight: '600'\n    lineHeight: 32px\n    letterSpacing: -0.01em\n  title-sm:\n    fontFamily: Fira Sans\n    fontSize: 18px\n    fontWeight: '500'\n    lineHeight: 24px\n  body-md:\n    fontFamily: Fira Sans\n    fontSize: 14px\n    fontWeight: '400'\n    lineHeight: 20px\n  body-sm:\n    fontFamily: Fira Sans\n    fontSize: 13px\n    fontWeight: '400'\n    lineHeight: 18px\n  label-caps:\n    fontFamily: Fira Sans\n    fontSize: 11px\n    fontWeight: '700'\n    lineHeight: 16px\n    letterSpacing: 0.05em\n  code-md:\n    fontFamily: Fira Code\n    fontSize: 13px\n    fontWeight: '400'\n    lineHeight: 20px\n  code-sm:\n    fontFamily: Fira Code\n    fontSize: 12px\n    fontWeight: '400'\n    lineHeight: 18px\nrounded:\n  sm: 0.25rem\n  DEFAULT: 0.5rem\n  md: 0.75rem\n  lg: 1rem\n  xl: 1.5rem\n  full: 9999px\nspacing:\n  base: 4px\n  xs: 4px\n  sm: 8px\n  md: 16px\n  lg: 24px\n  xl: 32px\n  gutter: 16px\n  margin-edge: 24px\n---\n\n## Brand & Style\n\nThe design system is engineered for the high-stakes environment of database administration and migration. It prioritizes clarity, technical density, and reliability over decorative elements. The visual language is rooted in **Modern Corporate** aesthetics, utilizing a \"system-first\" approach that reduces cognitive load during complex schema mapping and data ETL processes. \n\nThe emotional response should be one of control and confidence. By using a white-label inspired foundation with precise accents, the UI recedes to let the data become the primary interface. There are no gradients, no playful roundedness, and no unnecessary animations. Every pixel serves a functional purpose, facilitating long-form technical work without visual fatigue.\n\n## Colors\n\nThe palette is strictly functional, optimized for a light-mode enterprise environment. \n\n- **Primary (#2563EB):** Used for critical paths, active states, and primary action buttons. It signals focus and progression.\n- **Neutral/Text (#0F172A):** High-contrast slate for maximum legibility in data grids and documentation.\n- **Secondary/Muted (#64748B):** Used for metadata, helper text, and inactive tab states to create visual hierarchy.\n- **Accent (#D97706):** Reserved for \"Warning\" states, pending migrations, or high-priority technical alerts that require immediate but non-critical attention.\n- **Surface & Border:** A hierarchy of grays (#F1F5F9 and #E2E8F0) is used to define containment and structure without the use of shadows.\n\n## Typography\n\nThis design system utilizes **Fira Sans** for all UI-related communication due to its exceptional legibility and professional humanist qualities. For technical values\u2014such as SQL snippets, connection strings, and table names\u2014**Fira Code** is mandated to ensure character distinction (e.g., distinguishing `0` from `O`).\n\nTypography is optimized for data density. Body text is set at 14px to allow for high information display on standard monitors. All caps labels are used sparingly for section headers within sidebars or small utility labels to differentiate from interactive text.\n\n## Layout & Spacing\n\nThe system follows a strict **4px baseline grid** to maintain alignment in dense data environments. \n\n- **Layout:** A fluid grid system is used for workspace areas (query editors, mapping canvases), while a fixed 280px sidebar is used for object navigation. \n- **Density:** Padding is kept tight (8px-12px) within component containers to maximize the \"above-the-fold\" data visibility. \n- **Breakpoints:**\n  - Desktop (1280px+): Full multi-column view with persistent navigation.\n  - Tablet (768px - 1279px): Navigation collapses into an icon-only rail; content remains fluid.\n  - Mobile: Not prioritized, but follows a single-column stack for monitoring dashboards only.\n\n## Elevation & Depth\n\nTo maintain a clean, professional aesthetic, this design system avoids soft ambient shadows. Instead, it uses **Tonal Layers** and **Low-Contrast Outlines** to communicate hierarchy.\n\n- **Level 0 (Background):** #FFFFFF. The base canvas.\n- **Level 1 (Sub-surface):** #F1F5F9. Used for sidebars, header bars, and empty states.\n- **Level 2 (Interactions):** Elements like cards and modals use a 1px solid border (#E2E8F0).\n- **Active State:** A 2px #2563EB left-border or stroke is used to indicate the currently selected database object or active input, providing a clear \"focus\" anchor without needing depth.\n\n## Shapes\n\nA consistent **8px (0.5rem)** corner radius is applied to all primary containers, buttons, and input fields. This \"Rounded\" setting strikes a balance between modern software expectations and the geometric rigor required for professional tools. \n\nSmall utility elements (tags, badges) use the same 8px radius or may scale down to 4px for very small items, but never \"pill\" shapes, to maintain the architectural integrity of the layout.\n\n## Components\n\n- **Buttons:** \n  - *Primary:* Solid #2563EB with white text. \n  - *Secondary:* 1px #E2E8F0 border, #0F172A text, white background.\n  - *Ghost:* No border, #64748B text, used for secondary actions in toolbars.\n- **Inputs:** \n  - Background: #FFFFFF, Border: #E2E8F0 (shifts to #2563EB on focus). \n  - Labels use `body-sm` in #0F172A.\n- **Data Tables:**\n  - The core of the system. Header cells use #F1F5F9 background with `label-caps`. \n  - Row height: 32px (compact) or 40px (default). \n  - Borders are horizontal-only to emphasize data flow.\n- **Status Badges:** \n  - Small, rectangular with 4px radius. \n  - Success: Emerald/100 background, Emerald/700 text. \n  - Warning (Amber): #D97706 text for high-visibility alerts.\n- **Code Blocks:** \n  - Background: #F1F5F9, utilizing `code-sm` typography. No syntax highlighting gradients; use distinct shades of primary blue and neutral slate for code tokens.",
+              "font": "FIRA_SANS",
+              "headlineFont": "FIRA_SANS",
+              "headlineFontFamily": "Fira Sans",
+              "labelFont": "FIRA_SANS",
+              "labelFontFamily": "Fira Sans",
+              "namedColors": {
+                "background": "#faf8ff",
+                "error": "#ba1a1a",
+                "error_container": "#ffdad6",
+                "inverse_on_surface": "#eef0ff",
+                "inverse_primary": "#b4c5ff",
+                "inverse_surface": "#283044",
+                "on_background": "#131b2e",
+                "on_error": "#ffffff",
+                "on_error_container": "#93000a",
+                "on_primary": "#ffffff",
+                "on_primary_container": "#eeefff",
+                "on_primary_fixed": "#00174b",
+                "on_primary_fixed_variant": "#003ea8",
+                "on_secondary": "#ffffff",
+                "on_secondary_container": "#54647a",
+                "on_secondary_fixed": "#0b1c30",
+                "on_secondary_fixed_variant": "#38485d",
+                "on_surface": "#131b2e",
+                "on_surface_variant": "#434655",
+                "on_tertiary": "#ffffff",
+                "on_tertiary_container": "#ffede1",
+                "on_tertiary_fixed": "#2f1500",
+                "on_tertiary_fixed_variant": "#6e3900",
+                "outline": "#737686",
+                "outline_variant": "#c3c6d7",
+                "primary": "#004ac6",
+                "primary_container": "#2563eb",
+                "primary_fixed": "#dbe1ff",
+                "primary_fixed_dim": "#b4c5ff",
+                "secondary": "#505f76",
+                "secondary_container": "#d0e1fb",
+                "secondary_fixed": "#d3e4fe",
+                "secondary_fixed_dim": "#b7c8e1",
+                "surface": "#faf8ff",
+                "surface_bright": "#faf8ff",
+                "surface_container": "#eaedff",
+                "surface_container_high": "#e2e7ff",
+                "surface_container_highest": "#dae2fd",
+                "surface_container_low": "#f2f3ff",
+                "surface_container_lowest": "#ffffff",
+                "surface_dim": "#d2d9f4",
+                "surface_tint": "#0053db",
+                "surface_variant": "#dae2fd",
+                "tertiary": "#824500",
+                "tertiary_container": "#a65900",
+                "tertiary_fixed": "#ffdcc3",
+                "tertiary_fixed_dim": "#ffb77d"
+              },
+              "overrideNeutralColor": "#0f172a",
+              "overridePrimaryColor": "#2563eb",
+              "overrideSecondaryColor": "#64748b",
+              "overrideTertiaryColor": "#d97706",
+              "roundness": "ROUND_EIGHT",
+              "spacing": {
+                "base": "4px",
+                "gutter": "16px",
+                "lg": "24px",
+                "margin-edge": "24px",
+                "md": "16px",
+                "sm": "8px",
+                "xl": "32px",
+                "xs": "4px"
+              },
+              "spacingScale": 2,
+              "typography": {
+                "body-md": {
+                  "fontFamily": "Fira Sans",
+                  "fontSize": "14px",
+                  "fontWeight": "400",
+                  "lineHeight": "20px"
+                },
+                "body-sm": {
+                  "fontFamily": "Fira Sans",
+                  "fontSize": "13px",
+                  "fontWeight": "400",
+                  "lineHeight": "18px"
+                },
+                "code-md": {
+                  "fontFamily": "Fira Code",
+                  "fontSize": "13px",
+                  "fontWeight": "400",
+                  "lineHeight": "20px"
+                },
+                "code-sm": {
+                  "fontFamily": "Fira Code",
+                  "fontSize": "12px",
+                  "fontWeight": "400",
+                  "lineHeight": "18px"
+                },
+                "display-lg": {
+                  "fontFamily": "Fira Sans",
+                  "fontSize": "30px",
+                  "fontWeight": "600",
+                  "letterSpacing": "-0.02em",
+                  "lineHeight": "38px"
+                },
+                "headline-md": {
+                  "fontFamily": "Fira Sans",
+                  "fontSize": "24px",
+                  "fontWeight": "600",
+                  "letterSpacing": "-0.01em",
+                  "lineHeight": "32px"
+                },
+                "label-caps": {
+                  "fontFamily": "Fira Sans",
+                  "fontSize": "11px",
+                  "fontWeight": "700",
+                  "letterSpacing": "0.05em",
+                  "lineHeight": "16px"
+                },
+                "title-sm": {
+                  "fontFamily": "Fira Sans",
+                  "fontSize": "18px",
+                  "fontWeight": "500",
+                  "lineHeight": "24px"
+                }
+              }
+            }
+          },
+          "name": "assets/f5667b9ce77c4b039dab22297e25dccd",
+          "version": "1"
+        }
+      ]
+    }
+  }
+}

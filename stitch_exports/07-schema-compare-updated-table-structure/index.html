@@ -1,0 +1,297 @@
+<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>DB2 Migration Studio - Comparison Results</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&amp;family=Fira+Code:wght@400;500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container": "#eaedff",
+                    "on-secondary-fixed-variant": "#38485d",
+                    "on-primary-container": "#eeefff",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-fixed-dim": "#b4c5ff",
+                    "inverse-surface": "#283044",
+                    "primary-fixed": "#dbe1ff",
+                    "on-surface-variant": "#434655",
+                    "secondary": "#505f76",
+                    "surface-container-low": "#f2f3ff",
+                    "primary": "#004ac6",
+                    "surface-container-high": "#e2e7ff",
+                    "on-primary": "#ffffff",
+                    "tertiary": "#824500",
+                    "surface-container-highest": "#dae2fd",
+                    "outline-variant": "#c3c6d7",
+                    "outline": "#737686",
+                    "surface": "#faf8ff",
+                    "on-background": "#131b2e",
+                    "on-surface": "#131b2e",
+                    "secondary-container": "#d0e1fb",
+                    "on-secondary-container": "#54647a"
+            },
+            "spacing": {
+                    "lg": "24px",
+                    "xs": "4px",
+                    "sm": "8px",
+                    "base": "4px",
+                    "md": "16px",
+                    "xl": "32px",
+                    "gutter": "16px",
+                    "margin-edge": "24px"
+            },
+            "fontFamily": {
+                    "code-sm": ["Fira Code"],
+                    "label-caps": ["Fira Sans"],
+                    "title-sm": ["Fira Sans"],
+                    "body-md": ["Fira Sans"],
+                    "headline-md": ["Fira Sans"],
+                    "code-md": ["Fira Code"],
+                    "body-sm": ["Fira Sans"]
+            },
+            "fontSize": {
+                    "code-sm": ["12px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "title-sm": ["18px", {"lineHeight": "24px", "fontWeight": "500"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "code-md": ["13px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .diff-added { background-color: #d1fae5; color: #065f46; }
+        .diff-removed { background-color: #fee2e2; color: #991b1b; }
+        .diff-line-num { color: #94a3b8; text-align: right; padding-right: 12px; min-width: 40px; border-right: 1px solid #e2e8f0; margin-right: 12px; user-select: none; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md selection:bg-primary-container selection:text-on-primary-container overflow-hidden h-screen flex flex-col">
+<!-- Top Navigation Bar (Immutable from JSON Logic) -->
+<header class="flex justify-between items-center h-12 px-margin-edge w-full sticky top-0 z-50 bg-surface-container-low border-b border-outline-variant">
+<div class="flex items-center gap-xl">
+<span class="font-headline-md text-headline-md font-bold text-on-surface">DB2 Migration Studio</span>
+<nav class="hidden md:flex items-center gap-md h-full">
+<a class="text-secondary hover:bg-surface-container-high transition-colors px-sm py-xs font-body-md text-body-md" href="#">Home</a>
+<a class="text-secondary hover:bg-surface-container-high transition-colors px-sm py-xs font-body-md text-body-md" href="#">Projects</a>
+<a class="text-primary font-bold border-b-2 border-primary pb-1 font-body-md text-body-md" href="#">Migrations</a>
+<a class="text-secondary hover:bg-surface-container-high transition-colors px-sm py-xs font-body-md text-body-md" href="#">Monitoring</a>
+<a class="text-secondary hover:bg-surface-container-high transition-colors px-sm py-xs font-body-md text-body-md" href="#">Settings</a>
+</nav>
+</div>
+<div class="flex items-center gap-md">
+<div class="flex items-center gap-xs">
+<button class="p-xs hover:bg-surface-container-high transition-colors rounded">
+<span class="material-symbols-outlined text-secondary">notifications</span>
+</button>
+<button class="p-xs hover:bg-surface-container-high transition-colors rounded">
+<span class="material-symbols-outlined text-secondary">help_outline</span>
+</button>
+<button class="p-xs hover:bg-surface-container-high transition-colors rounded">
+<span class="material-symbols-outlined text-secondary">account_circle</span>
+</button>
+</div>
+<button class="bg-primary text-on-primary px-md py-xs rounded font-bold active:opacity-80 transition-opacity">Deploy</button>
+</div>
+</header>
+<!-- Secondary Comparison Toolbar -->
+<section class="bg-surface-container-lowest h-12 border-b border-outline-variant flex items-center justify-between px-margin-edge flex-none">
+<div class="flex items-center gap-md">
+<button class="flex items-center gap-xs px-sm py-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded text-body-sm transition-colors">
+<span class="material-symbols-outlined text-[18px]">edit_note</span>
+                Edit Credentials
+            </button>
+<button class="flex items-center gap-xs px-sm py-1 bg-primary text-on-primary hover:opacity-90 rounded text-body-sm transition-opacity">
+<span class="material-symbols-outlined text-[18px]">compare</span>
+                Refresh
+            </button>
+</div>
+<div class="flex items-center gap-md">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+<input class="pl-8 pr-md py-1 border border-outline-variant rounded bg-surface w-64 text-body-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" placeholder="Search objects..." type="text">
+</div>
+<div class="flex items-center gap-sm">
+<label class="text-label-caps font-label-caps text-secondary">GROUP BY</label>
+<select class="border border-outline-variant rounded bg-surface text-body-sm px-sm py-1 focus:ring-1 focus:ring-primary outline-none">
+<option>Type of difference</option>
+<option>Type of Object</option>
+</select>
+</div>
+</div>
+</section><section class="bg-surface-container-low border-b border-outline-variant px-margin-edge py-2 flex items-center justify-between flex-none">
+<div class="flex flex-col">
+<span class="text-label-caps text-secondary uppercase">Source</span>
+<span class="text-body-md font-bold text-on-surface">GitLab_PRD</span>
+</div>
+<div class="flex items-center gap-xl">
+<div class="text-center">
+<span class="text-label-caps text-secondary uppercase">Selected</span>
+<div class="text-body-md font-bold text-on-surface">0 of 170</div>
+</div>
+<button class="bg-primary text-on-primary px-lg py-2 rounded font-bold flex items-center gap-sm hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined">sync</span>
+      Sync
+    </button>
+</div>
+<div class="flex flex-col text-right">
+<span class="text-label-caps text-secondary uppercase">Target</span>
+<span class="text-body-md font-bold text-on-surface">Azure_SQL_Managed</span>
+</div>
+</section>
+<!-- Main Workspace Container -->
+<main class="flex-grow flex flex-col overflow-hidden bg-surface">
+<!-- Top Section: Comparison Table (60%) -->
+<div class="h-[60%] flex flex-col border-b border-outline-variant overflow-hidden">
+<div class="overflow-y-auto flex-grow bg-white">
+<table class="w-full border-collapse">
+<thead class="sticky top-0 z-10 bg-surface-container-low shadow-sm"><tr class="text-left"><th class="px-md py-sm border-b border-outline-variant font-label-caps text-label-caps text-secondary uppercase tracking-wider">Type</th><th class="px-md py-sm border-b border-outline-variant font-label-caps text-label-caps text-secondary uppercase tracking-wider text-right">Source Schema</th><th class="px-md py-sm border-b border-outline-variant font-label-caps text-label-caps text-secondary uppercase tracking-wider text-right">Source Object</th><th class="w-12 px-xs py-sm border-b border-outline-variant text-center font-label-caps text-label-caps text-secondary uppercase tracking-wider"><div class="flex justify-center items-center"><input type="checkbox" class="rounded border-outline-variant text-primary focus:ring-primary" title="Select All"></div></th><th class="px-md py-sm border-b border-outline-variant font-label-caps text-label-caps text-secondary uppercase tracking-wider">Target Object</th><th class="px-md py-sm border-b border-outline-variant font-label-caps text-label-caps text-secondary uppercase tracking-wider">Target Schema</th><th class="px-md py-sm border-b border-outline-variant font-label-caps text-label-caps text-secondary uppercase tracking-wider text-right">Last Modified</th></tr></thead>
+<tbody class="text-body-sm">
+<!-- Group: In both but different -->
+<tr class="bg-surface-container-high/50 group cursor-pointer hover:bg-surface-container-high transition-colors bg-secondary-container">
+<td class="px-md py-2 border-b border-outline-variant font-bold text-on-surface text-center" colspan="7"><div class="flex items-center justify-between w-full"><div class="flex items-center w-full"><div class="flex items-center gap-sm w-[33%]"><span class="material-symbols-outlined text-primary">expand_more</span><span class="">12 In both but different</span></div><div class="w-12 flex justify-center"><span class="text-body-sm font-medium text-secondary">0 of 12</span></div><div class="w-12 flex justify-center"><input type="checkbox" class="rounded border-outline-variant text-primary focus:ring-primary" title="Select Group"></div><div class="flex-grow"></div></div></div></td>
+</tr>
+<tr class="border-b border-outline-variant hover:bg-surface-container-low transition-colors active:bg-secondary-container"><td class="px-md py-2"><div class="flex items-center gap-xs"><span class="material-symbols-outlined text-tertiary text-[18px]">difference</span><span class="text-secondary">Table</span></div></td><td class="px-md py-2 font-medium text-right text-secondary">dbo</td><td class="px-md py-2 font-medium text-right">SALES_ORDER_HEADER</td><td class="px-xs py-2 text-center flex justify-center"><input checked="" class="rounded border-outline-variant text-primary focus:ring-primary" type="checkbox"></td><td class="px-md py-2 font-medium">SALES_ORDER_HEADER</td><td class="px-md py-2 text-secondary text-left">dbo</td><td class="px-md py-2 text-secondary text-left">2023-10-24 14:22</td></tr>
+<tr class="border-b border-outline-variant hover:bg-surface-container-low transition-colors"><td class="px-md py-2"><div class="flex items-center gap-xs"><span class="material-symbols-outlined text-tertiary text-[18px]">difference</span><span class="text-secondary">View</span></div></td><td class="px-md py-2 font-medium text-right text-secondary">dbo</td><td class="px-md py-2 font-medium text-right">VW_REVENUE_METRICS</td><td class="px-xs py-2 text-center flex justify-center"><input checked="" class="rounded border-outline-variant text-primary focus:ring-primary" type="checkbox"></td><td class="px-md py-2 font-medium">VW_REVENUE_METRICS</td><td class="px-md py-2 text-secondary text-left">dbo</td><td class="px-md py-2 text-secondary text-left">2023-10-25 09:15</td></tr>
+<!-- Group: Only in GitLab -->
+<tr class="bg-surface-container-high/50 group cursor-pointer hover:bg-surface-container-high transition-colors">
+<td class="px-md py-2 border-b border-outline-variant font-bold text-on-surface" colspan="7"><div class="flex items-center justify-between w-full"><div class="flex items-center w-full"><div class="flex items-center gap-sm w-[33%]"><span class="material-symbols-outlined text-primary">expand_more</span><span class="">4 Only in GitLab</span></div><div class="w-12 flex justify-center items-center gap-xs"><span class="text-body-sm font-medium text-secondary">0 of 4</span></div><div class="w-12 flex justify-center"><input type="checkbox" class="rounded border-outline-variant text-primary focus:ring-primary" title="Select Group"></div><div class="flex-grow"></div></div></div></td>
+</tr>
+<tr class="border-b border-outline-variant hover:bg-surface-container-low transition-colors"><td class="px-md py-2"><div class="flex items-center gap-xs"><span class="material-symbols-outlined text-primary text-[18px]">add_circle</span><span class="text-secondary">Table</span></div></td><td class="px-md py-2 font-medium text-right text-secondary">dbo</td><td class="px-md py-2 font-medium text-right">TEMPORARY_STAGING_LOGS</td><td class="px-xs py-2 text-center flex justify-center"><input class="rounded border-outline-variant text-primary focus:ring-primary" type="checkbox"></td><td class="px-md py-2 font-medium">TEMPORARY_STAGING_LOGS</td><td class="px-md py-2 text-secondary text-left">dbo</td><td class="px-md py-2 text-secondary text-left">2023-10-26 11:04</td></tr>
+<!-- Group: Only in Azure -->
+<tr class="bg-surface-container-high/50 group cursor-pointer hover:bg-surface-container-high transition-colors">
+<td class="px-md py-2 border-b border-outline-variant font-bold text-on-surface" colspan="7">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary">chevron_right</span>
+<span class="">Only in Azure (2)</span>
+</div>
+</td>
+</tr>
+<!-- Group: Identical -->
+<tr class="bg-surface-container-high/50 group cursor-pointer hover:bg-surface-container-high transition-colors">
+<td class="px-md py-2 border-b border-outline-variant font-bold text-on-surface" colspan="7">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary">chevron_right</span>
+<span class="">Identical (152)</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Bottom Section: SQL Diff View (40%) -->
+<div class="h-[40%] flex flex-col bg-white">
+<div class="bg-surface-container-low border-b border-outline-variant px-md py-1 flex items-center justify-between"><div class="flex items-center gap-xl h-full">
+<div class="flex items-center gap-md">
+</div>
+<nav class="flex items-center h-full gap-sm">
+<button class="px-md h-8 flex items-center text-body-sm font-bold text-primary border-b-2 border-primary transition-colors">SQL VIEW</button>
+<button class="px-md h-8 flex items-center text-body-sm font-medium text-secondary hover:bg-surface-container-high transition-colors">SUMMARY</button>
+<button class="px-md h-8 flex items-center text-body-sm font-medium text-secondary hover:bg-surface-container-high transition-colors">SYNC</button>
+</nav>
+</div>
+<div class="flex items-center gap-xs">
+<button class="p-1 hover:bg-surface-container-high rounded" title="Previous Change"><span class="material-symbols-outlined text-[18px]">keyboard_arrow_up</span></button>
+<button class="p-1 hover:bg-surface-container-high rounded" title="Next Change"><span class="material-symbols-outlined text-[18px]">keyboard_arrow_down</span></button>
+<div class="h-4 w-px bg-outline-variant mx-1"></div>
+<button class="p-1 hover:bg-surface-container-high rounded" title="Copy SQL"><span class="material-symbols-outlined text-[18px]">content_copy</span></button>
+</div></div>
+<div class="flex-grow flex flex-col overflow-hidden">
+<!-- SQL View Content (Active) -->
+<div class="w-full bg-surface-container-low border-b border-outline-variant px-md py-2 flex items-center gap-xl"><div class="flex items-center gap-xl">
+<div class="flex items-center gap-sm">
+<span class="text-label-caps font-label-caps text-secondary uppercase">TYPE:</span>
+<span class="text-body-sm font-bold text-on-surface uppercase">TABLE</span>
+</div>
+<div class="h-4 w-px bg-outline-variant"></div>
+<div class="flex items-center gap-sm">
+<span class="text-label-caps font-label-caps text-secondary uppercase">SCHEMA:</span>
+<span class="text-body-sm font-bold text-on-surface uppercase">DBO</span>
+</div>
+<div class="h-4 w-px bg-outline-variant"></div>
+<div class="flex items-center gap-sm">
+<span class="text-label-caps font-label-caps text-secondary uppercase">OBJECT:</span>
+<span class="text-body-sm font-bold text-on-surface uppercase">SALES_ORDER_HEADER</span>
+</div>
+</div></div><div class="flex-grow flex overflow-hidden" id="tab-sql-view">
+<!-- Source SQL -->
+<div class="w-1/2 border-r border-outline-variant flex flex-col overflow-hidden">
+<div class="bg-surface-container-lowest border-b border-outline-variant px-md py-1 flex items-center gap-sm">
+<span class="material-symbols-outlined text-[14px] text-secondary">source</span>
+<span class="text-[11px] font-bold text-secondary uppercase">Source: GitLab_PRD</span>
+</div>
+<div class="flex-grow overflow-auto font-code-sm text-code-sm bg-slate-50 p-2 whitespace-pre">
+<div class="flex"><span class="diff-line-num">1</span>CREATE TABLE [dbo].[SALES_ORDER_HEADER] (</div>
+<div class="flex"><span class="diff-line-num">2</span>    [OrderID] [int] IDENTITY(1,1) NOT NULL,</div>
+<div class="flex"><span class="diff-line-num">3</span>    [OrderDate] [datetime] NOT NULL,</div>
+<div class="flex diff-removed"><span class="diff-line-num">4</span>-   [CustomerID] [int] NOT NULL,</div>
+<div class="flex"><span class="diff-line-num">5</span>    [SalesPersonID] [int] NULL,</div>
+<div class="flex diff-removed"><span class="diff-line-num">6</span>-   [Status] [tinyint] DEFAULT (1),</div>
+<div class="flex"><span class="diff-line-num">7</span>    [TotalDue] [money] NOT NULL</div>
+<div class="flex"><span class="diff-line-num">8</span>) ON [PRIMARY]</div>
+</div>
+</div>
+<!-- Target SQL -->
+<div class="w-1/2 flex flex-col overflow-hidden">
+<div class="bg-surface-container-lowest border-b border-outline-variant px-md py-1 flex items-center gap-sm">
+<span class="material-symbols-outlined text-[14px] text-secondary">target</span>
+<span class="text-[11px] font-bold text-secondary uppercase">Target: Azure_SQL_Managed</span>
+</div>
+<div class="flex-grow overflow-auto font-code-sm text-code-sm bg-slate-50 p-2 whitespace-pre">
+<div class="flex"><span class="diff-line-num">1</span>CREATE TABLE [dbo].[SALES_ORDER_HEADER] (</div>
+<div class="flex"><span class="diff-line-num">2</span>    [OrderID] [int] IDENTITY(1,1) NOT NULL,</div>
+<div class="flex"><span class="diff-line-num">3</span>    [OrderDate] [datetime] NOT NULL,</div>
+<div class="flex diff-added"><span class="diff-line-num">4</span>+   [CustomerGUID] [uniqueidentifier] NOT NULL,</div>
+<div class="flex"><span class="diff-line-num">5</span>    [SalesPersonID] [int] NULL,</div>
+<div class="flex diff-added"><span class="diff-line-num">6</span>+   [Status] [nvarchar](20) DEFAULT ('Pending'),</div>
+<div class="flex"><span class="diff-line-num">7</span>    [TotalDue] [money] NOT NULL</div>
+<div class="flex"><span class="diff-line-num">8</span>) ON [PRIMARY]</div>
+</div>
+</div>
+</div>
+<!-- Summary View Placeholder (Hidden) -->
+<div class="hidden flex-grow flex items-center justify-center bg-slate-50 text-secondary" id="tab-summary">
+<div class="text-center">
+<span class="material-symbols-outlined text-[48px] mb-2">summarize</span>
+<p class="text-body-md">Object comparison summary will appear here.</p>
+</div>
+</div>
+<!-- Sync View Placeholder (Hidden) -->
+<div class="hidden flex-grow flex items-center justify-center bg-slate-50 text-secondary" id="tab-sync">
+<div class="text-center">
+<span class="material-symbols-outlined text-[48px] mb-2">sync_alt</span>
+<p class="text-body-md">Synchronization options and script generation.</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- App Status Footer -->
+<script>
+        // Micro-interaction for row selection
+        document.querySelectorAll('tbody tr:not([colspan])').forEach(row => {
+            row.addEventListener('click', function() {
+                document.querySelectorAll('tbody tr').forEach(r => r.classList.remove('bg-secondary-container'));
+                this.classList.add('bg-secondary-container');
+            });
+        });
+    </script>
+
+
+</body></html>

@@ -1,0 +1,478 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Object Explorer | DB2 Migration Studio</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&amp;family=Fira+Code:wght@400;500&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@100..900&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary": "#ffffff",
+                        "background": "#faf8ff",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed": "#2f1500",
+                        "secondary": "#505f76",
+                        "outline-variant": "#c3c6d7",
+                        "tertiary-container": "#a65900",
+                        "on-tertiary-fixed-variant": "#6e3900",
+                        "tertiary-fixed-dim": "#ffb77d",
+                        "primary": "#004ac6",
+                        "inverse-on-surface": "#eef0ff",
+                        "error-container": "#ffdad6",
+                        "surface-variant": "#dae2fd",
+                        "primary-fixed-dim": "#b4c5ff",
+                        "inverse-surface": "#283044",
+                        "tertiary": "#824500",
+                        "on-error-container": "#93000a",
+                        "primary-fixed": "#dbe1ff",
+                        "surface-container-low": "#f2f3ff",
+                        "surface-bright": "#faf8ff",
+                        "primary-container": "#2563eb",
+                        "on-secondary-fixed": "#0b1c30",
+                        "on-primary-fixed-variant": "#003ea8",
+                        "secondary-fixed": "#d3e4fe",
+                        "secondary-fixed-dim": "#b7c8e1",
+                        "on-secondary-container": "#54647a",
+                        "on-primary-fixed": "#00174b",
+                        "surface": "#faf8ff",
+                        "on-tertiary-container": "#ffede1",
+                        "tertiary-fixed": "#ffdcc3",
+                        "surface-container": "#eaedff",
+                        "on-background": "#131b2e",
+                        "on-surface": "#131b2e",
+                        "secondary-container": "#d0e1fb",
+                        "surface-dim": "#d2d9f4",
+                        "surface-container-lowest": "#ffffff",
+                        "error": "#ba1a1a",
+                        "outline": "#737686",
+                        "inverse-primary": "#b4c5ff",
+                        "on-surface-variant": "#434655",
+                        "on-primary-container": "#eeefff",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "on-primary": "#ffffff",
+                        "surface-container-high": "#e2e7ff",
+                        "surface-container-highest": "#dae2fd",
+                        "on-error": "#ffffff",
+                        "surface-tint": "#0053db"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "4px",
+                        "lg": "8px",
+                        "xl": "12px",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-edge": "24px",
+                        "gutter": "16px",
+                        "sm": "8px",
+                        "md": "16px",
+                        "base": "4px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "xl": "32px"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["Fira Sans"],
+                        "title-sm": ["Fira Sans"],
+                        "body-md": ["Fira Sans"],
+                        "code-sm": ["Fira Code"],
+                        "code-md": ["Fira Code"],
+                        "display-lg": ["Fira Sans"],
+                        "body-sm": ["Fira Sans"],
+                        "headline-md": ["Fira Sans"]
+                    },
+                    "fontSize": {
+                        "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "title-sm": ["18px", {"lineHeight": "24px", "fontWeight": "500"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "code-sm": ["12px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "code-md": ["13px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "display-lg": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body {
+            background-color: #faf8ff;
+            color: #131b2e;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .hero-panel {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md overflow-hidden flex flex-col h-screen">
+<!-- Top Navigation Bar (Shared Component Logic) -->
+<nav class="flex justify-between items-center h-12 px-margin-edge w-full sticky top-0 z-50 bg-surface-container-low border-b border-outline-variant">
+<div class="flex items-center gap-md">
+<span class="font-headline-md text-headline-md font-bold text-on-surface">DB2 Migration Studio</span>
+<div class="h-4 w-[1px] bg-outline-variant mx-sm"></div>
+<div class="flex flex-col">
+<span class="font-title-sm text-primary font-bold">Object Explorer</span>
+<span class="text-[10px] leading-tight text-secondary uppercase tracking-wider">Multi-database catalog search</span>
+</div>
+</div>
+</nav>
+<!-- Sub-Header / Breadcrumb Toolbar -->
+<div class="bg-surface-container-lowest h-10 px-margin-edge border-b border-outline-variant flex items-center justify-between">
+<button id="oe-home-back" class="flex items-center gap-1 text-on-secondary-container hover:text-primary transition-colors text-sm font-medium oe-home-link" type="button">
+<span class="material-symbols-outlined text-sm">arrow_back</span>
+            Home
+        </button>
+<div class="flex items-center gap-4">
+<span class="flex items-center gap-1 text-secondary text-xs">
+<span class="material-symbols-outlined text-xs">database</span>
+                3 Databases Configured
+            </span>
+<span class="flex items-center gap-1 text-secondary text-xs">
+<span class="material-symbols-outlined text-xs">cloud_done</span>
+                All Systems Operational
+            </span>
+</div>
+</div>
+<!-- Main Workspace -->
+<main class="flex-1 overflow-hidden flex p-md gap-md">
+<!-- Left Column (40%) -->
+<div class="w-[40%] flex flex-col gap-md overflow-y-auto pr-1 custom-scrollbar">
+<!-- Connection Panel -->
+<section class="hero-panel p-md flex flex-col gap-md">
+<div class="flex items-center justify-between">
+<h3 class="font-label-caps text-label-caps text-primary uppercase">Connection</h3>
+<span class="material-symbols-outlined text-outline text-lg">vpn_key</span>
+</div>
+<div class="grid grid-cols-2 gap-md">
+<div class="flex flex-col gap-1">
+<label class="font-body-sm text-body-sm text-on-surface font-medium">Username</label>
+<input class="bg-surface border border-outline-variant px-sm py-1.5 rounded focus:border-primary focus:ring-0 text-sm font-code-sm" type="text" value="DB2ADMIN">
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-body-sm text-body-sm text-on-surface font-medium">Password</label>
+<input class="bg-surface border border-outline-variant px-sm py-1.5 rounded focus:border-primary focus:ring-0 text-sm" type="password" value="••••••••••••">
+</div>
+</div>
+<div class="border-t border-outline-variant pt-md">
+<details class="group">
+<summary class="flex items-center justify-between cursor-pointer list-none text-secondary hover:text-on-surface">
+<span class="font-body-sm font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-sm transition-transform group-open:rotate-90">chevron_right</span>
+                                Advanced Connection Settings
+                            </span>
+</summary>
+<div class="mt-md flex flex-col gap-md">
+<label class="flex items-center gap-2 cursor-pointer">
+<input class="rounded border-outline-variant text-primary focus:ring-primary w-4 h-4" type="checkbox">
+<span class="font-body-sm text-on-surface">Include SYS* schemas (Internal catalogs)</span>
+</label>
+<div class="flex flex-col gap-2">
+<div class="flex justify-between items-center">
+<label class="font-body-sm text-on-surface font-medium">Parallel connections</label>
+<span class="font-code-md text-primary font-bold">12</span>
+</div>
+<input class="w-full h-1.5 bg-surface-container-high rounded-lg appearance-none cursor-pointer accent-primary" max="32" min="1" type="range" value="12">
+<div class="flex justify-between text-[10px] text-secondary font-medium">
+<span>1 (Sequential)</span>
+<span>32 (High Density)</span>
+</div>
+</div>
+</div>
+</details>
+</div>
+</section>
+<!-- Database Fleet Panel -->
+<section class="hero-panel flex flex-col flex-1 overflow-hidden">
+<div class="p-md border-b border-outline-variant bg-surface-container-low flex items-center justify-between">
+<div class="flex items-center gap-2">
+<h3 class="font-label-caps text-label-caps text-on-surface">Database Fleet (3 databases)</h3>
+</div>
+<div class="flex items-center gap-1">
+<button class="px-3 py-1 text-xs font-semibold text-secondary hover:bg-surface-container-high rounded transition-colors">Reset</button>
+<button class="px-3 py-1 text-xs font-semibold bg-primary text-white rounded hover:bg-primary/90 transition-colors">Save Fleet</button>
+</div>
+</div>
+<div class="px-md py-sm">
+<details class="group">
+<summary class="text-xs font-bold text-secondary cursor-pointer hover:text-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">add_link</span>
+                            Paste from Excel/JDBC string
+                        </summary>
+<div class="mt-sm">
+<textarea class="w-full h-24 bg-surface-container-low border border-outline-variant rounded font-code-sm p-2 text-xs focus:ring-0 focus:border-primary" placeholder="DB_NAME, HOST, PORT..."></textarea>
+</div>
+</details>
+</div>
+<div class="flex-1 overflow-auto custom-scrollbar">
+<table class="w-full text-left border-collapse">
+<thead class="sticky top-0 bg-surface-container-high z-10">
+<tr class="border-b border-outline-variant">
+<th class="px-md py-2 font-label-caps text-[10px] text-secondary uppercase">Database</th>
+<th class="px-md py-2 font-label-caps text-[10px] text-secondary uppercase">Host</th>
+<th class="px-md py-2 font-label-caps text-[10px] text-secondary uppercase">Port</th>
+<th class="w-10"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container-low group">
+<td class="px-md py-2"><input class="w-full border-none bg-transparent font-code-sm p-0 focus:ring-0 text-sm" type="text" value="PROD_SALES"></td>
+<td class="px-md py-2"><input class="w-full border-none bg-transparent font-code-sm p-0 focus:ring-0 text-sm" type="text" value="10.20.14.201"></td>
+<td class="px-md py-2"><input class="w-full border-none bg-transparent font-code-sm p-0 focus:ring-0 text-sm" type="text" value="50000"></td>
+<td class="px-2"><span class="material-symbols-outlined text-outline text-sm opacity-0 group-hover:opacity-100 cursor-pointer">drag_indicator</span></td>
+</tr>
+<tr class="hover:bg-surface-container-low group">
+<td class="px-md py-2"><input class="w-full border-none bg-transparent font-code-sm p-0 focus:ring-0 text-sm" type="text" value="ANALYTICS_X"></td>
+<td class="px-md py-2"><input class="w-full border-none bg-transparent font-code-sm p-0 focus:ring-0 text-sm" type="text" value="aws-us-east.db2.internal"></td>
+<td class="px-md py-2"><input class="w-full border-none bg-transparent font-code-sm p-0 focus:ring-0 text-sm" type="text" value="50001"></td>
+<td class="px-2"><span class="material-symbols-outlined text-outline text-sm opacity-0 group-hover:opacity-100 cursor-pointer">drag_indicator</span></td>
+</tr>
+<tr class="hover:bg-surface-container-low group">
+<td class="px-md py-2"><input class="w-full border-none bg-transparent font-code-sm p-0 focus:ring-0 text-sm text-error" type="text" value="REPLICA_DB"></td>
+<td class="px-md py-2"><input class="w-full border-none bg-transparent font-code-sm p-0 focus:ring-0 text-sm" type="text" value="localhost"></td>
+<td class="px-md py-2"><input class="w-full border-none bg-transparent font-code-sm p-0 focus:ring-0 text-sm" type="text" value="60000"></td>
+<td class="px-2"><span class="material-symbols-outlined text-outline text-sm opacity-0 group-hover:opacity-100 cursor-pointer">drag_indicator</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-sm bg-surface-container-lowest border-t border-outline-variant flex justify-center">
+<button class="text-primary font-bold text-xs flex items-center gap-1 hover:underline">
+<span class="material-symbols-outlined text-sm">add</span> Add Row
+                    </button>
+</div>
+</section>
+</div>
+<!-- Right Column (60%) -->
+<div class="w-[60%] flex flex-col gap-md overflow-hidden">
+<!-- Search Criteria Panel -->
+<section class="hero-panel p-md flex flex-col gap-md">
+<div class="flex items-center justify-between">
+<h3 class="font-label-caps text-label-caps text-primary uppercase">Search Criteria</h3>
+<div class="flex items-center gap-4">
+<label class="flex items-center gap-2 cursor-pointer text-xs font-medium text-secondary">
+<input checked="" class="text-primary focus:ring-primary w-3.5 h-3.5" name="match_mode" type="radio">
+                            Begins with
+                        </label>
+<label class="flex items-center gap-2 cursor-pointer text-xs font-medium text-secondary">
+<input class="text-primary focus:ring-primary w-3.5 h-3.5" name="match_mode" type="radio">
+                            Ends with
+                        </label>
+<label class="flex items-center gap-2 cursor-pointer text-xs font-medium text-secondary">
+<input class="text-primary focus:ring-primary w-3.5 h-3.5" name="match_mode" type="radio">
+                            Contains
+                        </label>
+<label class="flex items-center gap-2 cursor-pointer text-xs font-medium text-secondary">
+<input class="text-primary focus:ring-primary w-3.5 h-3.5" name="match_mode" type="radio">
+                            Exact
+                        </label>
+</div>
+</div>
+<div class="flex gap-md">
+<div class="w-40">
+<select class="w-full bg-surface border border-outline-variant px-sm py-2 rounded focus:border-primary focus:ring-0 text-sm font-medium">
+<option>Table</option>
+<option>View</option>
+<option>MQT</option>
+<option>Index</option>
+<option>Sequence</option>
+<option>Alias</option>
+<option>Nickname</option>
+<option>Trigger</option>
+<option>XML Schema</option>
+<option>Application Object</option>
+</select>
+</div>
+<div class="flex-1 relative">
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-outline text-lg">search</span>
+<input class="w-full bg-surface border border-outline-variant pl-10 pr-sm py-2 rounded focus:border-primary focus:ring-0 text-sm font-code-sm" placeholder="e.g. sp_refresh" type="text">
+</div>
+<button class="bg-primary text-white font-bold px-lg py-2 rounded flex items-center gap-2 hover:bg-primary/90 active:scale-95 transition-all">
+                        Search all databases
+                    </button>
+</div>
+</section>
+<!-- Results Panel -->
+<section class="hero-panel flex-1 flex flex-col overflow-hidden">
+<div class="p-md border-b border-outline-variant bg-surface-container-low flex flex-col gap-sm">
+<div class="flex items-center justify-between">
+<h3 class="font-label-caps text-label-caps text-on-surface">Search Results</h3>
+<div class="flex items-center gap-4">
+<label class="flex items-center gap-2 cursor-pointer">
+<input checked="" class="rounded border-outline-variant text-primary focus:ring-primary w-4 h-4" type="checkbox">
+<span class="font-body-sm text-secondary font-medium">Matches only</span>
+</label>
+<button class="flex items-center gap-1.5 bg-surface border border-outline-variant px-3 py-1 rounded text-xs font-bold hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-sm">download</span>
+                                Download CSV
+                            </button>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<span class="bg-primary-container text-[10px] text-white px-2 py-0.5 rounded font-bold uppercase">Active Filter</span>
+<span class="text-xs font-code-md text-on-surface-variant italic">Table · Begins with · "sp_refresh"</span>
+</div>
+</div>
+<!-- Metric Cards -->
+<div class="grid grid-cols-5 border-b border-outline-variant divide-x divide-outline-variant">
+<div class="p-md bg-surface-container-lowest">
+<span class="text-[10px] font-label-caps text-secondary block">SCANNED</span>
+<span class="text-xl font-bold font-display-lg text-on-surface">32,492</span>
+</div>
+<div class="p-md bg-surface-container-lowest">
+<span class="text-[10px] font-label-caps text-secondary block">REACHABLE</span>
+<span class="text-xl font-bold font-display-lg text-emerald-600">2</span>
+</div>
+<div class="p-md bg-surface-container-lowest">
+<span class="text-[10px] font-label-caps text-secondary block">FAILED</span>
+<span class="text-xl font-bold font-display-lg text-error">1</span>
+</div>
+<div class="p-md bg-surface-container-lowest">
+<span class="text-[10px] font-label-caps text-secondary block">MATCHED DBs</span>
+<span class="text-xl font-bold font-display-lg text-primary">2</span>
+</div>
+<div class="p-md bg-surface-container-lowest">
+<span class="text-[10px] font-label-caps text-secondary block">TOTAL OBJECTS</span>
+<span class="text-xl font-bold font-display-lg text-on-surface">14</span>
+</div>
+</div>
+<!-- Main Results Table -->
+<div class="flex-1 overflow-auto custom-scrollbar">
+<table class="w-full text-left border-collapse">
+<thead class="sticky top-0 bg-surface-container-high z-10">
+<tr class="border-b border-outline-variant">
+<th class="px-md py-2 font-label-caps text-[10px] text-secondary uppercase">Database</th>
+<th class="px-md py-2 font-label-caps text-[10px] text-secondary uppercase">Host</th>
+<th class="px-md py-2 font-label-caps text-[10px] text-secondary uppercase">Schema</th>
+<th class="px-md py-2 font-label-caps text-[10px] text-secondary uppercase">Object Name</th>
+<th class="px-md py-2 font-label-caps text-[10px] text-secondary uppercase">Type</th>
+<th class="px-md py-2 font-label-caps text-[10px] text-secondary uppercase">Created</th>
+<th class="px-md py-2 font-label-caps text-[10px] text-secondary uppercase">Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-md py-2 font-code-sm text-xs">PROD_SALES</td>
+<td class="px-md py-2 font-code-sm text-xs">10.20.14.201</td>
+<td class="px-md py-2 font-code-sm text-xs text-primary">SALES_MGMT</td>
+<td class="px-md py-2 font-code-sm text-xs font-bold">SP_REFRESH_CACHE</td>
+<td class="px-md py-2 text-xs">Table</td>
+<td class="px-md py-2 text-[10px] text-secondary">2023-11-20 14:22</td>
+<td class="px-md py-2">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">OK</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-md py-2 font-code-sm text-xs">PROD_SALES</td>
+<td class="px-md py-2 font-code-sm text-xs">10.20.14.201</td>
+<td class="px-md py-2 font-code-sm text-xs text-primary">HR_PORTAL</td>
+<td class="px-md py-2 font-code-sm text-xs font-bold">SP_REFRESH_PERMS</td>
+<td class="px-md py-2 text-xs">Table</td>
+<td class="px-md py-2 text-[10px] text-secondary">2023-12-01 09:15</td>
+<td class="px-md py-2">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">OK</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-md py-2 font-code-sm text-xs">ANALYTICS_X</td>
+<td class="px-md py-2 font-code-sm text-xs">aws-us-east.db2...</td>
+<td class="px-md py-2 font-code-sm text-xs text-primary">STAGING</td>
+<td class="px-md py-2 font-code-sm text-xs font-bold">SP_REFRESH_DLAKE</td>
+<td class="px-md py-2 text-xs">Table</td>
+<td class="px-md py-2 text-[10px] text-secondary">2024-01-05 18:40</td>
+<td class="px-md py-2">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">OK</span>
+</td>
+</tr>
+<tr class="bg-red-50 hover:bg-red-100 transition-colors group">
+<td class="px-md py-2 font-code-sm text-xs text-error">REPLICA_DB</td>
+<td class="px-md py-2 font-code-sm text-xs">localhost</td>
+<td class="px-md py-2 font-code-sm text-xs">—</td>
+<td class="px-md py-2 font-code-sm text-xs">—</td>
+<td class="px-md py-2 text-xs">—</td>
+<td class="px-md py-2 text-[10px] text-secondary">—</td>
+<td class="px-md py-2">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700">ERROR</span>
+</td>
+</tr>
+<!-- Multiple placeholder rows for data density -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-md py-2 font-code-sm text-xs">PROD_SALES</td>
+<td class="px-md py-2 font-code-sm text-xs">10.20.14.201</td>
+<td class="px-md py-2 font-code-sm text-xs text-primary">FINANCE</td>
+<td class="px-md py-2 font-code-sm text-xs font-bold">SP_REFRESH_LEDGER</td>
+<td class="px-md py-2 text-xs">Table</td>
+<td class="px-md py-2 text-[10px] text-secondary">2023-08-12 11:22</td>
+<td class="px-md py-2">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">OK</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-md py-2 font-code-sm text-xs">ANALYTICS_X</td>
+<td class="px-md py-2 font-code-sm text-xs">aws-us-east.db2...</td>
+<td class="px-md py-2 font-code-sm text-xs text-primary">REPORTING</td>
+<td class="px-md py-2 font-code-sm text-xs font-bold">SP_REFRESH_PIVOT</td>
+<td class="px-md py-2 text-xs">Table</td>
+<td class="px-md py-2 text-[10px] text-secondary">2024-02-01 22:10</td>
+<td class="px-md py-2">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700">OK</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+</main>
+<!-- Footer Status Bar -->
+<footer class="h-6 bg-surface-container-high border-t border-outline-variant px-margin-edge flex items-center justify-between text-[10px] font-medium text-secondary uppercase tracking-tight">
+<div class="flex items-center gap-4">
+<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Connected: Cluster 01</span>
+<span class="flex items-center gap-1">Protocol: JDBC/Type-4</span>
+<span class="flex items-center gap-1">Latency: 12ms</span>
+</div>
+<div class="flex items-center gap-4">
+<span>Scan Time: 0.82s</span>
+<span class="text-primary-container">v4.2.1-stable</span>
+</div>
+</footer>
+<script>
+        // Micro-interaction for UI feel
+        document.querySelectorAll('input[type="range"]').forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                const label = e.target.previousElementSibling.querySelector('.font-code-md');
+                if(label) label.textContent = e.target.value;
+            });
+        });
+
+        // Simulating search feedback
+        const searchBtn = document.querySelector('button.bg-primary');
+        if(searchBtn) {
+            searchBtn.addEventListener('click', () => {
+                const originalContent = searchBtn.innerHTML;
+                searchBtn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> Searching...';
+                searchBtn.disabled = true;
+                setTimeout(() => {
+                    searchBtn.innerHTML = originalContent;
+                    searchBtn.disabled = false;
+                }, 1500);
+            });
+        }
+    </script>
+</body></html>

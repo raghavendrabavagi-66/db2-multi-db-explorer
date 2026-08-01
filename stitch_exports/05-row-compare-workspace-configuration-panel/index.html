@@ -1,0 +1,297 @@
+<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Row Compare | DB2 Migration Studio</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&amp;family=Fira+Code:wght@400;500&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@100..900&amp;display=swap" rel="stylesheet">
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body {
+            font-family: 'Fira Sans', sans-serif;
+            background-color: #faf8ff;
+            color: #131b2e;
+        }
+        .code-font {
+            font-family: 'Fira Code', monospace;
+        }
+        /* Custom scrollbar for high-density tables */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface-variant": "#434655",
+                        "on-secondary-fixed": "#0b1c30",
+                        "on-primary-container": "#eeefff",
+                        "inverse-surface": "#283044",
+                        "surface-dim": "#d2d9f4",
+                        "surface-variant": "#dae2fd",
+                        "secondary-container": "#d0e1fb",
+                        "on-error-container": "#93000a",
+                        "tertiary-container": "#a65900",
+                        "secondary-fixed": "#d3e4fe",
+                        "surface-container": "#eaedff",
+                        "outline": "#737686",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-primary": "#b4c5ff",
+                        "error-container": "#ffdad6",
+                        "surface-container-highest": "#dae2fd",
+                        "surface-bright": "#faf8ff",
+                        "primary-fixed": "#dbe1ff",
+                        "surface-container-low": "#f2f3ff",
+                        "tertiary-fixed": "#ffdcc3",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "on-surface": "#131b2e",
+                        "secondary": "#505f76",
+                        "on-error": "#ffffff",
+                        "tertiary": "#824500",
+                        "surface-tint": "#0053db",
+                        "on-primary": "#ffffff",
+                        "primary-fixed-dim": "#b4c5ff",
+                        "on-primary-fixed-variant": "#003ea8",
+                        "on-primary-fixed": "#00174b",
+                        "outline-variant": "#c3c6d7",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "on-background": "#131b2e",
+                        "surface-container-high": "#e2e7ff",
+                        "primary": "#004ac6",
+                        "surface": "#faf8ff",
+                        "on-tertiary-container": "#ffede1",
+                        "primary-container": "#2563eb",
+                        "on-secondary-container": "#54647a",
+                        "inverse-on-surface": "#eef0ff",
+                        "on-tertiary-fixed": "#2f1500",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed-dim": "#ffb77d",
+                        "on-tertiary-fixed-variant": "#6e3900",
+                        "background": "#faf8ff",
+                        "secondary-fixed-dim": "#b7c8e1"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "32px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "md": "16px",
+                        "margin-edge": "24px",
+                        "lg": "24px",
+                        "gutter": "16px",
+                        "base": "4px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Fira Sans"],
+                        "code-md": ["Fira Code"],
+                        "body-md": ["Fira Sans"],
+                        "title-sm": ["Fira Sans"],
+                        "label-caps": ["Fira Sans"],
+                        "body-sm": ["Fira Sans"],
+                        "headline-md": ["Fira Sans"],
+                        "code-sm": ["Fira Code"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "code-md": ["13px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "title-sm": ["18px", {"lineHeight": "24px", "fontWeight": "500"}],
+                        "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "code-sm": ["12px", {"lineHeight": "18px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface min-h-screen flex flex-col">
+<!-- TopNavBar -->
+<header class="bg-surface-container-low text-primary font-body-md text-body-md border-b border-outline-variant flex justify-between items-center h-12 px-margin-edge w-full sticky top-0 z-50">
+<div class="flex items-center gap-md">
+<span class="font-headline-md text-headline-md font-bold text-on-surface">DB2 Migration Studio</span>
+<nav class="hidden md:flex items-center gap-md ml-lg">
+<a class="text-secondary hover:bg-surface-container-high transition-colors px-sm py-1" href="#">Home</a>
+<a class="text-secondary hover:bg-surface-container-high transition-colors px-sm py-1" href="#">Projects</a>
+<a class="text-primary font-bold border-b-2 border-primary pb-1 px-sm" href="#">Migrations</a>
+<a class="text-secondary hover:bg-surface-container-high transition-colors px-sm py-1" href="#">Monitoring</a>
+<a class="text-secondary hover:bg-surface-container-high transition-colors px-sm py-1" href="#">Settings</a>
+</nav>
+</div>
+<div class="flex items-center gap-md">
+<div class="relative hidden lg:block">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="pl-8 pr-4 py-1 bg-surface-container-lowest border border-outline-variant rounded-DEFAULT text-body-sm w-64 focus:outline-none focus:border-primary" placeholder="Search tables..." type="text">
+</div>
+<div class="flex items-center gap-sm text-secondary">
+<button class="material-symbols-outlined p-1 hover:bg-surface-container-high transition-colors">notifications</button>
+<button class="material-symbols-outlined p-1 hover:bg-surface-container-high transition-colors">help_outline</button>
+<button class="material-symbols-outlined p-1 hover:bg-surface-container-high transition-colors">account_circle</button>
+</div>
+<button class="bg-primary-container text-on-primary-container px-md py-1.5 rounded-DEFAULT font-label-caps text-label-caps uppercase active:opacity-80 transition-opacity">Deploy</button>
+</div>
+</header><div class="bg-surface-container-lowest h-12 border-b border-outline-variant flex items-center justify-between px-margin-edge flex-none sticky top-12 z-40">
+<div class="flex items-center"><button class="flex items-center gap-xs px-sm py-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded text-body-sm transition-colors"><span class="material-symbols-outlined text-[18px]">edit_note</span>Edit Credentials</button><button class="flex items-center gap-xs px-sm py-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded text-body-sm transition-colors ml-sm"><span class="material-symbols-outlined text-[18px]">settings</span>Configuration</button></div>
+<div class="flex items-center gap-md"><div class="relative"><span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span><input class="pl-8 pr-md py-1 border border-outline-variant rounded bg-surface w-64 text-body-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" placeholder="Search objects..." type="text"></div><button class="bg-primary text-on-primary px-md py-1 rounded font-bold active:opacity-80 transition-opacity text-body-sm">Export</button></div>
+</div>
+<main class="flex-1 max-w-[1440px] mx-auto w-full px-margin-edge py-lg">
+<!-- Header Section -->
+<!-- Configuration Cards -->
+<section class="bg-surface-container-lowest border border-outline-variant p-md rounded-DEFAULT mb-md"><div class="flex items-center justify-between"><div class="space-y-1"><label class="text-label-caps text-secondary block">TABLE TYPE</label><div class="flex items-center gap-md pt-1"><label class="flex items-center gap-xs cursor-pointer"><input checked="" class="w-4 h-4 text-primary border-outline-variant focus:ring-primary" name="table_type" type="radio" value="staging"><span class="text-body-sm">Staging tables</span></label><label class="flex items-center gap-xs cursor-pointer"><input class="w-4 h-4 text-primary border-outline-variant focus:ring-primary" name="table_type" type="radio" value="main"><span class="text-body-sm">Main tables</span></label></div></div><button class="bg-primary text-on-primary px-lg py-2 rounded-DEFAULT font-label-caps flex items-center gap-sm transition-all hover:brightness-110 active:scale-95" id="runBtn" onclick="simulateRun()"><span class="material-symbols-outlined">play_arrow</span> RUN COMPARISON</button></div></section>
+<!-- Action Bar -->
+<!-- Metrics Grid -->
+<section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-md mb-lg">
+<div class="bg-surface-container-lowest border border-outline-variant p-md flex flex-col gap-xs py-lg">
+<p class="text-label-caps text-secondary">TOTAL TABLES</p>
+<p class="font-headline-md text-headline-md font-bold">142</p>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-md flex flex-col gap-xs border-l-4 border-l-emerald-500 py-lg">
+<p class="text-label-caps text-secondary">MATCHES</p>
+<p class="font-headline-md text-headline-md font-bold text-emerald-700">128</p>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-md flex flex-col gap-xs border-l-4 border-l-amber-500 py-lg">
+<p class="text-label-caps text-secondary">MISMATCHES</p>
+<p class="font-headline-md text-headline-md font-bold text-amber-700">12</p>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-md flex flex-col gap-xs border-l-4 border-l-red-500 py-lg">
+<p class="text-label-caps text-secondary">FAILED</p>
+<p class="font-headline-md text-headline-md font-bold text-red-700">2</p>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-md flex flex-col gap-xs py-lg">
+<p class="text-label-caps text-secondary">ROWS SCANNED</p>
+<p class="font-headline-md text-headline-md font-bold">1.2B</p>
+</div>
+</section>
+<!-- Detailed Results Table -->
+<section class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT overflow-hidden shadow-sm">
+<div class="px-md py-sm bg-surface-container-low border-b border-outline-variant">
+<h2 class="font-headline-md text-[20px] font-bold text-on-surface mb-sm">Comparison Details</h2>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-xs">
+<button class="h-10 px-md text-body-sm font-bold text-primary border-b-2 border-primary transition-all">All</button>
+<button class="h-10 px-md text-body-sm font-medium text-secondary hover:bg-surface-container-high hover:text-on-surface transition-all">Mismatches Only</button>
+<button class="h-10 px-md text-body-sm font-medium text-secondary hover:bg-surface-container-high hover:text-on-surface transition-all">Matches Only</button>
+</div>
+<button class="flex items-center gap-sm px-sm py-1.5 rounded hover:bg-surface-container-high text-on-surface-variant transition-colors border border-transparent hover:border-outline-variant">
+<span class="material-symbols-outlined text-[20px]">filter_list</span>
+<span class="text-label-caps">Filter Results</span>
+</button>
+</div>
+</div><div class="overflow-x-auto overflow-y-auto" style="max-height: 700px;">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant sticky top-0 z-10">
+<th class="px-md py-sm font-label-caps text-label-caps text-secondary">TABLE NAME</th>
+<th class="px-md py-sm font-label-caps text-label-caps text-secondary text-right">SOURCE COUNT</th>
+<th class="px-md py-sm font-label-caps text-label-caps text-secondary text-right">TARGET COUNT</th>
+<th class="px-md py-sm font-label-caps text-label-caps text-secondary text-right">DELTA</th>
+<th class="px-md py-sm font-label-caps text-label-caps text-secondary">STATUS</th>
+</tr>
+</thead>
+<tbody class="font-body-sm text-body-sm divide-y divide-outline-variant">
+<!-- Table Row 1 -->
+<tr class="hover:bg-surface-container transition-colors">
+<td class="px-md py-2 font-code-sm">SALES_FACT_2023_Q4</td>
+<td class="px-md py-2 text-right">45,201,392</td>
+<td class="px-md py-2 text-right">45,201,392</td>
+<td class="px-md py-2 text-right text-emerald-600 font-medium">0</td>
+<td class="px-md py-2">
+<span class="bg-emerald-100 text-emerald-700 px-sm py-0.5 rounded text-[10px] font-bold tracking-wider">MATCH</span>
+</td>
+</tr>
+<!-- Table Row 2 -->
+<tr class="hover:bg-surface-container transition-colors">
+<td class="px-md py-2 font-code-sm">CUSTOMER_MASTER_FULL</td>
+<td class="px-md py-2 text-right">1,402,100</td>
+<td class="px-md py-2 text-right">1,401,980</td>
+<td class="px-md py-2 text-right text-amber-600 font-medium">-120</td>
+<td class="px-md py-2">
+<span class="bg-amber-100 text-amber-700 px-sm py-0.5 rounded text-[10px] font-bold tracking-wider">MISMATCH</span>
+</td>
+</tr>
+<!-- Table Row 3 -->
+<tr class="hover:bg-surface-container transition-colors">
+<td class="px-md py-2 font-code-sm">REGION_METADATA_LUW</td>
+<td class="px-md py-2 text-right">4,500</td>
+<td class="px-md py-2 text-right">4,500</td>
+<td class="px-md py-2 text-right text-emerald-600 font-medium">0</td>
+<td class="px-md py-2">
+<span class="bg-emerald-100 text-emerald-700 px-sm py-0.5 rounded text-[10px] font-bold tracking-wider">MATCH</span>
+</td>
+</tr>
+<!-- Table Row 4 -->
+<tr class="hover:bg-surface-container transition-colors bg-red-50/30">
+<td class="px-md py-2 font-code-sm">ARCHIVE_SALES_2018</td>
+<td class="px-md py-2 text-right text-outline">N/A</td>
+<td class="px-md py-2 text-right text-outline">N/A</td>
+<td class="px-md py-2 text-right text-outline">N/A</td>
+<td class="px-md py-2">
+<span class="bg-red-100 text-red-700 px-sm py-0.5 rounded text-[10px] font-bold tracking-wider">FAILED</span>
+</td>
+</tr>
+<!-- Table Row 5 -->
+<tr class="hover:bg-surface-container transition-colors">
+<td class="px-md py-2 font-code-sm">INVOICE_HEADER_SAPP</td>
+<td class="px-md py-2 text-right">89,203,111</td>
+<td class="px-md py-2 text-right">89,203,111</td>
+<td class="px-md py-2 text-right text-emerald-600 font-medium">0</td>
+<td class="px-md py-2">
+<span class="bg-emerald-100 text-emerald-700 px-sm py-0.5 rounded text-[10px] font-bold tracking-wider">MATCH</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+</section>
+</main>
+<!-- Footer Space -->
+<script>
+        function simulateRun() {
+            const btn = document.getElementById('runBtn');
+            const status = document.getElementById('statusIndicator');
+            
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            status.classList.remove('opacity-0');
+            status.classList.add('opacity-100');
+            
+            setTimeout(() => {
+                status.innerHTML = '<span class="material-symbols-outlined text-emerald-600">check_circle</span> Analysis complete. Updating results...';
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    status.classList.add('opacity-0');
+                    // In a real app, this would trigger a data refresh
+                }, 1500);
+            }, 2500);
+        }
+    </script>
+
+
+</body></html>

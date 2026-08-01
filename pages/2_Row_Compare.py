@@ -1,4 +1,4 @@
-"""Row Compare — DB2 vs Azure SQL table row-count comparison."""
+"""Row Compare — DB2 vs Azure SQL table row-count comparison (Studio Precision UI)."""
 
 from __future__ import annotations
 
@@ -17,8 +17,15 @@ from db2_explorer.compare.row_compare import (
     run_comparison,
 )
 from db2_explorer.data.connections import Connection, parse_jdbc_db2_url
-from db2_explorer.ui.components import service_top_bar
-from db2_explorer.ui.theme import apply_page, COLORS
+from db2_explorer.ui.stitch_shell import (
+    render_html,
+    row_setup_header_html,
+    row_setup_source_header_html,
+    row_setup_target_header_html,
+    row_toolbar_html,
+    workspace_nav,
+)
+from db2_explorer.ui.theme import apply_page
 
 apply_page(title="Row Compare", layout="wide")
 
@@ -38,7 +45,6 @@ def _set_all_table_checks(tables: list[str], checked: bool) -> None:
 
 
 def _split_tables_into_columns(tables: list[str], num_cols: int) -> list[list[str]]:
-    """Fill columns top-to-bottom (vertical sections)."""
     if not tables:
         return [[] for _ in range(num_cols)]
     cols: list[list[str]] = [[] for _ in range(num_cols)]
@@ -49,23 +55,104 @@ def _split_tables_into_columns(tables: list[str], num_cols: int) -> list[list[st
     return cols
 
 
-st.markdown(
-    f"""
-    <style>
-    .compare-card {{
-        border: 1px solid {COLORS['border']};
-        border-radius: 14px;
-        padding: 1.1rem 1.25rem;
-        margin-bottom: 0.5rem;
-        background: {COLORS['surface']};
-        box-shadow: 0 1px 3px rgba(15,23,42,0.05);
-    }}
-    .compare-card h4 {{ margin-top: 0; color: {COLORS['text']}; }}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+@st.dialog("Compare Connection Setup", width="large")
+def _connection_setup_dialog() -> None:
+    """Redgate-style dual-column setup — stitch screen 01."""
+    render_html(row_setup_header_html())
+    src_col, tgt_col = st.columns(2)
+    with src_col:
+        render_html(row_setup_source_header_html())
+        st.text_input("Database Name", key="cmp_db2_database")
+        h_col, p_col = st.columns([2, 1])
+        with h_col:
+            st.text_input("Host", key="cmp_db2_host")
+        with p_col:
+            st.number_input("Port", min_value=1, max_value=65535, value=50000, key="cmp_db2_port")
+        st.text_input("Username", key="cmp_db2_user")
+        st.text_input("Password", type="password", key="cmp_db2_password")
+        with st.expander("Paste JDBC URL"):
+            jdbc_in = st.text_input(
+                "jdbc:db2://host:port/database",
+                key="cmp_db2_jdbc",
+                placeholder="jdbc:db2://ss-db22d:50000/infoq",
+            )
+            if st.button("Apply JDBC", key="cmp_apply_jdbc"):
+                parsed = parse_jdbc_db2_url(jdbc_in)
+                if parsed:
+                    dbname, host, port = parsed
+                    st.session_state.cmp_db2_database = dbname
+                    st.session_state.cmp_db2_host = host
+                    st.session_state.cmp_db2_port = port
+                    st.rerun()
+                else:
+                    st.warning("Could not parse JDBC URL.")
+        if st.button("Test Connection", key="cmp_test_db2", use_container_width=True):
+            db2_database = st.session_state.cmp_db2_database
+            db2_host = st.session_state.cmp_db2_host
+            db2_user = st.session_state.cmp_db2_user
+            db2_password = st.session_state.cmp_db2_password
+            db2_port = st.session_state.cmp_db2_port
+            if not all([db2_database, db2_host, db2_user, db2_password]):
+                st.error("Fill Database, Host, Username, and Password.")
+            else:
+                conn = Connection(dbname=db2_database, host=db2_host, port=int(db2_port))
+                out = query_single(conn, db2_user, db2_password, "SELECT 1 AS OK FROM SYSIBM.SYSDUMMY1")
+                st.success("DB2 connection OK.") if out.ok else st.error(out.error)
 
+    with tgt_col:
+        render_html(row_setup_target_header_html())
+        st.text_input("Azure SQL Server", key="cmp_az_server",
+                      placeholder="az-db-prod-sql.database.windows.net")
+        st.radio(
+            "Authentication",
+            options=list(AUTH_METHOD_LABELS.keys()),
+            format_func=lambda k: AUTH_METHOD_LABELS[k],
+            key="cmp_az_auth",
+        )
+        st.checkbox("Trust server certificate", value=True, key="cmp_az_trust_cert")
+        st.text_input("Database Name", key="cmp_az_database")
+        st.radio(
+            "Target table naming",
+            options=["original", "staging"],
+            format_func=lambda v: (
+                "Original — source `table1` ↔ target `table1`"
+                if v == "original"
+                else "Staging — source `table1` ↔ target `table1_staging`"
+            ),
+            key="cmp_target_table_mode",
+        )
+        if st.button("Test Connection", key="cmp_test_az", use_container_width=True):
+            az_server = st.session_state.cmp_az_server
+            az_database = st.session_state.cmp_az_database
+            az_auth = st.session_state.cmp_az_auth
+            if not all([az_server, az_database]):
+                st.error("Fill Server and Database.")
+            else:
+                az_conn = AzureConnection(
+                    server=az_server,
+                    database=az_database,
+                    auth_method=az_auth,
+                    trust_server_certificate=st.session_state.cmp_az_trust_cert,
+                )
+                out = test_azure(az_conn)
+                st.success("Target connection OK.") if out.ok else st.error(out.error)
+
+    st.markdown("---")
+    map_col1, map_mid, map_col2 = st.columns([2, 1, 2])
+    with map_col1:
+        st.text_input("Source schema", value="USERID", key="cmp_db2_schema")
+    with map_mid:
+        st.markdown("<p style='text-align:center;padding-top:1.75rem;color:#505f76;'>maps to</p>",
+                    unsafe_allow_html=True)
+    with map_col2:
+        st.text_input("Target schema", value="dbo", key="cmp_azure_schema")
+
+    if st.button("Connect & Compare →", type="primary", use_container_width=True, key="cmp_dialog_save"):
+        st.session_state.rc_setup_done = True
+        st.rerun()
+
+
+# ── Session defaults ──
 if "compare_result" not in st.session_state:
     st.session_state.compare_result = None
 if "compare_ran_at" not in st.session_state:
@@ -78,370 +165,211 @@ if "cmp_tables_loaded_for_schema" not in st.session_state:
     st.session_state.cmp_tables_loaded_for_schema = ""
 if "cmp_table_list_columns" not in st.session_state:
     st.session_state.cmp_table_list_columns = 3
+if "rc_setup_done" not in st.session_state:
+    st.session_state.rc_setup_done = False
 
-service_top_bar(
-    "Row Compare",
-    tagline="Compare exact row counts per table: DB2 LUW source vs Azure SQL target.",
-    home_key="rc_home",
+workspace_nav(
+    "migrations",
+    page_title="Row Compare",
+    page_subtitle="DB2 vs Azure row counts",
 )
-if st.session_state.compare_ran_at:
-    st.caption(f"Last run: {st.session_state.compare_ran_at}")
+render_html(row_toolbar_html())
 
-# ---------------------------------------------------------------------------
-# Connection cards
-# ---------------------------------------------------------------------------
-col_db2, col_az = st.columns(2)
+toolbar_col1, toolbar_col2, _ = st.columns([1, 1, 4])
+with toolbar_col1:
+    if st.button("Edit Credentials", key="rc_edit_creds"):
+        _connection_setup_dialog()
+with toolbar_col2:
+    config_open = st.toggle("Configuration panel", key="rc_config_open")
 
-with col_db2:
-    st.markdown('<div class="compare-card"><h4>Source — DB2 LUW</h4>', unsafe_allow_html=True)
-    db2_database = st.text_input("Database", key="cmp_db2_database")
-    db2_host = st.text_input("Host", key="cmp_db2_host")
-    db2_port = st.number_input("Port", min_value=1, max_value=65535, value=50000, key="cmp_db2_port")
-    db2_user = st.text_input("Username", key="cmp_db2_user")
-    db2_password = st.text_input("Password", type="password", key="cmp_db2_password")
+if not st.session_state.rc_setup_done:
+    st.info("Configure source and target connections to begin.")
+    if st.button("Open Connection Setup", type="primary", key="rc_open_setup"):
+        _connection_setup_dialog()
 
-    with st.expander("Paste JDBC URL"):
-        jdbc_in = st.text_input(
-            "jdbc:db2://host:port/database",
-            key="cmp_db2_jdbc",
-            placeholder="jdbc:db2://ss-db22d:50000/infoq",
-        )
-        if st.button("Apply JDBC", key="cmp_apply_jdbc"):
-            parsed = parse_jdbc_db2_url(jdbc_in)
-            if parsed:
-                dbname, host, port = parsed
-                st.session_state.cmp_db2_database = dbname
-                st.session_state.cmp_db2_host = host
-                st.session_state.cmp_db2_port = port
-                st.rerun()
-            else:
-                st.warning("Could not parse JDBC URL.")
-
-    if st.button("Test DB2 connection", key="cmp_test_db2"):
-        if not all([db2_database, db2_host, db2_user, db2_password]):
-            st.error("Fill Database, Host, Username, and Password.")
-        else:
-            conn = Connection(dbname=db2_database, host=db2_host, port=int(db2_port))
-            out = query_single(conn, db2_user, db2_password, "SELECT 1 AS OK FROM SYSIBM.SYSDUMMY1")
-            if out.ok:
-                st.success("DB2 connection OK.")
-            else:
-                st.error(out.error)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-with col_az:
-    st.markdown('<div class="compare-card"><h4>Target — Azure SQL</h4>', unsafe_allow_html=True)
-    az_server = st.text_input(
-        "Server",
-        key="cmp_az_server",
-        placeholder="gpitd.pres.com\\i2022  or  myserver.database.windows.net",
-        help="SSMS-style: host\\instance for named instances. Do not add ,1433 after \\instance.",
-    )
-    az_database = st.text_input("Database", key="cmp_az_database")
-    az_auth = st.radio(
-        "Authentication",
-        options=list(AUTH_METHOD_LABELS.keys()),
-        format_func=lambda k: AUTH_METHOD_LABELS[k],
-        key="cmp_az_auth",
-        horizontal=False,
-    )
-    az_trust_cert = st.checkbox(
-        "Trust server certificate",
-        value=True,
-        key="cmp_az_trust_cert",
-        help="Match SSMS: Encryption on + trust server certificate.",
-    )
-    target_table_mode = st.radio(
-        "Target table naming",
-        options=["original", "staging"],
-        format_func=lambda v: (
-            "Original — source `table1` ↔ target `table1`"
-            if v == "original"
-            else "Staging — source `table1` ↔ target `table1_staging`"
-        ),
-        key="cmp_target_table_mode",
-    )
-    if az_auth == "azure_ad_interactive":
-        st.caption("A browser window opens for Microsoft sign-in (account picker / MFA).")
-    else:
-        st.caption(
-            "Same as SSMS **Windows Authentication** for on-prem instances (e.g. "
-            "`gpitd.pres.com\\i2022`). Uses **Trusted_Connection**; run Streamlit on Windows."
-        )
-
-    if st.button("Test Target connection", key="cmp_test_az"):
-        if not all([az_server, az_database]):
-            st.error("Fill Server and Database.")
-        else:
-            az_conn = AzureConnection(
-                server=az_server,
-                database=az_database,
-                auth_method=az_auth,
-                trust_server_certificate=az_trust_cert,
+with st.container(key="rc_workspace"):
+    # Configuration panel — stitch screen 05
+    with st.container(border=True, key="rc_config_bar"):
+        cfg_left, cfg_right = st.columns([3, 1])
+        with cfg_left:
+            render_html(
+                '<label class="text-label-caps text-secondary block mb-sm">COMPARE SCOPE</label>'
             )
-            out = test_azure(az_conn)
-            if out.ok:
-                st.success("Target connection OK.")
-            else:
-                st.error(out.error)
-    st.markdown("</div>", unsafe_allow_html=True)
+            st.radio(
+                "Tables to compare",
+                options=["all", "selected"],
+                format_func=lambda v: "Compare all tables" if v == "all" else "Selected tables only",
+                key="cmp_compare_scope",
+                horizontal=True,
+                label_visibility="collapsed",
+            )
+        with cfg_right:
+            st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
+            run_clicked = st.button("▶ RUN COMPARISON", type="primary", use_container_width=True, key="rc_run")
 
-# ---------------------------------------------------------------------------
-# Schema mapping
-# ---------------------------------------------------------------------------
-st.markdown("#### Schema Mapping")
-map_col1, map_mid, map_col2 = st.columns([2, 1, 2])
-with map_col1:
-    db2_schema = st.text_input("Source schema", value="USERID", key="cmp_db2_schema")
-with map_mid:
-    st.markdown(
-        '<p class="schema-bridge">maps to</p>',
-        unsafe_allow_html=True,
-    )
-with map_col2:
-    azure_schema = st.text_input("Target schema", value="dbo", key="cmp_azure_schema")
+    if config_open or st.session_state.cmp_compare_scope == "selected":
+        with st.expander("Advanced table selection", expanded=st.session_state.cmp_compare_scope == "selected"):
+            db2_schema = st.session_state.get("cmp_db2_schema", "USERID")
+            db2_database = st.session_state.get("cmp_db2_database", "")
+            db2_host = st.session_state.get("cmp_db2_host", "")
+            db2_user = st.session_state.get("cmp_db2_user", "")
+            db2_password = st.session_state.get("cmp_db2_password", "")
+            db2_port = st.session_state.get("cmp_db2_port", 50000)
 
-st.caption(
-    f"Schema mapping: **{db2_schema}** → **{azure_schema}**. "
-    f"Table pairing: **{target_table_mode}** "
-    f"({'`table` ↔ `table`' if target_table_mode == 'original' else '`table` ↔ `table_staging`'})."
-)
-
-# ---------------------------------------------------------------------------
-# Advanced options
-# ---------------------------------------------------------------------------
-with st.expander("Advanced options", expanded=False):
-    compare_scope = st.radio(
-        "Tables to compare",
-        options=["all", "selected"],
-        format_func=lambda v: "Compare all tables" if v == "all" else "Selected tables only",
-        key="cmp_compare_scope",
-        horizontal=True,
-    )
-    if compare_scope == "selected":
-        load_col, _ = st.columns([1, 3])
-        with load_col:
-            load_tables_clicked = st.button("Load table list", key="cmp_load_tables")
-        if load_tables_clicked:
-            if not all([db2_database, db2_host, db2_user, db2_password]):
-                st.error("DB2: Database, Host, Username, and Password are required to load tables.")
-            elif not db2_schema.strip():
-                st.error("Source schema is required.")
-            else:
-                load_conn = Connection(
-                    dbname=db2_database.strip(),
-                    host=db2_host.strip(),
-                    port=int(db2_port),
-                )
-                with st.spinner("Loading tables from source schema..."):
-                    names, err = list_source_tables(
-                        load_conn,
-                        db2_user,
-                        db2_password,
-                        db2_schema.strip(),
-                    )
-                if err:
-                    st.error(err)
+            if st.button("Load table list", key="cmp_load_tables"):
+                if not all([db2_database, db2_host, db2_user, db2_password]):
+                    st.error("Complete connection setup first.")
+                elif not db2_schema.strip():
+                    st.error("Source schema is required.")
                 else:
-                    prev_selected = set(
-                        _selected_tables_from_checkboxes(st.session_state.cmp_source_table_list)
+                    load_conn = Connection(
+                        dbname=db2_database.strip(),
+                        host=db2_host.strip(),
+                        port=int(db2_port),
                     )
-                    st.session_state.cmp_source_table_list = names
-                    st.session_state.cmp_tables_loaded_for_schema = db2_schema.strip()
-                    for t in names:
-                        st.session_state[_table_checkbox_key(t)] = t in prev_selected
-                    st.success(f"Loaded {len(names)} table(s) from **{db2_schema.strip()}**.")
+                    with st.spinner("Loading tables…"):
+                        names, err = list_source_tables(load_conn, db2_user, db2_password, db2_schema.strip())
+                    if err:
+                        st.error(err)
+                    else:
+                        prev = set(_selected_tables_from_checkboxes(st.session_state.cmp_source_table_list))
+                        st.session_state.cmp_source_table_list = names
+                        st.session_state.cmp_tables_loaded_for_schema = db2_schema.strip()
+                        for t in names:
+                            st.session_state[_table_checkbox_key(t)] = t in prev
+                        st.success(f"Loaded {len(names)} table(s).")
 
-        loaded = st.session_state.cmp_source_table_list
-        if loaded:
-            if (
-                st.session_state.cmp_tables_loaded_for_schema
-                and st.session_state.cmp_tables_loaded_for_schema != db2_schema.strip()
-            ):
-                st.caption(
-                    "Source schema changed since the list was loaded — click **Load table list** again."
-                )
-            st.markdown("**Tables to compare**")
-            pick_toolbar = st.columns([1, 1, 2, 2])
-            with pick_toolbar[0]:
-                if st.button("Select all", key="cmp_tbl_select_all"):
-                    _set_all_table_checks(loaded, True)
-                    st.rerun()
-            with pick_toolbar[1]:
-                if st.button("Clear all", key="cmp_tbl_clear_all"):
-                    _set_all_table_checks(loaded, False)
-                    st.rerun()
-            with pick_toolbar[2]:
-                num_cols = st.radio(
-                    "Sections",
-                    options=[2, 3],
-                    format_func=lambda n: f"{n} columns",
-                    horizontal=True,
-                    key="cmp_table_list_columns",
-                    help="Use 2 columns on a narrow window; 3 on a wide screen.",
-                )
-            selected_count = len(_selected_tables_from_checkboxes(loaded))
-            with pick_toolbar[3]:
-                st.caption(f"{selected_count} of {len(loaded)} selected")
+            loaded = st.session_state.cmp_source_table_list
+            if loaded:
+                pick_toolbar = st.columns([1, 1, 2, 2])
+                with pick_toolbar[0]:
+                    if st.button("Select all", key="cmp_tbl_select_all"):
+                        _set_all_table_checks(loaded, True)
+                        st.rerun()
+                with pick_toolbar[1]:
+                    if st.button("Clear all", key="cmp_tbl_clear_all"):
+                        _set_all_table_checks(loaded, False)
+                        st.rerun()
+                with pick_toolbar[2]:
+                    num_cols = st.radio(
+                        "Sections",
+                        options=[2, 3],
+                        format_func=lambda n: f"{n} columns",
+                        horizontal=True,
+                        key="cmp_table_list_columns",
+                    )
+                with pick_toolbar[3]:
+                    st.caption(f"{len(_selected_tables_from_checkboxes(loaded))} of {len(loaded)} selected")
+                with st.container(border=True, height=320):
+                    col_chunks = _split_tables_into_columns(loaded, int(num_cols))
+                    grid_cols = st.columns(int(num_cols))
+                    for col_idx, grid_col in enumerate(grid_cols):
+                        with grid_col:
+                            for table_name in col_chunks[col_idx]:
+                                st.checkbox(table_name, key=_table_checkbox_key(table_name))
 
-            with st.container(border=True, height=420):
-                col_chunks = _split_tables_into_columns(loaded, int(num_cols))
-                grid_cols = st.columns(int(num_cols))
-                for col_idx, grid_col in enumerate(grid_cols):
-                    with grid_col:
-                        for table_name in col_chunks[col_idx]:
-                            st.checkbox(
-                                table_name,
-                                key=_table_checkbox_key(table_name),
-                            )
+    # Run comparison
+    db2_database = st.session_state.get("cmp_db2_database", "")
+    db2_host = st.session_state.get("cmp_db2_host", "")
+    db2_user = st.session_state.get("cmp_db2_user", "")
+    db2_password = st.session_state.get("cmp_db2_password", "")
+    db2_port = st.session_state.get("cmp_db2_port", 50000)
+    db2_schema = st.session_state.get("cmp_db2_schema", "USERID")
+    azure_schema = st.session_state.get("cmp_azure_schema", "dbo")
+    az_server = st.session_state.get("cmp_az_server", "")
+    az_database = st.session_state.get("cmp_az_database", "")
+    az_auth = st.session_state.get("cmp_az_auth", "azure_ad_interactive")
+    target_table_mode = st.session_state.get("cmp_target_table_mode", "original")
+
+    if run_clicked:
+        errors = []
+        if not all([db2_database, db2_host, db2_user, db2_password]):
+            errors.append("DB2: Database, Host, Username, and Password are required.")
+        if not all([az_server, az_database]):
+            errors.append("Target: Server and Database are required.")
+        if not db2_schema.strip() or not azure_schema.strip():
+            errors.append("Both schema names are required.")
+        if st.session_state.cmp_compare_scope == "selected":
+            if not _selected_tables_from_checkboxes(st.session_state.cmp_source_table_list):
+                errors.append("Select at least one table, or choose compare all.")
+        if errors:
+            for e in errors:
+                st.error(e)
         else:
-            st.caption("Click **Load table list** to choose tables from the source schema.")
+            progress = st.progress(0.0, text="Starting comparison…")
+            status = st.empty()
 
-# ---------------------------------------------------------------------------
-# Run
-# ---------------------------------------------------------------------------
-run_col, clear_col, _ = st.columns([1, 1, 3])
-with run_col:
-    run_clicked = st.button("Run comparison", type="primary", width="stretch")
-with clear_col:
-    if st.button("Clear results", width="stretch"):
-        st.session_state.compare_result = None
-        st.session_state.compare_ran_at = None
-        st.session_state.cmp_view = "All"
-        st.rerun()
+            def _on_progress(done: int, total: int, msg: str) -> None:
+                progress.progress(done / total, text=msg)
+                status.caption(msg)
 
-if run_clicked:
-    errors = []
-    if not all([db2_database, db2_host, db2_user, db2_password]):
-        errors.append("DB2: Database, Host, Username, and Password are required.")
-    if not all([az_server, az_database]):
-        errors.append("Target: Server and Database are required.")
-    if not db2_schema.strip() or not azure_schema.strip():
-        errors.append("Both schema names are required.")
-    if st.session_state.cmp_compare_scope == "selected":
-        loaded_for_run = st.session_state.cmp_source_table_list
-        if not _selected_tables_from_checkboxes(loaded_for_run):
-            errors.append("Advanced options: select at least one table, or choose Compare all tables.")
-
-    if errors:
-        for e in errors:
-            st.error(e)
-    else:
-        progress = st.progress(0.0, text="Starting comparison...")
-        status = st.empty()
-
-        def _on_progress(done: int, total: int, msg: str) -> None:
-            progress.progress(done / total, text=msg)
-            status.caption(msg)
-
-        db2_conn = Connection(
-            dbname=db2_database.strip(),
-            host=db2_host.strip(),
-            port=int(db2_port),
-        )
-        azure_conn = AzureConnection(
-            server=az_server.strip(),
-            database=az_database.strip(),
-            auth_method=az_auth,
-            trust_server_certificate=az_trust_cert,
-        )
-
-        spinner_msg = (
-            "Running comparison..."
-            if az_auth == "windows_integrated"
-            else "Running comparison (Target sign-in may open in your browser)..."
-        )
-        with st.spinner(spinner_msg):
-            tables_arg = None
-            if st.session_state.cmp_compare_scope == "selected":
-                tables_arg = _selected_tables_from_checkboxes(st.session_state.cmp_source_table_list)
-            result = run_comparison(
-                db2_conn,
-                db2_user,
-                db2_password,
-                db2_schema.strip(),
-                azure_conn,
-                azure_schema.strip(),
-                target_table_mode=target_table_mode,
-                selected_tables=tables_arg,
-                on_progress=_on_progress,
+            db2_conn = Connection(dbname=db2_database.strip(), host=db2_host.strip(), port=int(db2_port))
+            azure_conn = AzureConnection(
+                server=az_server.strip(),
+                database=az_database.strip(),
+                auth_method=az_auth,
+                trust_server_certificate=st.session_state.cmp_az_trust_cert,
             )
+            with st.spinner("Running comparison…"):
+                tables_arg = None
+                if st.session_state.cmp_compare_scope == "selected":
+                    tables_arg = _selected_tables_from_checkboxes(st.session_state.cmp_source_table_list)
+                result = run_comparison(
+                    db2_conn, db2_user, db2_password, db2_schema.strip(),
+                    azure_conn, azure_schema.strip(),
+                    target_table_mode=target_table_mode,
+                    selected_tables=tables_arg,
+                    on_progress=_on_progress,
+                )
+            progress.empty()
+            status.empty()
+            if result.status != "ok":
+                st.error(result.error)
+            else:
+                st.session_state.compare_result = result
+                st.session_state.compare_ran_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                st.session_state.cmp_view = "All"
+                st.success("Comparison complete.")
+                st.rerun()
 
-        progress.empty()
-        status.empty()
+    result: CompareResult | None = st.session_state.compare_result
+    if result is not None and result.status == "ok" and not result.comparison.empty:
+        df = result.comparison
+        metrics = comparison_metrics(df)
 
-        if result.status != "ok":
-            st.error(result.error)
-            if result.db2.error:
-                st.warning(f"DB2 detail: {result.db2.error}")
-            if result.azure.error:
-                st.warning(f"Azure detail: {result.azure.error}")
-        else:
-            st.session_state.compare_result = result
-            st.session_state.compare_ran_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            st.session_state.cmp_view = "All"
-            fb = []
-            if result.db2.used_fallback:
-                fb.append("DB2 used per-table fallback")
-            if result.azure.used_fallback:
-                fb.append("Azure used per-table fallback")
-            if fb:
-                st.info(" · ".join(fb))
-            st.success("Comparison complete.")
-            st.rerun()
+        with st.container(key="rc_metrics"):
+            m1, m2, m3, m4, m5 = st.columns(5)
+            m1.metric("Total Tables", metrics["tables_source"])
+            m2.metric("Matches", metrics["matched"])
+            m3.metric("Mismatches", metrics["mismatched"])
+            m4.metric("Failed", metrics["missing"])
+            m5.metric("Rows Scanned", metrics["tables_source"])
 
-# ---------------------------------------------------------------------------
-# Results
-# ---------------------------------------------------------------------------
-result: CompareResult | None = st.session_state.compare_result
-if result is not None and result.status == "ok" and not result.comparison.empty:
-    df = result.comparison
-    metrics = comparison_metrics(df)
-
-    st.divider()
-    st.subheader("Summary")
-    m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("Tables on Source", metrics["tables_source"])
-    m2.metric("Tables on Target", metrics["tables_target"])
-    m3.metric("Matched", metrics["matched"])
-    m4.metric("Mismatched", metrics["mismatched"])
-    m5.metric("Missing on one side", metrics["missing"])
-
-    st.subheader("Comparison")
-    view = st.radio(
-        "Show",
-        ["All", "Matches only", "Mismatches only", "Source only", "Target only"],
-        horizontal=True,
-        key="cmp_view",
-    )
-    view_df = filter_comparison(df, view)
-
-    st.dataframe(
-        view_df,
-        width="stretch",
-        hide_index=True,
-        column_config={
-            "Source Count": st.column_config.NumberColumn(format="%d"),
-            "Target Count": st.column_config.NumberColumn(format="%d"),
-            "Delta": st.column_config.NumberColumn(format="%+d"),
-        },
-    )
-
-    st.download_button(
-        "Download comparison CSV",
-        data=df.to_csv(index=False).encode("utf-8"),
-        file_name="db2_azure_table_comparison.csv",
-        mime="text/csv",
-    )
-
-    with st.expander("Generated SQL"):
-        st.markdown("**Source (DB2) UNION query**")
-        st.code(result.db2.union_sql or "(fallback — no single UNION SQL)", language="sql")
-        st.markdown("**Target (Azure) UNION query**")
-        st.code(result.azure.union_sql or "(fallback — no single UNION SQL)", language="sql")
-
-elif result is not None and result.status == "ok" and result.comparison.empty:
-    st.warning("Comparison ran but no tables were found in either schema.")
-
-else:
-    st.info("Configure connections and schema mapping, then click **Run comparison**.")
+        st.markdown("#### Comparison Details")
+        view = st.radio(
+            "Show",
+            ["All", "Matches only", "Mismatches only", "Source only", "Target only"],
+            horizontal=True,
+            key="cmp_view",
+        )
+        view_df = filter_comparison(df, view)
+        st.dataframe(
+            view_df,
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "Source Count": st.column_config.NumberColumn(format="%d"),
+                "Target Count": st.column_config.NumberColumn(format="%d"),
+                "Delta": st.column_config.NumberColumn(format="%+d"),
+            },
+        )
+        st.download_button(
+            "Download CSV",
+            data=df.to_csv(index=False).encode("utf-8"),
+            file_name="db2_azure_table_comparison.csv",
+            mime="text/csv",
+        )
+    elif result is not None and result.status == "ok" and result.comparison.empty:
+        st.warning("Comparison ran but no tables were found.")
+    elif st.session_state.rc_setup_done:
+        st.info("Click **RUN COMPARISON** to compare row counts.")

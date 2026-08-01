@@ -1,0 +1,284 @@
+<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>DB2 Migration Studio - Connection Setup</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&amp;family=Fira+Code:wght@400;500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        /* Custom scrollbar for dense data areas */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container": "#eaedff",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "on-primary-container": "#eeefff",
+                        "surface-container-lowest": "#ffffff",
+                        "primary-fixed-dim": "#b4c5ff",
+                        "inverse-surface": "#283044",
+                        "primary-fixed": "#dbe1ff",
+                        "on-surface-variant": "#434655",
+                        "secondary": "#505f76",
+                        "surface-container-low": "#f2f3ff",
+                        "primary": "#004ac6",
+                        "surface-container-high": "#e2e7ff",
+                        "on-primary": "#ffffff",
+                        "tertiary": "#824500",
+                        "outline-variant": "#c3c6d7",
+                        "on-surface": "#131b2e",
+                        "background": "#faf8ff",
+                        "outline": "#737686",
+                        "primary-container": "#2563eb",
+                        "on-secondary-container": "#54647a",
+                        "secondary-container": "#d0e1fb"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "4px",
+                        "lg": "8px",
+                        "xl": "12px",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "lg": "24px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "base": "4px",
+                        "md": "16px",
+                        "xl": "32px",
+                        "gutter": "16px",
+                        "margin-edge": "24px"
+                    },
+                    "fontFamily": {
+                        "code-sm": ["Fira Code"],
+                        "label-caps": ["Fira Sans"],
+                        "title-sm": ["Fira Sans"],
+                        "body-md": ["Fira Sans"],
+                        "headline-md": ["Fira Sans"],
+                        "code-md": ["Fira Code"],
+                        "body-sm": ["Fira Sans"],
+                        "display-lg": ["Fira Sans"]
+                    },
+                    "fontSize": {
+                        "code-sm": ["12px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "title-sm": ["18px", {"lineHeight": "24px", "fontWeight": "500"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "code-md": ["13px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "display-lg": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background font-body-md overflow-hidden">
+<!-- BACKGROUND: DIMMED APP UI (Simulated context) -->
+<div class="fixed inset-0 z-0 opacity-40 grayscale blur-[2px] pointer-events-none">
+<!-- TopNavBar Mock -->
+<header class="flex justify-between items-center h-12 px-margin-edge w-full bg-surface-container-low border-b border-outline-variant">
+<div class="font-headline-md font-bold text-on-surface">DB2 Migration Studio</div>
+<div class="flex gap-md items-center">
+<div class="h-8 w-64 bg-surface-container rounded border border-outline-variant"></div>
+<div class="flex gap-sm">
+<div class="w-8 h-8 rounded-full bg-surface-container-high"></div>
+<div class="w-8 h-8 rounded-full bg-surface-container-high"></div>
+</div>
+</div>
+</header>
+<!-- Main Content Area Mock -->
+<div class="flex h-screen">
+<aside class="w-[280px] bg-surface-container-low border-r border-outline-variant p-md">
+<div class="space-y-md">
+<div class="h-10 w-full bg-primary-container opacity-20 rounded"></div>
+<div class="h-8 w-full bg-surface-container-high rounded"></div>
+<div class="h-8 w-full bg-surface-container-high rounded"></div>
+</div>
+</aside>
+<main class="flex-1 p-xl">
+<div class="grid grid-cols-12 gap-lg">
+<div class="col-span-12 h-64 bg-surface-container-lowest border border-outline-variant rounded"></div>
+<div class="col-span-4 h-48 bg-surface-container-lowest border border-outline-variant rounded"></div>
+<div class="col-span-4 h-48 bg-surface-container-lowest border border-outline-variant rounded"></div>
+<div class="col-span-4 h-48 bg-surface-container-lowest border border-outline-variant rounded"></div>
+</div>
+</main>
+</div>
+</div>
+<!-- MODAL OVERLAY: CONNECTION SETUP -->
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/40 backdrop-blur-sm">
+<!-- Main Connection Container -->
+<div class="w-full max-w-[900px] bg-surface-container-lowest shadow-2xl border border-outline-variant flex flex-col animate-in fade-in zoom-in duration-300">
+<!-- Modal Header -->
+<div class="px-xl py-lg border-b border-outline-variant flex items-center justify-between">
+<div>
+<h1 class="font-headline-md text-headline-md text-on-surface">New Comparison Project</h1>
+<p class="font-body-sm text-body-sm text-secondary mt-xs">Configure your source and target data environments</p>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-outline">close</span>
+</button>
+</div>
+<!-- Two-Column Connection Fields -->
+<div class="flex divide-x divide-outline-variant bg-white">
+<!-- Left: GitLab Source -->
+<div class="flex-1 p-xl">
+<div class="flex items-center gap-sm mb-lg">
+<div class="w-10 h-10 bg-surface-container flex items-center justify-center rounded">
+<span class="material-symbols-outlined text-primary" data-icon="database">database</span>
+</div>
+<div>
+<h2 class="font-title-sm text-title-sm text-on-surface">GitLab Source</h2>
+<p class="font-label-caps text-label-caps text-secondary uppercase">Project Repository</p>
+</div>
+</div>
+<div class="space-y-md"><div class="space-y-xs mb-md"><label class="font-label-caps text-label-caps text-on-surface">Source Repository</label><div class="flex items-center gap-xs text-body-md"><a href="https://gitlab.com" class="text-primary hover:underline">https://gitlab.com</a><span class="text-outline">·</span><span class="text-on-surface">project 12345</span></div></div><div class="space-y-xs"><label class="font-label-caps text-label-caps text-on-surface">Personal Access Token</label><input class="w-full h-10 px-md border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" placeholder="glpat-xxxxxxxxxxxx" type="password"></div>
+
+<div class="space-y-xs">
+<label class="font-label-caps text-label-caps text-on-surface">BRANCH</label>
+<div class="flex gap-sm items-center">
+  <div class="relative flex-1">
+    <select class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">
+      <option>release/v2.4.0-hotfix</option>
+      <option>develop</option>
+      <option>main</option>
+    </select>
+    <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined pointer-events-none text-outline">expand_more</span>
+  </div>
+  <button class="h-10 w-10 rounded border border-outline-variant hover:bg-surface-container-low text-secondary transition-colors flex items-center justify-center shrink-0" title="Refresh branches">
+    <span class="material-symbols-outlined text-[20px]">refresh</span>
+  </button>
+</div>
+</div>
+<div class="space-y-xs">
+<label class="font-label-caps text-label-caps text-on-surface">DATABASE FOLDER</label>
+<input class="w-full h-10 px-md border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" type="text" value="/src/database/schemas">
+</div>
+<div class="space-y-xs">
+<label class="font-label-caps text-label-caps text-on-surface">SERVER FOLDER</label>
+<input class="w-full h-10 px-md border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" placeholder="e.g. /src/database/procs" type="text">
+</div><div class="pt-xs">
+  <button class="h-9 px-md border border-outline-variant bg-surface-container-low text-on-surface font-label-caps text-label-caps flex items-center gap-xs hover:bg-surface-container-high transition-colors rounded">
+    <span class="material-symbols-outlined text-[18px]">folder_open</span>
+    Load Deployment
+  </button>
+</div>
+</div>
+</div>
+<!-- Right: Azure SQL Target -->
+<div class="flex-1 p-xl">
+<div class="flex items-center gap-sm mb-lg">
+<div class="w-10 h-10 bg-surface-container flex items-center justify-center rounded">
+<span class="material-symbols-outlined text-tertiary" data-icon="cloud">cloud</span>
+</div>
+<div>
+<h2 class="font-title-sm text-title-sm text-on-surface">Azure SQL Target</h2>
+<p class="font-label-caps text-label-caps text-secondary uppercase">Production Instance</p>
+</div>
+</div>
+<div class="space-y-md"><div class="space-y-xs">
+<label class="font-label-caps text-label-caps text-on-surface">Azure SQL Server</label>
+<input class="w-full h-10 px-md border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" placeholder="az-db-prod-sql.database.windows.net" type="text">
+</div>
+<div class="space-y-xs">
+<label class="font-label-caps text-label-caps text-on-surface">AUTHENTICATION</label>
+<div class="flex flex-col gap-sm py-1">
+  <label class="flex items-center gap-sm cursor-pointer group">
+    <input type="radio" name="auth_type_modal" value="entra" class="w-4 h-4 text-primary border-outline focus:ring-primary" checked="">
+    <span class="text-body-sm text-on-surface group-hover:text-primary transition-colors">Microsoft Entra MFA</span>
+  </label>
+  <label class="flex items-center gap-sm cursor-pointer group">
+    <input type="radio" name="auth_type_modal" value="windows" class="w-4 h-4 text-primary border-outline focus:ring-primary">
+    <span class="text-body-sm text-on-surface group-hover:text-primary transition-colors">Windows Authentication</span>
+  </label>
+  <label class="flex items-center gap-sm cursor-pointer group mt-1 ml-6">
+    <input type="checkbox" class="rounded border-outline text-primary focus:ring-primary w-4 h-4">
+    <span class="text-body-sm text-on-surface group-hover:text-primary transition-colors">Trust Server certificate</span>
+  </label>
+</div>
+</div>
+<div class="space-y-xs"><label class="font-label-caps text-label-caps text-on-surface">Database Name</label>
+<div class="flex gap-sm items-center">
+  <div class="relative flex-1">
+    <select class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">
+      <option>CRM_PROD_EASTUS</option>
+      <option>CRM_STAGING_EASTUS</option>
+      <option>CRM_DEV_EASTUS</option>
+    </select>
+    <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined pointer-events-none text-outline">expand_more</span>
+  </div>
+  <button class="h-10 w-10 rounded border border-outline-variant hover:bg-surface-container-low text-secondary transition-colors flex items-center justify-center shrink-0" title="Refresh databases">
+    <span class="material-symbols-outlined text-[20px]">refresh</span>
+  </button>
+</div></div>
+</div>
+</div>
+</div>
+<!-- Comparison Selection (Options bar) -->
+
+<!-- Full-Width Comparison Button -->
+<div class="p-xl bg-surface-container-lowest border-t border-outline-variant">
+<button class="w-full h-14 bg-primary text-on-primary font-headline-md text-title-sm flex items-center justify-center gap-md hover:brightness-110 active:opacity-90 transition-all shadow-lg" id="compareBtn">
+                    Compare Now
+                    <span class="material-symbols-outlined">sync_alt</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Micro-interaction script -->
+<script>
+        document.getElementById('compareBtn').addEventListener('click', function() {
+            this.innerHTML = '<span class="material-symbols-outlined animate-spin">refresh</span> Analyzing schemas...';
+            this.classList.add('pointer-events-none', 'bg-primary-container');
+            
+            setTimeout(() => {
+                alert('Connection valid. Schema comparison initiated.');
+                this.innerHTML = 'Compare Now <span class="material-symbols-outlined">sync_alt</span>';
+                this.classList.remove('pointer-events-none', 'bg-primary-container');
+            }, 2000);
+        });
+
+        // Focus ring effect simulation for inputs
+        const inputs = document.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            input.addEventListener('focus', () => {
+                input.parentElement.classList.add('scale-[1.01]');
+            });
+            input.addEventListener('blur', () => {
+                input.parentElement.classList.remove('scale-[1.01]');
+            });
+        });
+    </script>
+
+
+</body></html>
