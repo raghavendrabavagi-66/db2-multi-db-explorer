@@ -247,7 +247,7 @@ def ensure_oe_search_api() -> bool:
 
 
 def _asgi_search_api_active() -> bool:
-    """True when Streamlit 1.53+ is running via studio_app ASGI entry."""
+    """True when Streamlit 1.53+ is running via repo-root studio_entry ASGI entry."""
     if os.environ.get(_ASGI_SEARCH_ENV) == "1":
         return True
 
@@ -257,6 +257,11 @@ def _asgi_search_api_active() -> bool:
         return False
 
     if hasattr(st_server.Server, "_create_app"):
+        return False
+
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    entry = repo_root / "studio_entry.py"
+    if not entry.is_file():
         return False
 
     try:
@@ -276,8 +281,7 @@ def _asgi_search_api_active() -> bool:
         if ctx is None or not ctx.main_script_path:
             return False
         main = Path(ctx.main_script_path).resolve()
-        entry = Path(studio_app.__file__).resolve()
-        return main == entry
+        return main == entry.resolve()
     except Exception:
         return False
 

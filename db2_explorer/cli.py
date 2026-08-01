@@ -9,6 +9,8 @@ from pathlib import Path
 from db2_explorer.api.register import install_oe_search_api
 
 _ASGI_SEARCH_ENV = "DB2_MIGRATION_STUDIO_ASGI_SEARCH"
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+_STUDIO_ENTRY = _REPO_ROOT / "studio_entry.py"
 
 
 def _rewrite_argv_for_starlette_entry() -> bool:
@@ -36,8 +38,10 @@ def _rewrite_argv_for_starlette_entry() -> bool:
     if studio_app.app is None:
         return False
 
-    entry = Path(studio_app.__file__).resolve()
-    sys.argv[2] = str(entry)
+    if not _STUDIO_ENTRY.is_file():
+        return False
+
+    sys.argv[2] = str(_STUDIO_ENTRY.resolve())
     os.environ[_ASGI_SEARCH_ENV] = "1"
     return True
 
