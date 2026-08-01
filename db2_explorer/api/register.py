@@ -27,6 +27,9 @@ from db2_explorer.api.search_server import get_search_server_port, start_search_
 _LOGGER = logging.getLogger(__name__)
 
 OE_SEARCH_API_PATH = "/api/oe/search"
+RC_TEST_DB2_API_PATH = "/api/rc/test-db2"
+RC_TEST_AZURE_API_PATH = "/api/rc/test-azure"
+RC_LIST_AZURE_DATABASES_API_PATH = "/api/rc/list-azure-databases"
 _CREATE_APP_PATCHED = False
 _OE_ROUTE_REGISTERED = False
 _SEARCH_HANDLER_CLS: type[Any] | None = None
@@ -76,6 +79,29 @@ def oe_search_api_url() -> str:
         return f"http://localhost:{port}/api/oe/search"
 
     return OE_SEARCH_API_PATH
+
+
+def _background_api_url(path: str) -> str:
+    """Return the fetch URL for an endpoint served by the background API server."""
+    port = get_search_server_port()
+    if port is not None:
+        return f"http://localhost:{port}{path}"
+    return path
+
+
+def rc_test_db2_api_url() -> str:
+    """URL for Row Compare DB2 test-connection POST."""
+    return _background_api_url(RC_TEST_DB2_API_PATH)
+
+
+def rc_test_azure_api_url() -> str:
+    """URL for Row Compare Azure test-connection POST."""
+    return _background_api_url(RC_TEST_AZURE_API_PATH)
+
+
+def rc_list_azure_databases_api_url() -> str:
+    """URL for Row Compare Azure database list POST."""
+    return _background_api_url(RC_LIST_AZURE_DATABASES_API_PATH)
 
 
 def _search_handler_cls() -> type[Any]:
@@ -255,15 +281,11 @@ def _get_streamlit_port() -> int:
 
 
 def ensure_oe_search_api() -> bool:
-    """Ensure the search API is reachable — Tornado route or background server.
+    """Ensure API endpoints are reachable.
 
-    Returns True when the API is available via either mechanism.
+    OE search may use a Tornado same-origin route; Row Compare test/list APIs always
+    use the background server, so that server is started whenever possible.
     """
-    if _try_tornado_registration():
-        return True
-
-    if get_search_server_port() is not None:
-        return True
-
+    _try_tornado_registration()
     port = start_search_server(_get_streamlit_port())
-    return port is not None
+    return _OE_ROUTE_REGISTERED or port is not None

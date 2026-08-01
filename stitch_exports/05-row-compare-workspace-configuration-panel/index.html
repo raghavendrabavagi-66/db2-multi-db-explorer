@@ -156,13 +156,13 @@
 <button class="bg-primary-container text-on-primary-container px-md py-1.5 rounded-DEFAULT font-label-caps text-label-caps uppercase active:opacity-80 transition-opacity">Deploy</button>
 </div>
 </header><div class="bg-surface-container-lowest h-12 border-b border-outline-variant flex items-center justify-between px-margin-edge flex-none sticky top-12 z-40">
-<div class="flex items-center"><button class="flex items-center gap-xs px-sm py-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded text-body-sm transition-colors"><span class="material-symbols-outlined text-[18px]">edit_note</span>Edit Credentials</button><button class="flex items-center gap-xs px-sm py-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded text-body-sm transition-colors ml-sm"><span class="material-symbols-outlined text-[18px]">settings</span>Configuration</button></div>
+<div class="flex items-center"><button id="rc-edit-creds" type="button" class="flex items-center gap-xs px-sm py-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded text-body-sm transition-colors"><span class="material-symbols-outlined text-[18px]">edit_note</span>Edit Credentials</button><button class="flex items-center gap-xs px-sm py-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded text-body-sm transition-colors ml-sm"><span class="material-symbols-outlined text-[18px]">settings</span>Configuration</button></div>
 <div class="flex items-center gap-md"><div class="relative"><span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span><input class="pl-8 pr-md py-1 border border-outline-variant rounded bg-surface w-64 text-body-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" placeholder="Search objects..." type="text"></div><button class="bg-primary text-on-primary px-md py-1 rounded font-bold active:opacity-80 transition-opacity text-body-sm">Export</button></div>
 </div>
 <main class="flex-1 max-w-[1440px] mx-auto w-full px-margin-edge py-lg">
 <!-- Header Section -->
 <!-- Configuration Cards -->
-<section class="bg-surface-container-lowest border border-outline-variant p-md rounded-DEFAULT mb-md"><div class="flex items-center justify-between"><div class="space-y-1"><label class="text-label-caps text-secondary block">TABLE TYPE</label><div class="flex items-center gap-md pt-1"><label class="flex items-center gap-xs cursor-pointer"><input checked="" class="w-4 h-4 text-primary border-outline-variant focus:ring-primary" name="table_type" type="radio" value="staging"><span class="text-body-sm">Staging tables</span></label><label class="flex items-center gap-xs cursor-pointer"><input class="w-4 h-4 text-primary border-outline-variant focus:ring-primary" name="table_type" type="radio" value="main"><span class="text-body-sm">Main tables</span></label></div></div><button class="bg-primary text-on-primary px-lg py-2 rounded-DEFAULT font-label-caps flex items-center gap-sm transition-all hover:brightness-110 active:scale-95" id="runBtn" onclick="simulateRun()"><span class="material-symbols-outlined">play_arrow</span> RUN COMPARISON</button></div></section>
+<section class="bg-surface-container-lowest border border-outline-variant p-md rounded-DEFAULT mb-md"><div class="flex items-center justify-between"><div class="space-y-1"><label class="text-label-caps text-secondary block">TABLE TYPE</label><div class="flex items-center gap-md pt-1"><label class="flex items-center gap-xs cursor-pointer"><input class="w-4 h-4 text-primary border-outline-variant focus:ring-primary" name="table_type" type="radio" value="staging"><span class="text-body-sm">Staging tables</span></label><label class="flex items-center gap-xs cursor-pointer"><input checked="" class="w-4 h-4 text-primary border-outline-variant focus:ring-primary" name="table_type" type="radio" value="original"><span class="text-body-sm">Main tables</span></label></div></div><button class="bg-primary text-on-primary px-lg py-2 rounded-DEFAULT font-label-caps flex items-center gap-sm transition-all hover:brightness-110 active:scale-95" id="rc-run-btn" type="button"><span class="material-symbols-outlined">play_arrow</span> RUN COMPARISON</button></div></section>
 <!-- Action Bar -->
 <!-- Metrics Grid -->
 <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-md mb-lg">
@@ -271,27 +271,7 @@
 </section>
 </main>
 <!-- Footer Space -->
-<script>
-        function simulateRun() {
-            const btn = document.getElementById('runBtn');
-            const status = document.getElementById('statusIndicator');
-            
-            btn.disabled = true;
-            btn.classList.add('opacity-50', 'cursor-not-allowed');
-            status.classList.remove('opacity-0');
-            status.classList.add('opacity-100');
-            
-            setTimeout(() => {
-                status.innerHTML = '<span class="material-symbols-outlined text-emerald-600">check_circle</span> Analysis complete. Updating results...';
-                setTimeout(() => {
-                    btn.disabled = false;
-                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    status.classList.add('opacity-0');
-                    // In a real app, this would trigger a data refresh
-                }, 1500);
-            }, 2500);
-        }
-    </script>
+<script id="rc-workspace-bridge-placeholder"></script>
 
 
 </body></html>

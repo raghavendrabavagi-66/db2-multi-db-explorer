@@ -150,7 +150,7 @@
 <h2 class="font-headline-md text-headline-md text-on-surface">Compare Connection Setup</h2>
 <p class="font-body-sm text-body-sm text-secondary mt-xs">Configure your source and target data environments</p>
 </div>
-<button aria-label="Close modal" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors text-outline">
+<button aria-label="Close modal" id="rc-close-btn" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors text-outline">
 <span class="material-symbols-outlined">close</span>
 </button>
 </div>
@@ -171,29 +171,29 @@
 <div>
 <label class="studio-label">Database Name</label>
 <div class="flex gap-sm">
-<input class="flex-1 studio-input" type="text" value="PROD_DB_MIGRATION">
+<input id="rc-db2-database" class="flex-1 studio-input" type="text" value="">
 
 </div>
 </div>
 <div class="grid grid-cols-3 gap-md">
 <div class="col-span-2">
 <label class="studio-label">Host</label>
-<input class="w-full studio-input" placeholder="10.0.4.12" type="text">
+<input id="rc-db2-host" class="w-full studio-input" placeholder="10.0.4.12" type="text">
 </div>
 <div>
 <label class="studio-label">Port</label>
-<input class="w-full studio-input" type="text" value="50000">
+<input id="rc-db2-port" class="w-full studio-input" type="text" value="50000">
 </div>
 </div>
 <div>
 <label class="studio-label">Username</label>
-<input class="w-full studio-input" type="text" value="db2admin">
+<input id="rc-db2-user" class="w-full studio-input" type="text" value="">
 </div>
 <div>
 <label class="studio-label">Password</label>
-<input class="w-full studio-input" type="password" value="********">
+<input id="rc-db2-password" class="w-full studio-input" type="password" value="">
 </div>
-<div class="pt-md"><button class="w-full h-10 border border-primary text-primary font-title-sm rounded hover:bg-surface-container-low transition-colors flex items-center justify-center gap-sm"><span class="material-symbols-outlined text-[20px]">check_circle</span>Test Connection</button></div></div>
+<div class="pt-md"><button id="rc-db2-test" type="button" class="w-full h-10 border border-primary text-primary font-title-sm rounded hover:bg-surface-container-low transition-colors flex items-center justify-center gap-sm"><span class="material-symbols-outlined text-[20px]">check_circle</span>Test Connection</button></div></div>
 </div>
 <!-- Right Column (Target) -->
 <div class="flex-1 p-xl">
@@ -208,21 +208,21 @@
 </div>
 <div class="space-y-md"><div class="space-y-xs">
 <label class="font-label-caps text-label-caps text-on-surface uppercase">Azure SQL Server</label>
-<input class="w-full h-10 px-md border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" placeholder="az-db-prod-sql.database.windows.net" type="text">
+<input id="rc-az-server" class="w-full h-10 px-md border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" placeholder="az-db-prod-sql.database.windows.net" type="text">
 </div>
 <div class="space-y-xs">
 <label class="font-label-caps text-label-caps text-on-surface uppercase">AUTHENTICATION</label>
 <div class="flex flex-col gap-sm py-1">
   <label class="flex items-center gap-sm cursor-pointer group">
-    <input type="radio" name="auth_type_modal" value="entra" class="w-4 h-4 text-primary border-outline focus:ring-primary" checked="">
+    <input id="rc-auth-entra" type="radio" name="auth_type_modal" value="entra" class="w-4 h-4 text-primary border-outline focus:ring-primary" checked="">
     <span class="text-body-sm text-on-surface group-hover:text-primary transition-colors">Microsoft Entra MFA</span>
   </label>
   <label class="flex items-center gap-sm cursor-pointer group">
-    <input type="radio" name="auth_type_modal" value="windows" class="w-4 h-4 text-primary border-outline focus:ring-primary">
+    <input id="rc-auth-windows" type="radio" name="auth_type_modal" value="windows" class="w-4 h-4 text-primary border-outline focus:ring-primary">
     <span class="text-body-sm text-on-surface group-hover:text-primary transition-colors">Windows Authentication</span>
   </label>
   <label class="flex items-center gap-sm cursor-pointer group mt-1 ml-6">
-    <input type="checkbox" class="rounded border-outline text-primary focus:ring-primary w-4 h-4">
+    <input id="rc-az-trust-cert" type="checkbox" class="rounded border-outline text-primary focus:ring-primary w-4 h-4">
     <span class="text-body-sm text-on-surface group-hover:text-primary transition-colors">Trust Server certificate</span>
   </label>
 </div>
@@ -230,22 +230,20 @@
 <div class="space-y-xs"><label class="font-label-caps text-label-caps text-on-surface uppercase">Database Name</label>
 <div class="flex gap-sm items-center">
   <div class="relative flex-1">
-    <select class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">
-      <option>CRM_PROD_EASTUS</option>
-      <option>CRM_STAGING_EASTUS</option>
-      <option>CRM_DEV_EASTUS</option>
+    <select id="rc-az-database" class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">
+      <option value="">Select a database…</option>
     </select>
     <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined pointer-events-none text-outline">expand_more</span>
   </div>
-  <button class="h-10 w-10 rounded border border-outline-variant hover:bg-surface-container-low text-secondary transition-colors flex items-center justify-center shrink-0" title="Refresh databases">
+  <button id="rc-az-refresh-dbs" type="button" class="h-10 w-10 rounded border border-outline-variant hover:bg-surface-container-low text-secondary transition-colors flex items-center justify-center shrink-0" title="Refresh databases">
     <span class="material-symbols-outlined text-[20px]">refresh</span>
   </button>
-</div></div><div class="pt-md"><button class="w-full h-10 border border-primary text-primary font-title-sm rounded hover:bg-surface-container-low transition-colors flex items-center justify-center gap-sm"><span class="material-symbols-outlined text-[20px]">check_circle</span>Test Connection</button></div></div>
+</div></div><div class="pt-md"><button id="rc-az-test" type="button" class="w-full h-10 border border-primary text-primary font-title-sm rounded hover:bg-surface-container-low transition-colors flex items-center justify-center gap-sm"><span class="material-symbols-outlined text-[20px]">check_circle</span>Test Connection</button></div></div>
 </div>
 </div>
 <!-- Modal Footer -->
 <div class="p-xl bg-surface-container-lowest border-t border-outline-variant">
-<button class="w-full h-14 bg-primary text-on-primary font-title-sm flex items-center justify-center gap-md hover:brightness-110 active:opacity-90 transition-all shadow-lg" id="compareBtn">
+<button class="w-full h-14 bg-primary text-on-primary font-title-sm flex items-center justify-center gap-md hover:brightness-110 active:opacity-90 transition-all shadow-lg" id="rc-compare-btn" type="button">
                     Connect &amp; Compare
                     <span class="material-symbols-outlined">arrow_forward</span>
 </button>
@@ -254,39 +252,7 @@
 </div>
 </div>
 <!-- Micro-interaction Script -->
-<script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const overlay = document.querySelector('.modal-overlay');
-            const closeBtn = document.querySelector('button[aria-label="Close modal"]');
-            const cancelBtn = document.querySelector('.text-center button');
-            const compareBtn = document.getElementById('compareBtn');
-
-            const closeModal = () => {
-                const modal = document.querySelector('.bg-surface-container-lowest.shadow-2xl');
-                modal.classList.add('scale-95', 'opacity-0');
-                overlay.classList.add('opacity-0');
-                setTimeout(() => {
-                    console.log('Modal closed');
-                }, 200);
-            };
-
-            closeBtn.addEventListener('click', closeModal);
-            cancelBtn.addEventListener('click', closeModal);
-            overlay.addEventListener('click', (e) => {
-                if (e.target === overlay) closeModal();
-            });
-
-            compareBtn.addEventListener('click', function() {
-                this.innerHTML = '<span class="material-symbols-outlined animate-spin">refresh</span> Connecting...';
-                this.classList.add('pointer-events-none', 'opacity-80');
-                setTimeout(() => {
-                    alert('Connection established. Initiating comparison.');
-                    this.innerHTML = 'Connect & Compare <span class="material-symbols-outlined">arrow_forward</span>';
-                    this.classList.remove('pointer-events-none', 'opacity-80');
-                }, 1500);
-            });
-        });
-    </script>
+<script id="rc-setup-bridge-placeholder"></script>
 
 
 </body></html>

@@ -1,7 +1,6 @@
-"""Standalone background HTTP server for the Object Explorer search API.
+"""Standalone background HTTP server for iframe AJAX APIs (OE search, RC tests).
 
-Started as a daemon thread so the search endpoint works regardless of
-which web server Streamlit uses internally (Tornado or Starlette).
+Started as a daemon thread so endpoints work regardless of Streamlit's web stack.
 """
 
 from __future__ import annotations
@@ -11,8 +10,14 @@ import logging
 import socket
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from typing import Callable
 
 from db2_explorer.api.oe_search_service import execute_search_json
+from db2_explorer.api.rc_connect_service import (
+    list_azure_databases_json,
+    test_azure_json,
+    test_db2_json,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,8 +31,15 @@ _server: HTTPServer | None = None
 _port: int | None = None
 _lock = threading.Lock()
 
+_POST_ROUTES: dict[str, Callable[[dict], dict]] = {
+    "/api/oe/search": execute_search_json,
+    "/api/rc/test-db2": test_db2_json,
+    "/api/rc/test-azure": test_azure_json,
+    "/api/rc/list-azure-databases": list_azure_databases_json,
+}
 
-class _SearchHandler(BaseHTTPRequestHandler):
+
+class _ApiHandler(BaseHTTPRequestHandler):
 
     def _send_cors_headers(self) -> None:
         for key, val in _CORS_HEADERS.items():
@@ -48,7 +60,9 @@ class _SearchHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self) -> None:  # noqa: N802
-        if self.path.rstrip("/") != "/api/oe/search":
+        path = self.path.split("?", 1)[0].rstrip("/") or "/"
+        handler = _POST_ROUTES.get(path)
+        if handler is None:
             self._send_json({"ok": False, "error": "Not found."}, 404)
             return
 
@@ -66,9 +80,9 @@ class _SearchHandler(BaseHTTPRequestHandler):
             return
 
         try:
-            payload = execute_search_json(body)
+            payload = handler(body)
         except Exception as exc:
-            _LOGGER.exception("Object Explorer search API failed")
+            _LOGGER.exception("API handler failed for %s", path)
             self._send_json({"ok": False, "error": str(exc)}, 500)
             return
 
@@ -76,7 +90,7 @@ class _SearchHandler(BaseHTTPRequestHandler):
         self._send_json(payload, status)
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002
-        _LOGGER.debug("SearchServer: %s", format % args)
+        _LOGGER.debug("ApiServer: %s", format % args)
 
 
 def _find_free_port(preferred: int) -> int:
@@ -93,10 +107,7 @@ def _find_free_port(preferred: int) -> int:
 
 
 def start_search_server(streamlit_port: int = 8501) -> int:
-    """Start the background search server and return its port.
-
-    Safe to call multiple times — only the first call starts the server.
-    """
+    """Start the background API server and return its port."""
     global _server, _port
 
     with _lock:
@@ -106,19 +117,24 @@ def start_search_server(streamlit_port: int = 8501) -> int:
         preferred = streamlit_port + 1000
         port = _find_free_port(preferred)
 
-        server = HTTPServer(("127.0.0.1", port), _SearchHandler)
+        server = HTTPServer(("127.0.0.1", port), _ApiHandler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
 
         _server = server
         _port = port
-        _LOGGER.info(
-            "Object Explorer search API server started on http://127.0.0.1:%d/api/oe/search",
-            port,
-        )
+        _LOGGER.info("Background API server started on http://127.0.0.1:%d", port)
         return port
 
 
 def get_search_server_port() -> int | None:
     """Return the port if the background server is running, else None."""
     return _port
+
+
+def api_url(path: str) -> str:
+    """Absolute URL for a background API path (e.g. /api/rc/test-db2)."""
+    port = get_search_server_port()
+    if port is not None:
+        return f"http://localhost:{port}{path}"
+    return path
