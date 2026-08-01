@@ -13,7 +13,6 @@ import streamlit.components.v1 as components
 
 from db2_explorer.api.register import (
     rc_list_azure_databases_api_url,
-    rc_test_azure_api_url,
     rc_test_db2_api_url,
 )
 from db2_explorer.ui.stitch_shell import (
@@ -43,6 +42,21 @@ _RC_SETUP_MICRO = re.compile(
     r'<script id="rc-setup-bridge-placeholder"></script>',
     re.DOTALL,
 )
+
+_TBODY_MICRO = re.compile(
+    r'<tbody class="font-body-sm text-body-sm divide-y divide-outline-variant">.*?</tbody>',
+    re.DOTALL,
+)
+
+
+def _js_literal(value: object) -> str:
+    """JSON for embedding in generated JS; keep Unicode literal (avoid \\u in output)."""
+    return json.dumps(value, ensure_ascii=False)
+
+
+def _regex_inject(pattern: re.Pattern[str], repl: str, doc: str, *, count: int = 0) -> str:
+    """Regex substitute without interpreting backslashes in ``repl`` as escapes."""
+    return pattern.sub(lambda _match: repl, doc, count=count)
 
 
 @dataclass
@@ -106,7 +120,6 @@ def _azure_database_options_html(selected: str, databases: list[str]) -> str:
 
 def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
     test_db2_url = rc_test_db2_api_url()
-    test_az_url = rc_test_azure_api_url()
     list_az_url = rc_list_azure_databases_api_url()
     return f"""
 <script>
@@ -114,7 +127,6 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
   const RC_PAGE = {json.dumps(ROW_COMPARE_PAGE)};
   const HOME_URL = {json.dumps(_HOME_URL)};
   const TEST_DB2_URL = {json.dumps(test_db2_url)};
-  const TEST_AZ_URL = {json.dumps(test_az_url)};
   const LIST_AZ_URL = {json.dumps(list_az_url)};
 
   function apiUrl(pathOrFull) {{
@@ -214,16 +226,13 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
     }}
   }}
 
-  async function refreshAzureDatabases() {{
+  async function loadAzureDatabases() {{
     const server = (document.getElementById("rc-az-server") || {{ value: "" }}).value.trim();
     if (!server) {{
       toast("Enter Azure SQL Server first.", true);
       return;
     }}
-    const btn = document.getElementById("rc-az-refresh-dbs");
-    const icon = btn ? btn.querySelector(".material-symbols-outlined") : null;
-    if (btn) btn.disabled = true;
-    if (icon) icon.classList.add("animate-spin");
+    setAzLoadState("loading");
     try {{
       const authEl = document.querySelector('input[name="auth_type_modal"]:checked');
       const payload = await postJson(LIST_AZ_URL, {{
@@ -232,45 +241,166 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
         trust_server_certificate: !!(document.getElementById("rc-az-trust-cert") || {{}}).checked,
       }});
       if (!payload.ok) {{
+        azVerifiedSnapshot = null;
+        azLoadedCount = 0;
+        setAzLoadState("failed");
         toast(payload.error || "Could not list databases.", true);
         return;
       }}
+      const databases = payload.databases || [];
       const current = (document.getElementById("rc-az-database") || {{ value: "" }}).value;
-      setAzureDatabaseOptions(payload.databases || [], current);
+      setAzureDatabaseOptions(databases, current);
+      azVerifiedSnapshot = azConnectionFingerprint();
+      azLoadedCount = databases.length;
+      setAzLoadState("verified");
       toast(payload.message || "Databases loaded.", false);
     }} catch (err) {{
+      azVerifiedSnapshot = null;
+      azLoadedCount = 0;
+      setAzLoadState("failed");
       toast(err.message || "Database list request failed.", true);
-    }} finally {{
-      if (btn) btn.disabled = false;
-      if (icon) icon.classList.remove("animate-spin");
+    }}
+  }}
+
+  const DB2_BTN_BASE = "w-full h-10 font-title-sm rounded transition-colors flex items-center justify-center gap-sm";
+  const DB2_BTN_IDLE = DB2_BTN_BASE + " border border-primary text-primary hover:bg-surface-container-low";
+  const DB2_BTN_SUCCESS = DB2_BTN_BASE + " bg-emerald-600 text-white border border-emerald-600 hover:brightness-110";
+  const DB2_BTN_FAILED = DB2_BTN_BASE + " border border-red-600 text-red-700 bg-red-50";
+  const DB2_BTN_TESTING = DB2_BTN_BASE + " border border-primary text-primary opacity-70 cursor-wait";
+  const DB2_FIELD_IDS = ["rc-db2-database", "rc-db2-host", "rc-db2-port", "rc-db2-user", "rc-db2-password"];
+
+  let db2VerifiedSnapshot = null;
+  let db2FailTimer = null;
+
+  let azVerifiedSnapshot = null;
+  let azLoadedCount = 0;
+  let azFailTimer = null;
+
+  function azConnectionFingerprint() {{
+    const authEl = document.querySelector('input[name="auth_type_modal"]:checked');
+    return JSON.stringify([
+      (document.getElementById("rc-az-server") || {{ value: "" }}).value.trim(),
+      authEl ? authEl.value : "entra",
+      !!(document.getElementById("rc-az-trust-cert") || {{}}).checked,
+    ]);
+  }}
+
+  function azIdleHtml() {{
+    return '<span class="material-symbols-outlined text-[20px]">refresh</span>Load databases';
+  }}
+
+  function azSuccessHtml(count) {{
+    const label = count === 1 ? "database" : "databases";
+    return '<span class="material-symbols-outlined text-[20px]">check_circle</span>Connected · ' + count + ' ' + label;
+  }}
+
+  function setAzLoadState(state) {{
+    const btn = document.getElementById("rc-az-load-dbs");
+    if (!btn) return;
+    if (azFailTimer) {{
+      clearTimeout(azFailTimer);
+      azFailTimer = null;
+    }}
+    if (state === "loading") {{
+      btn.disabled = true;
+      btn.className = DB2_BTN_TESTING;
+      btn.innerHTML = '<span class="material-symbols-outlined text-[20px] animate-spin">refresh</span>Connecting…';
+      return;
+    }}
+    if (state === "verified") {{
+      btn.disabled = false;
+      btn.className = DB2_BTN_SUCCESS;
+      btn.innerHTML = azSuccessHtml(azLoadedCount);
+      return;
+    }}
+    if (state === "failed") {{
+      btn.disabled = false;
+      btn.className = DB2_BTN_FAILED;
+      btn.innerHTML = azIdleHtml();
+      azFailTimer = setTimeout(function () {{ setAzLoadState("idle"); }}, 2500);
+      return;
+    }}
+    btn.disabled = false;
+    btn.className = DB2_BTN_IDLE;
+    btn.innerHTML = azIdleHtml();
+  }}
+
+  function onAzConnectionFieldChange() {{
+    if (azVerifiedSnapshot !== null && azVerifiedSnapshot !== azConnectionFingerprint()) {{
+      azVerifiedSnapshot = null;
+      azLoadedCount = 0;
+      setAzLoadState("idle");
+    }}
+  }}
+
+  function db2Fingerprint() {{
+    const d = collectDb2();
+    return JSON.stringify([d.database, d.host, d.port, d.username, d.password]);
+  }}
+
+  function db2IdleHtml() {{
+    return '<span class="material-symbols-outlined text-[20px]">check_circle</span>Test Connection';
+  }}
+
+  function db2SuccessHtml() {{
+    return '<span class="material-symbols-outlined text-[20px]">check_circle</span>Connection successful';
+  }}
+
+  function setDb2TestState(state) {{
+    const btn = document.getElementById("rc-db2-test");
+    if (!btn) return;
+    if (db2FailTimer) {{
+      clearTimeout(db2FailTimer);
+      db2FailTimer = null;
+    }}
+    if (state === "testing") {{
+      btn.disabled = true;
+      btn.className = DB2_BTN_TESTING;
+      btn.innerHTML = "Testing…";
+      return;
+    }}
+    if (state === "verified") {{
+      btn.disabled = false;
+      btn.className = DB2_BTN_SUCCESS;
+      btn.innerHTML = db2SuccessHtml();
+      return;
+    }}
+    if (state === "failed") {{
+      btn.disabled = false;
+      btn.className = DB2_BTN_FAILED;
+      btn.innerHTML = db2IdleHtml();
+      db2FailTimer = setTimeout(function () {{ setDb2TestState("idle"); }}, 2500);
+      return;
+    }}
+    btn.disabled = false;
+    btn.className = DB2_BTN_IDLE;
+    btn.innerHTML = db2IdleHtml();
+  }}
+
+  function onDb2FieldChange() {{
+    if (db2VerifiedSnapshot !== null && db2VerifiedSnapshot !== db2Fingerprint()) {{
+      db2VerifiedSnapshot = null;
+      setDb2TestState("idle");
     }}
   }}
 
   async function testDb2() {{
-    const btn = document.getElementById("rc-db2-test");
-    const orig = btn ? btn.innerHTML : "";
-    if (btn) {{ btn.disabled = true; btn.innerHTML = "Testing…"; }}
+    setDb2TestState("testing");
     try {{
       const payload = await postJson(TEST_DB2_URL, collectDb2());
-      toast(payload.message || payload.error || "Test failed.", !payload.ok);
+      if (payload.ok) {{
+        db2VerifiedSnapshot = db2Fingerprint();
+        setDb2TestState("verified");
+        toast(payload.message || "DB2 connection OK.", false);
+      }} else {{
+        db2VerifiedSnapshot = null;
+        setDb2TestState("failed");
+        toast(payload.error || payload.message || "Test failed.", true);
+      }}
     }} catch (err) {{
+      db2VerifiedSnapshot = null;
+      setDb2TestState("failed");
       toast(err.message || "DB2 test request failed.", true);
-    }} finally {{
-      if (btn) {{ btn.disabled = false; btn.innerHTML = orig; }}
-    }}
-  }}
-
-  async function testAzure() {{
-    const btn = document.getElementById("rc-az-test");
-    const orig = btn ? btn.innerHTML : "";
-    if (btn) {{ btn.disabled = true; btn.innerHTML = "Testing…"; }}
-    try {{
-      const payload = await postJson(TEST_AZ_URL, collectAzure());
-      toast(payload.message || payload.error || "Test failed.", !payload.ok);
-    }} catch (err) {{
-      toast(err.message || "Azure test request failed.", true);
-    }} finally {{
-      if (btn) {{ btn.disabled = false; btn.innerHTML = orig; }}
     }}
   }}
 
@@ -302,10 +432,26 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
   function wireSetup() {{
     const db2Test = document.getElementById("rc-db2-test");
     if (db2Test) db2Test.addEventListener("click", function (e) {{ e.preventDefault(); testDb2(); }});
-    const azTest = document.getElementById("rc-az-test");
-    if (azTest) azTest.addEventListener("click", function (e) {{ e.preventDefault(); testAzure(); }});
-    const refreshDbs = document.getElementById("rc-az-refresh-dbs");
-    if (refreshDbs) refreshDbs.addEventListener("click", function (e) {{ e.preventDefault(); refreshAzureDatabases(); }});
+    DB2_FIELD_IDS.forEach(function (id) {{
+      const el = document.getElementById(id);
+      if (el) el.addEventListener("input", onDb2FieldChange);
+    }});
+    setDb2TestState("idle");
+    const azLoad = document.getElementById("rc-az-load-dbs");
+    if (azLoad) azLoad.addEventListener("click", function (e) {{ e.preventDefault(); loadAzureDatabases(); }});
+    const azServer = document.getElementById("rc-az-server");
+    if (azServer) azServer.addEventListener("input", onAzConnectionFieldChange);
+    document.querySelectorAll('input[name="auth_type_modal"]').forEach(function (el) {{
+      el.addEventListener("change", onAzConnectionFieldChange);
+    }});
+    const azTrust = document.getElementById("rc-az-trust-cert");
+    if (azTrust) azTrust.addEventListener("change", onAzConnectionFieldChange);
+    setAzLoadState("idle");
+    {f'''if ({json.dumps(bool(view.az_database_options))}) {{
+      azVerifiedSnapshot = azConnectionFingerprint();
+      azLoadedCount = {len(view.az_database_options)};
+      setAzLoadState("verified");
+    }}''' if view.az_database_options else ''}
     const compareBtn = document.getElementById("rc-compare-btn");
     if (compareBtn) compareBtn.addEventListener("click", function (e) {{ e.preventDefault(); connectAndCompare(); }});
     const closeBtn = document.getElementById("rc-close-btn");
@@ -316,7 +462,7 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
   }}
 
   wireSetup();
-  {f'toast({json.dumps(view.toast_message)}, {json.dumps(view.toast_error)});' if view.toast_message else ''}
+  {f'toast({_js_literal(view.toast_message)}, {json.dumps(view.toast_error)});' if view.toast_message else ''}
 }})();
 </script>
 <div id="rc-toast" style="display:none"></div>
@@ -374,7 +520,7 @@ def _wire_rc_setup_document(source: str, view: RowCompareSetupView) -> str:
         f'<input id="rc-auth-windows" type="radio" name="auth_type_modal" value="windows" class="w-4 h-4 text-primary border-outline focus:ring-primary" {_auth_windows_checked(view.az_auth)}>',
         1,
     )
-    doc = _RC_SETUP_MICRO.sub(_rc_setup_bridge_script(view), doc, count=1)
+    doc = _regex_inject(_RC_SETUP_MICRO, _rc_setup_bridge_script(view), doc, count=1)
     doc = doc.replace("</body>", _FULL_HEIGHT_SCRIPT + "</body>")
     return doc
 
@@ -478,7 +624,7 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
     rcNavigate(p);
   }});
 
-  {f'toast({json.dumps(view.toast_message)}, {json.dumps(view.toast_error)});' if view.toast_message else ''}
+  {f'toast({_js_literal(view.toast_message)}, {json.dumps(view.toast_error)});' if view.toast_message else ''}
 }})();
 </script>
 <div id="rc-toast" style="display:none"></div>
@@ -498,12 +644,11 @@ def _wire_rc_workspace_document(source: str, view: RowCompareWorkspaceView) -> s
     for old, new in replacements:
         doc = doc.replace(old, new, 1)
 
-    doc = re.sub(
-        r"<tbody class=\"font-body-sm text-body-sm divide-y divide-outline-variant\">.*?</tbody>",
+    doc = _regex_inject(
+        _TBODY_MICRO,
         f'<tbody id="rc-results-tbody" class="font-body-sm text-body-sm divide-y divide-outline-variant">{view.result_rows_html}</tbody>',
         doc,
         count=1,
-        flags=re.DOTALL,
     )
     doc = doc.replace(
         'class="w-4 h-4 text-primary border-outline-variant focus:ring-primary" name="table_type" type="radio" value="staging"><span class="text-body-sm">Staging tables</span>',
@@ -515,7 +660,7 @@ def _wire_rc_workspace_document(source: str, view: RowCompareWorkspaceView) -> s
         f'class="w-4 h-4 text-primary border-outline-variant focus:ring-primary" name="table_type" type="radio" value="original" {_table_type_original_checked(view.target_table_mode)}><span class="text-body-sm">Main tables</span>',
         1,
     )
-    doc = _RC_WORKSPACE_MICRO.sub(_rc_workspace_bridge_script(view), doc, count=1)
+    doc = _regex_inject(_RC_WORKSPACE_MICRO, _rc_workspace_bridge_script(view), doc, count=1)
     doc = doc.replace("</body>", _FULL_HEIGHT_SCRIPT + "</body>")
     return doc
 

@@ -228,17 +228,13 @@
 </div>
 </div>
 <div class="space-y-xs"><label class="font-label-caps text-label-caps text-on-surface uppercase">Database Name</label>
-<div class="flex gap-sm items-center">
-  <div class="relative flex-1">
-    <select id="rc-az-database" class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">
-      <option value="">Select a database…</option>
-    </select>
-    <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined pointer-events-none text-outline">expand_more</span>
-  </div>
-  <button id="rc-az-refresh-dbs" type="button" class="h-10 w-10 rounded border border-outline-variant hover:bg-surface-container-low text-secondary transition-colors flex items-center justify-center shrink-0" title="Refresh databases">
-    <span class="material-symbols-outlined text-[20px]">refresh</span>
-  </button>
-</div></div><div class="pt-md"><button id="rc-az-test" type="button" class="w-full h-10 border border-primary text-primary font-title-sm rounded hover:bg-surface-container-low transition-colors flex items-center justify-center gap-sm"><span class="material-symbols-outlined text-[20px]">check_circle</span>Test Connection</button></div></div>
+<div class="relative">
+<select id="rc-az-database" class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">
+<option value="">Select a database…</option>
+</select>
+<span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined pointer-events-none text-outline">expand_more</span>
+</div>
+</div><div class="pt-md"><button id="rc-az-load-dbs" type="button" class="w-full h-10 border border-primary text-primary font-title-sm rounded hover:bg-surface-container-low transition-colors flex items-center justify-center gap-sm"><span class="material-symbols-outlined text-[20px]">refresh</span>Load databases</button></div></div>
 </div>
 </div>
 <!-- Modal Footer -->
