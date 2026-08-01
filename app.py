@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from db2_explorer.ui.fleet_panel import handle_object_explorer_home_clear
+from db2_explorer.ui.rc_session import handle_row_compare_home_clear
 from db2_explorer.api.register import ensure_oe_search_api
 from db2_explorer.ui.stitch_page import render_home_page
 from db2_explorer.ui.stitch_shell import handle_home_navigation
@@ -15,5 +16,6 @@ handle_home_navigation()
 
 ensure_oe_search_api()  # best-effort; search falls back to page reload if unavailable
 handle_object_explorer_home_clear()
+handle_row_compare_home_clear()
 
 render_home_page()

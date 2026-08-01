@@ -15,6 +15,7 @@ from db2_explorer.api.register import (
     rc_list_azure_databases_api_url,
     rc_test_db2_api_url,
 )
+from db2_explorer.ui.rc_session import row_compare_home_clear_url
 from db2_explorer.ui.stitch_shell import (
     _read_html,
     inject_shell_component,
@@ -22,7 +23,7 @@ from db2_explorer.ui.stitch_shell import (
 )
 
 ROW_COMPARE_PAGE = "/Row_Compare"
-_HOME_URL = "/"
+_HOME_CLEAR_URL = row_compare_home_clear_url()
 
 _FULL_HEIGHT_SCRIPT = """
 <script>
@@ -125,9 +126,19 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
 <script>
 (function () {{
   const RC_PAGE = {json.dumps(ROW_COMPARE_PAGE)};
-  const HOME_URL = {json.dumps(_HOME_URL)};
+  const HOME_CLEAR_URL = {json.dumps(_HOME_CLEAR_URL)};
   const TEST_DB2_URL = {json.dumps(test_db2_url)};
   const LIST_AZ_URL = {json.dumps(list_az_url)};
+
+  function navigateHomeClear() {{
+    window.parent.postMessage({{ type: "stitch-oe-nav", url: HOME_CLEAR_URL }}, "*");
+    if (window.top && window.top !== window) {{
+      window.top.postMessage({{ type: "stitch-oe-nav", url: HOME_CLEAR_URL }}, "*");
+    }}
+    try {{
+      window.top.location.href = HOME_CLEAR_URL;
+    }} catch (err) {{}}
+  }}
 
   function apiUrl(pathOrFull) {{
     if (pathOrFull.startsWith("http")) return pathOrFull;
@@ -457,7 +468,7 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
     const closeBtn = document.getElementById("rc-close-btn");
     if (closeBtn) closeBtn.addEventListener("click", function (e) {{
       e.preventDefault();
-      try {{ window.top.location.href = HOME_URL; }} catch (err) {{ rcNavigate(new URLSearchParams()); }}
+      navigateHomeClear();
     }});
   }}
 
@@ -580,7 +591,7 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
 <script>
 (function () {{
   const RC_PAGE = {json.dumps(ROW_COMPARE_PAGE)};
-  const HOME_URL = {json.dumps(_HOME_URL)};
+  const HOME_CLEAR_URL = {json.dumps(_HOME_CLEAR_URL)};
 
   function rcPagePath() {{
     try {{
@@ -609,8 +620,8 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
   const homeBtn = document.getElementById("rc-home-back");
   if (homeBtn) homeBtn.addEventListener("click", function (e) {{
     e.preventDefault();
-    window.parent.postMessage({{ type: "stitch-oe-nav", url: HOME_URL }}, "*");
-    try {{ window.top.location.href = HOME_URL; }} catch (err) {{}}
+    window.parent.postMessage({{ type: "stitch-oe-nav", url: HOME_CLEAR_URL }}, "*");
+    try {{ window.top.location.href = HOME_CLEAR_URL; }} catch (err) {{}}
   }});
 
   const editBtn = document.getElementById("rc-edit-creds");
