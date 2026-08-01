@@ -18,10 +18,10 @@ from db2_explorer.compare.row_compare import (
 from db2_explorer.ui.row_compare_page import (
     RowCompareSetupView,
     RowCompareWorkspaceView,
-    _comparison_rows_html,
     render_row_compare_setup_page,
     render_row_compare_workspace_page,
 )
+from db2_explorer.ui.row_compare_results import comparison_rows_html
 from db2_explorer.ui.theme import apply_page
 
 apply_page(title="Row Compare", layout="wide")
@@ -229,7 +229,7 @@ def _setup_view() -> RowCompareSetupView:
 def _workspace_view() -> RowCompareWorkspaceView:
     result: CompareResult | None = st.session_state.get("compare_result")
     metrics: dict[str, object] = {}
-    rows_html = _comparison_rows_html([])
+    rows_html = comparison_rows_html([])
     has_results = False
 
     if result is not None and result.status == "ok" and not result.comparison.empty:
@@ -237,7 +237,7 @@ def _workspace_view() -> RowCompareWorkspaceView:
         metrics = comparison_metrics(result.comparison)
         metrics["rows_label"] = f"{metrics.get('tables_source', 0):,}"
         records = result.comparison.to_dict(orient="records")
-        rows_html = _comparison_rows_html(records)
+        rows_html = comparison_rows_html(records)
 
     auth = _azure_auth_method()
     return RowCompareWorkspaceView(
