@@ -167,23 +167,37 @@ def _find_live_app() -> Application | None:
     return max(apps, key=lambda app: len(getattr(_wildcard_router(app), "rules", [])))
 
 
-def install_oe_search_api() -> None:
-    """Patch Streamlit server startup so /api/oe/search exists before the first request."""
+def install_oe_search_api() -> bool:
+    """Patch Streamlit server startup so /api/oe/search exists before the first request.
+
+    Returns True when a startup patch was applied or is not needed; False when only
+    runtime registration remains available.
+    """
     global _CREATE_APP_PATCHED
     if _CREATE_APP_PATCHED:
-        return
+        return _OE_ROUTE_REGISTERED
+
+    _CREATE_APP_PATCHED = True
+
     if not _tornado_available():
         _LOGGER.warning(
             "Object Explorer search API skipped: tornado is not installed. "
             "Install with: pip install tornado"
         )
-        return
+        return False
 
     try:
         from streamlit.web.server import server as st_server
     except ImportError:
         _LOGGER.debug("Object Explorer search API: Streamlit server module unavailable")
-        return
+        return False
+
+    if not hasattr(st_server.Server, "_create_app"):
+        _LOGGER.debug(
+            "Object Explorer search API: Server._create_app unavailable "
+            "(use python -m db2_explorer run app.py on Streamlit 1.53+)"
+        )
+        return False
 
     original_create_app = st_server.Server._create_app
 
@@ -195,7 +209,7 @@ def install_oe_search_api() -> None:
         return app
 
     st_server.Server._create_app = _create_app_with_oe_search
-    _CREATE_APP_PATCHED = True
+    return True
 
 
 def ensure_oe_search_api() -> bool:
@@ -207,8 +221,8 @@ def ensure_oe_search_api() -> bool:
 
     try:
         install_oe_search_api()
-    except ImportError:
-        _LOGGER.debug("Object Explorer search API: tornado/streamlit imports unavailable")
+    except (ImportError, AttributeError):
+        _LOGGER.debug("Object Explorer search API: startup patch unavailable")
         return False
 
     if _OE_ROUTE_REGISTERED:
