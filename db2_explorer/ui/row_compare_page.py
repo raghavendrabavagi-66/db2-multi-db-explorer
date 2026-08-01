@@ -529,11 +529,15 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
     const azTrust = document.getElementById("rc-az-trust-cert");
     if (azTrust) azTrust.addEventListener("change", onAzConnectionFieldChange);
     setAzLoadState("idle");
-    {f'''if ({json.dumps(bool(view.az_database_options))}) {{
+    {f'''if ({json.dumps(bool(view.az_database_options))} && !EDIT_MODE) {{
       azVerifiedSnapshot = azConnectionFingerprint();
       azLoadedCount = {len(view.az_database_options)};
       setAzLoadState("verified");
     }}''' if view.az_database_options else ''}
+    if (EDIT_MODE) {{
+      const server = (document.getElementById("rc-az-server") || {{ value: "" }}).value.trim();
+      if (server) loadAzureDatabases();
+    }}
     const compareBtn = document.getElementById("rc-compare-btn");
     if (compareBtn) compareBtn.addEventListener("click", function (e) {{ e.preventDefault(); connectAndCompare(); }});
     const closeBtn = document.getElementById("rc-close-btn");
