@@ -46,6 +46,15 @@ _RC_SETUP_MICRO = re.compile(
     re.DOTALL,
 )
 
+_RC_AZ_SERVER_MICRO = re.compile(
+    r'id="rc-az-server" class="w-full h-10 px-md border border-outline[^"]*" placeholder="[^"]*" type="text"',
+)
+
+_RC_AZ_DATABASE_MICRO = re.compile(
+    r'(<select id="rc-az-database"[^>]*>).*?(</select>)',
+    re.DOTALL,
+)
+
 _TBODY_MICRO = re.compile(
     r'<tbody class="font-body-sm text-body-sm divide-y divide-outline-variant">.*?</tbody>',
     re.DOTALL,
@@ -60,6 +69,14 @@ def _js_literal(value: object) -> str:
 def _regex_inject(pattern: re.Pattern[str], repl: str, doc: str, *, count: int = 0) -> str:
     """Regex substitute without interpreting backslashes in ``repl`` as escapes."""
     return pattern.sub(lambda _match: repl, doc, count=count)
+
+
+def _az_server_input_html(server: str) -> str:
+    return (
+        'id="rc-az-server" class="w-full h-10 px-md border border-outline focus:border-primary '
+        f'focus:ring-1 focus:ring-primary rounded bg-white text-body-md" '
+        f'placeholder="az-db-prod-sql.database.windows.net" type="text" value="{html.escape(server)}"'
+    )
 
 
 @dataclass
@@ -578,18 +595,18 @@ def _wire_rc_setup_document(source: str, view: RowCompareSetupView) -> str:
         'id="rc-db2-password" class="w-full studio-input" type="password" value=""',
         f'id="rc-db2-password" class="w-full studio-input" type="password" value="{html.escape(view.db2_password)}"',
     )
-    doc = re.sub(
-        r'id="rc-az-server" class="w-full h-10 px-md border border-outline[^"]*" placeholder="[^"]*" type="text"',
-        f'id="rc-az-server" class="w-full h-10 px-md border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" placeholder="az-db-prod-sql.database.windows.net" type="text" value="{html.escape(view.az_server)}"',
+    doc = _regex_inject(
+        _RC_AZ_SERVER_MICRO,
+        _az_server_input_html(view.az_server),
         doc,
         count=1,
     )
-    doc = re.sub(
-        r'(<select id="rc-az-database"[^>]*>).*?(</select>)',
-        rf'\1{_azure_database_options_html(view.az_database, view.az_database_options)}\2',
+    doc = _RC_AZ_DATABASE_MICRO.sub(
+        lambda m: m.group(1)
+        + _azure_database_options_html(view.az_database, view.az_database_options)
+        + m.group(2),
         doc,
         count=1,
-        flags=re.DOTALL,
     )
     if view.az_trust_cert:
         doc = doc.replace(
