@@ -139,7 +139,7 @@
 <!-- Centered Card Grid -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-lg w-full max-w-6xl">
 <!-- Card 1: Object Explorer -->
-<div class="group bg-surface-container-low border border-outline-variant rounded p-lg flex flex-col justify-between hover:border-primary transition-all duration-300">
+<a href="?go=object_explorer" class="stitch-card-link no-underline text-inherit cursor-pointer group bg-surface-container-low border border-outline-variant rounded p-lg flex flex-col justify-between hover:border-primary transition-all duration-300">
 <div>
 <div class="w-10 h-10 rounded-sm bg-primary-container flex items-center justify-center mb-md">
 <span class="material-symbols-outlined text-on-primary-container">database</span>
@@ -148,13 +148,12 @@
 <p class="font-body-sm text-body-sm text-on-surface-variant">Search and explore multi-database catalogs to identify dependencies and potential blockers.</p>
 </div>
 <div class="mt-xl flex justify-start">
-<button class="flex items-center gap-sm font-label-caps text-label-caps text-primary group-hover:translate-x-1 transition-transform duration-200">
-                        Enter <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
-</button>
+<span class="flex items-center gap-sm font-label-caps text-label-caps text-primary group-hover:translate-x-1 transition-transform duration-200">
+                        Enter <span class="material-symbols-outlined text-[16px]">arrow_forward</span></span>
 </div>
-</div>
+</a>
 <!-- Card 2: Row Compare -->
-<div class="group bg-surface-container-low border border-outline-variant rounded p-lg flex flex-col justify-between hover:border-primary transition-all duration-300">
+<a href="?go=row_compare" class="stitch-card-link no-underline text-inherit cursor-pointer group bg-surface-container-low border border-outline-variant rounded p-lg flex flex-col justify-between hover:border-primary transition-all duration-300">
 <div>
 <div class="w-10 h-10 rounded-sm bg-secondary-fixed flex items-center justify-center mb-md">
 <span class="material-symbols-outlined text-on-secondary-fixed">compare_arrows</span>
@@ -163,13 +162,12 @@
 <p class="font-body-sm text-body-sm text-on-surface-variant">Validate data integrity across source and target with lightning-fast checksum analysis and sampling.</p>
 </div>
 <div class="mt-xl flex justify-start">
-<button class="flex items-center gap-sm font-label-caps text-label-caps text-primary group-hover:translate-x-1 transition-transform duration-200">
-                        Enter <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
-</button>
+<span class="flex items-center gap-sm font-label-caps text-label-caps text-primary group-hover:translate-x-1 transition-transform duration-200">
+                        Enter <span class="material-symbols-outlined text-[16px]">arrow_forward</span></span>
 </div>
-</div>
+</a>
 <!-- Card 3: Schema Compare -->
-<div class="group bg-surface-container-low border border-outline-variant rounded p-lg flex flex-col justify-between hover:border-primary transition-all duration-300">
+<a href="?go=schema_compare" class="stitch-card-link no-underline text-inherit cursor-pointer group bg-surface-container-low border border-outline-variant rounded p-lg flex flex-col justify-between hover:border-primary transition-all duration-300">
 <div>
 <div class="w-10 h-10 rounded-sm bg-tertiary-fixed flex items-center justify-center mb-md">
 <span class="material-symbols-outlined text-on-tertiary-fixed">schema</span>
@@ -178,11 +176,10 @@
 <p class="font-body-sm text-body-sm text-on-surface-variant">Analyze and sync schema drift with automated DDL generation for heterogeneous database environments.</p>
 </div>
 <div class="mt-xl flex justify-start">
-<button class="flex items-center gap-sm font-label-caps text-label-caps text-primary group-hover:translate-x-1 transition-transform duration-200">
-                        Enter <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
-</button>
+<span class="flex items-center gap-sm font-label-caps text-label-caps text-primary group-hover:translate-x-1 transition-transform duration-200">
+                        Enter <span class="material-symbols-outlined text-[16px]">arrow_forward</span></span>
 </div>
-</div>
+</a>
 </div>
 <!-- Decorative UI Element (Subtle Background Detail) -->
 <div class="mt-xl opacity-20 pointer-events-none select-none">
@@ -204,26 +201,46 @@ WHERE SYNC_TIMESTAMP &gt; '2023-10-01'
 </footer>
 <!-- Micro-interaction Script -->
 <script>
-        document.querySelectorAll('.group').forEach(card => {
-            card.addEventListener('mouseenter', () => {
-                const icon = card.querySelector('.material-symbols-outlined');
-                icon.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-                icon.style.transform = 'scale(1.1)';
-            });
-            card.addEventListener('mouseleave', () => {
-                const icon = card.querySelector('.material-symbols-outlined');
-                icon.style.transform = 'scale(1)';
-            });
-        });
+(function () {
+  function topNavUrl(href) {
+    if (href.charAt(0) === "?") {
+      return (window.top.location.pathname || "/") + href;
+    }
+    if (href.charAt(0) === "/") {
+      return href;
+    }
+    return "/" + href;
+  }
 
-        // Simple feedback for action buttons
-        document.querySelectorAll('button').forEach(btn => {
-            btn.addEventListener('mousedown', () => {
-                btn.style.transform = 'scale(0.98)';
-            });
-            btn.addEventListener('mouseup', () => {
-                btn.style.transform = 'scale(1)';
-            });
-        });
-    </script>
+  function navigateCard(link) {
+    var href = link.getAttribute("href") || "/";
+    var url = topNavUrl(href);
+    try {
+      window.top.location.href = url;
+    } catch (err) {
+      window.parent.postMessage({ type: "stitch-nav", href: href }, "*");
+      if (window.top && window.top !== window) {
+        window.top.postMessage({ type: "stitch-nav", href: href }, "*");
+      }
+    }
+  }
+
+  document.querySelectorAll("a.stitch-card-link").forEach(function (card) {
+    card.addEventListener("mouseenter", function () {
+      var icon = card.querySelector(".w-10 .material-symbols-outlined");
+      if (!icon) return;
+      icon.style.transition = "transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
+      icon.style.transform = "scale(1.1)";
+    });
+    card.addEventListener("mouseleave", function () {
+      var icon = card.querySelector(".w-10 .material-symbols-outlined");
+      if (icon) icon.style.transform = "scale(1)";
+    });
+    card.addEventListener("click", function (event) {
+      event.preventDefault();
+      navigateCard(card);
+    });
+  });
+})();
+</script>
 </body></html>

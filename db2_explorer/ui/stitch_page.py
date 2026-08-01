@@ -21,14 +21,9 @@ from db2_explorer.ui.oe_results import (
     results_tbody_rows,
 )
 from db2_explorer.ui.stitch_shell import (
-    HOME_CARD_URLS,
-    HOME_GO_PARAMS,
-    HOME_SWITCH_PAGES,
     OBJECT_EXPLORER_URL,
-    _ENTER_BUTTON,
-    _between,
     _read_html,
-    handle_home_navigation,
+    _wrap_home_cards,
     inject_shell_component,
     shell_iframe_css,
 )
@@ -47,138 +42,11 @@ _FULL_HEIGHT_SCRIPT = """
 </script>
 """
 
-_ENTER_SPAN = (
-    '<span class="flex items-center gap-sm font-label-caps text-label-caps text-primary '
-    'group-hover:translate-x-1 transition-transform duration-200">'
-    'Enter <span class="material-symbols-outlined text-[16px]">arrow_forward</span></span>'
-)
-
-_HOME_CARD_SCRIPT = """
-<script>
-(function () {
-  function ensureNavBridge() {
-    try {
-      var doc = window.parent.document;
-      if (doc.getElementById("stitch-nav-bridge")) return;
-      var n = doc.createElement("script");
-      n.id = "stitch-nav-bridge";
-      n.textContent = [
-        "(function () {",
-        "  if (window.__stitchNavListener) return;",
-        "  window.__stitchNavListener = true;",
-        "  window.addEventListener('message', function (ev) {",
-        "    if (!ev.data || ev.data.type !== 'stitch-nav' || !ev.data.href) return;",
-        "    window.location.assign(ev.data.href);",
-        "  });",
-        "})();"
-      ].join("\\n");
-      doc.head.appendChild(n);
-    } catch (err) {
-      /* parent bridge unavailable */
-    }
-  }
-
-  function navigateCard(link) {
-    var href = link.getAttribute("href") || "/";
-    var msg = { type: "stitch-nav", href: href };
-    ensureNavBridge();
-    window.parent.postMessage(msg, "*");
-    if (window.top && window.top !== window) {
-      window.top.postMessage(msg, "*");
-    }
-    try {
-      window.top.location.href = href;
-    } catch (err) {
-      /* sandboxed iframe — postMessage handles navigation */
-    }
-  }
-
-  function wireCards() {
-    document.querySelectorAll("a.stitch-card-link").forEach(function (link) {
-      link.addEventListener("mouseenter", function () {
-        var icon = link.querySelector(".w-10 .material-symbols-outlined");
-        if (!icon) return;
-        icon.style.transition = "transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
-        icon.style.transform = "scale(1.1)";
-      });
-      link.addEventListener("mouseleave", function () {
-        var icon = link.querySelector(".w-10 .material-symbols-outlined");
-        if (icon) icon.style.transform = "scale(1)";
-      });
-      link.addEventListener("click", function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-        navigateCard(link);
-      });
-    });
-  }
-
-  ensureNavBridge();
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", wireCards);
-  } else {
-    wireCards();
-  }
-})();
-</script>
-"""
-
-_HOME_MICRO_SCRIPT = re.compile(
-    r"<!-- Micro-interaction Script -->.*?</script>",
-    re.DOTALL,
-)
-
-
-def _wrap_home_cards(source: str) -> str:
-    html_doc = source
-    markers = [
-        ("<!-- Card 1: Object Explorer -->", "<!-- Card 2: Row Compare -->", HOME_CARD_URLS[0]),
-        ("<!-- Card 2: Row Compare -->", "<!-- Card 3: Schema Compare -->", HOME_CARD_URLS[1]),
-        (
-            "<!-- Card 3: Schema Compare -->",
-            "</div>\n<!-- Decorative UI Element",
-            HOME_CARD_URLS[2],
-        ),
-    ]
-    for start, end, href in markers:
-        raw = _between(html_doc, start, end)
-        card = raw.replace(start, "").strip()
-        card = _ENTER_BUTTON.sub(_ENTER_SPAN, card, count=1)
-        card = re.sub(
-            r'^<div class="group ',
-            (
-                f'<a href="{href}" '
-                f'class="stitch-card-link no-underline text-inherit cursor-pointer group '
-            ),
-            card,
-            count=1,
-        )
-        close_idx = card.rfind("</div>")
-        if close_idx >= 0:
-            card = card[:close_idx] + "</a>" + card[close_idx + len("</div>") :]
-        html_doc = html_doc.replace(raw, start + "\n" + card + "\n", 1)
-
-    if _HOME_MICRO_SCRIPT.search(html_doc):
-        html_doc = _HOME_MICRO_SCRIPT.sub(
-            "<!-- Micro-interaction Script -->\n" + _HOME_CARD_SCRIPT.strip(),
-            html_doc,
-            count=1,
-        )
-    return html_doc
-
-
 def render_home_page() -> None:
-    """Exact stitch 03-home index.html — full document in one iframe."""
-    handle_home_navigation()
+    """Full stitch home in an iframe; card links in index.html use ?go= for st.switch_page."""
     inject_shell_component(tailwind_config_source="home")
     doc = _wrap_home_cards(_read_html("home"))
-    if "<!-- Micro-interaction Script -->" in doc:
-        doc = doc.replace(
-            "<!-- Micro-interaction Script -->",
-            "<!-- Micro-interaction Script -->\n" + _FULL_HEIGHT_SCRIPT,
-        )
-    else:
-        doc = doc.replace("</body>", _FULL_HEIGHT_SCRIPT + "</body>")
+    doc = doc.replace("</body>", _FULL_HEIGHT_SCRIPT + "</body>")
     st.markdown(f"<style>{shell_iframe_css()}</style>", unsafe_allow_html=True)
     components.html(doc, height=900, scrolling=False)
 

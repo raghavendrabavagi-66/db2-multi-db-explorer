@@ -48,6 +48,34 @@ OBJECT_EXPLORER_URL = HOME_CARD_URLS[0]
 HOME_CARD_HREFS = tuple(f"?go={p}" for p in HOME_GO_PARAMS)
 OE_CHROME_HEIGHT_PX = 92
 
+# Shared postMessage bridge injected into the Streamlit parent document.
+# Handles iframe → parent navigation for home cards and OE actions.
+_NAV_BRIDGE_JS = """
+(function () {
+  if (window.__stitchNavHandler) {
+    window.removeEventListener("message", window.__stitchNavHandler);
+  }
+  window.__stitchNavHandler = function (ev) {
+    if (!ev.data) return;
+    if (ev.data.type === "stitch-nav" && ev.data.href) {
+      var href = ev.data.href;
+      if (href.charAt(0) === "/") {
+        window.location.assign(href);
+      } else if (href.charAt(0) === "?") {
+        window.location.assign((window.location.pathname || "/") + href);
+      } else {
+        window.location.assign(href);
+      }
+      return;
+    }
+    if (ev.data.type === "stitch-oe-nav" && ev.data.url) {
+      window.location.assign(ev.data.url);
+    }
+  };
+  window.addEventListener("message", window.__stitchNavHandler);
+})();
+"""
+
 _ENTER_BUTTON = re.compile(
     r'<button class="flex items-center gap-sm font-label-caps text-label-caps text-primary '
     r'group-hover:translate-x-1 transition-transform duration-200">\s*'
@@ -56,6 +84,11 @@ _ENTER_BUTTON = re.compile(
     r"</button>",
     re.DOTALL,
 )
+
+
+def _wrap_home_cards(source: str) -> str:
+    """Return stitch home HTML (cards + nav script are wired in index.html)."""
+    return source
 
 
 def _read_html(screen_key: str) -> str:
@@ -322,28 +355,13 @@ def inject_shell_component(*, tailwind_config_source: str = "home") -> None:
             }};
             doc.head.appendChild(t);
           }}
-          if (!doc.getElementById("stitch-nav-bridge")) {{
-            const n = doc.createElement("script");
-            n.id = "stitch-nav-bridge";
-            n.textContent = `
-              (function () {{
-                if (window.__stitchNavListener) return;
-                window.__stitchNavListener = true;
-                window.addEventListener("message", function (ev) {{
-                  if (!ev.data) return;
-                  if (ev.data.type === "stitch-nav" && ev.data.href) {{
-                    const href = ev.data.href;
-                    const path = window.location.pathname || "/";
-                    window.location.assign(path + (href.charAt(0) === "?" ? href : href));
-                    return;
-                  }}
-                  if (ev.data.type === "stitch-oe-nav" && ev.data.url) {{
-                    window.location.assign(ev.data.url);
-                  }}
-                }});
-              }})();
-            `;
-            doc.head.appendChild(n);
+          {{
+            let navBridge = doc.getElementById("stitch-nav-bridge");
+            if (navBridge) navBridge.remove();
+            navBridge = doc.createElement("script");
+            navBridge.id = "stitch-nav-bridge";
+            navBridge.textContent = {json.dumps(_NAV_BRIDGE_JS.strip())};
+            doc.head.appendChild(navBridge);
           }}
         }})();
         </script>
@@ -363,35 +381,7 @@ def handle_home_navigation() -> None:
 
 
 def _wire_home_page(html: str) -> str:
-    """Prepare stitch home body HTML with query-param card links."""
-    card_markers = [
-        ("<!-- Card 1: Object Explorer -->", "<!-- Card 2: Row Compare -->", HOME_CARD_URLS[0]),
-        ("<!-- Card 2: Row Compare -->", "<!-- Card 3: Schema Compare -->", HOME_CARD_URLS[1]),
-        ("<!-- Card 3: Schema Compare -->", "</div>\n<!-- Decorative UI Element", HOME_CARD_URLS[2]),
-    ]
-    for start, end, href in card_markers:
-        raw = _between(html, start, end)
-        card = raw.replace(start, "").strip()
-        card = _ENTER_BUTTON.sub(
-            (
-                '<span class="flex items-center gap-sm font-label-caps text-label-caps text-primary '
-                'group-hover:translate-x-1 transition-transform duration-200">'
-                'Enter <span class="material-symbols-outlined text-[16px]">arrow_forward</span></span>'
-            ),
-            card,
-            count=1,
-        )
-        card = re.sub(
-            r'^<div class="group ',
-            f'<a href="{href}" class="stitch-card-link no-underline text-inherit cursor-pointer group ',
-            card,
-            count=1,
-        )
-        close_idx = card.rfind("</div>")
-        if close_idx >= 0:
-            card = card[:close_idx] + "</a>" + card[close_idx + len("</div>") :]
-        html = html.replace(raw, start + "\n" + card + "\n", 1)
-
+    """Prepare stitch home body HTML (cards are pre-wired in stitch index.html)."""
     nav = "<nav " + _between(html, "<nav ", "</nav>") + "</nav>"
     main = "<main " + _between(html, "<main ", "</main>") + "</main>"
     foot = "<footer " + _between(html, "<footer ", "</footer>") + "</footer>"
@@ -404,6 +394,7 @@ def _wire_home_page(html: str) -> str:
 
 def render_home_screen() -> None:
     """Render stitch home HTML in the Streamlit document (not a sandboxed iframe)."""
+    handle_home_navigation()
     inject_shell_component(tailwind_config_source="home")
     body = _wire_home_page(_read_html("home"))
     st.html(body)
