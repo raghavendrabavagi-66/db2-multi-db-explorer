@@ -13,7 +13,13 @@ import streamlit.components.v1 as components
 
 from db2_explorer.clients.db2 import DBResult
 from db2_explorer.data.queries import MATCH_ORDER, OBJECT_TYPES
+from db2_explorer.api.register import OE_SEARCH_API_PATH, ensure_oe_search_api
 from db2_explorer.ui.fleet_panel import OE_CLEAR_QUERY_PARAM
+from db2_explorer.ui.oe_results import (
+    empty_results_row_html,
+    results_stats,
+    results_tbody_rows,
+)
 from db2_explorer.ui.stitch_shell import (
     HOME_CARD_URLS,
     HOME_GO_PARAMS,
@@ -230,59 +236,11 @@ def _fleet_tbody_rows(rows: list[tuple[str, str, int]]) -> str:
 
 
 def _results_tbody_rows(results: list[DBResult], *, matches_only: bool) -> str:
-    rows: list[str] = []
-    for res in results:
-        c = res.connection
-        if res.rows:
-            for row in res.rows:
-                if matches_only and not row.get("Object Name"):
-                    continue
-                name = html.escape(str(row.get("Object Name") or "—"))
-                schema = html.escape(str(row.get("Schema") or "—"))
-                status = res.status if res.ok else "error"
-                badge = (
-                    "bg-emerald-100 text-emerald-700"
-                    if res.ok
-                    else "bg-red-100 text-red-700"
-                )
-                row_cls = "" if res.ok else ' class="bg-red-50 hover:bg-red-100 transition-colors group"'
-                rows.append(
-                    f"<tr{row_cls}>"
-                    f'<td class="px-md py-2 font-code-sm text-xs">{html.escape(c.dbname)}</td>'
-                    f'<td class="px-md py-2 font-code-sm text-xs">{html.escape(c.host)}</td>'
-                    f'<td class="px-md py-2 font-code-sm text-xs text-primary">{schema}</td>'
-                    f'<td class="px-md py-2 font-code-sm text-xs font-bold">{name}</td>'
-                    f'<td class="px-md py-2 text-xs">{html.escape(str(row.get("Object Type") or ""))}</td>'
-                    f'<td class="px-md py-2 text-[10px] text-secondary">'
-                    f'{html.escape(str(row.get("Create Time") or "—"))}</td>'
-                    f'<td class="px-md py-2"><span class="inline-flex items-center px-1.5 py-0.5 '
-                    f'rounded text-[10px] font-bold {badge}">{html.escape(status.upper())}</span></td>'
-                    f"</tr>"
-                )
-        elif not matches_only:
-            badge = "bg-red-100 text-red-700" if not res.ok else "bg-emerald-100 text-emerald-700"
-            label = res.status.upper() if not res.ok else "OK"
-            rows.append(
-                f'<tr class="bg-red-50 hover:bg-red-100 transition-colors group">'
-                f'<td class="px-md py-2 font-code-sm text-xs">{html.escape(c.dbname)}</td>'
-                f'<td class="px-md py-2 font-code-sm text-xs">{html.escape(c.host)}</td>'
-                f'<td class="px-md py-2 font-code-sm text-xs">—</td>'
-                f'<td class="px-md py-2 font-code-sm text-xs">—</td>'
-                f'<td class="px-md py-2 text-xs">—</td>'
-                f'<td class="px-md py-2 text-[10px] text-secondary">—</td>'
-                f'<td class="px-md py-2"><span class="inline-flex items-center px-1.5 py-0.5 '
-                f'rounded text-[10px] font-bold {badge}">{html.escape(label)}</span></td></tr>'
-            )
-    if not rows:
-        return _empty_results_row_html()
-    return "\n".join(rows)
+    return results_tbody_rows(results, matches_only=matches_only)
 
 
 def _empty_results_row_html() -> str:
-    return (
-        '<tr><td colspan="7" class="px-md py-10 text-center text-secondary text-sm">'
-        "Run a search to see catalog objects across your fleet.</td></tr>"
-    )
+    return empty_results_row_html()
 
 
 def _replace_first_tbody(source: str, inner: str) -> str:
@@ -310,51 +268,18 @@ def _replace_results_tbody(source: str, inner: str) -> str:
 
 
 def _results_stats(view: ObjectExplorerView) -> dict[str, Any]:
-    if not view.results:
-        return {
-            "scanned": 0,
-            "reachable": 0,
-            "failed": 0,
-            "matched_dbs": 0,
-            "total_objects": 0,
-            "filter_line": "No search run yet",
-            "scan_time_s": None,
-            "status_line": "Ready",
-        }
-
-    ok = [r for r in view.results if r.ok]
-    failed = [r for r in view.results if r.status in ("unreachable", "error")]
-    matched_dbs = [r for r in ok if r.match_count > 0]
-    total_objects = sum(r.match_count for r in ok)
-    meta = view.last_meta or {}
-    filter_text = meta.get("text", view.filter_text) or "any"
-    filter_line = (
-        f'{meta.get("object_type", view.object_type)} · '
-        f'{meta.get("operator", view.operator)} · '
-        f'"{filter_text}"'
+    stats = results_stats(
+        view.results,
+        object_type=view.object_type,
+        operator=view.operator,
+        filter_text=view.filter_text,
+        last_meta=view.last_meta,
     )
-    scan_ms = meta.get("scan_time_ms")
-    if scan_ms is None:
-        scan_ms = sum(r.elapsed_ms for r in view.results)
-    scan_time_s = scan_ms / 1000.0 if scan_ms else None
-
-    if failed and not ok:
-        status_line = "All systems unreachable"
-    elif failed:
-        status_line = f"{len(failed)} database(s) failed"
+    if view.results:
+        stats["connected_label"] = f"Connected: {stats['reachable']} database(s)"
     else:
-        status_line = "All systems operational"
-
-    return {
-        "scanned": len(view.results),
-        "reachable": len(ok),
-        "failed": len(failed),
-        "matched_dbs": len(matched_dbs),
-        "total_objects": total_objects,
-        "filter_line": filter_line,
-        "scan_time_s": scan_time_s,
-        "status_line": status_line,
-    }
+        stats["connected_label"] = "Connected: —"
+    return stats
 
 
 def _wire_results_panel(doc: str, view: ObjectExplorerView) -> str:
@@ -427,11 +352,7 @@ def _wire_results_panel(doc: str, view: ObjectExplorerView) -> str:
         doc,
         count=1,
     )
-    connected_label = (
-        f"Connected: {stats['reachable']} database(s)"
-        if view.results
-        else "Connected: —"
-    )
+    connected_label = stats.get("connected_label", "Connected: —")
     doc = re.sub(
         r'(<span class="w-1\.5 h-1\.5 rounded-full bg-emerald-500"></span>\s*)Connected: [^<]+',
         lambda m: f'{m.group(1)}<span id="oe-connected-line">{html.escape(connected_label)}</span>',
@@ -475,6 +396,11 @@ def _oe_bridge_script(view: ObjectExplorerView) -> str:
   const FLEET_STORAGE_KEY = "db2_migration_studio_oe_fleet";
   const FLEET_HYDRATED_KEY = "db2_migration_studio_oe_fleet_hydrated";
   const EMPTY_RESULTS_HTML = {json.dumps(empty_results_html)};
+  const OE_SEARCH_API = {json.dumps(OE_SEARCH_API_PATH)};
+
+  let savedFleetJson = "[]";
+  let lastSearchResponse = null;
+  let searchInFlight = false;
 
   function readFleetStorage() {{
     try {{
@@ -568,7 +494,6 @@ def _oe_bridge_script(view: ObjectExplorerView) -> str:
     return rows;
   }}
 
-  let savedFleetJson = "[]";
   const SAVE_BTN_ACTIVE =
     "px-3 py-1 text-xs font-semibold bg-primary text-white rounded hover:bg-primary/90 transition-colors";
   const SAVE_BTN_SAVED =
@@ -679,6 +604,7 @@ def _oe_bridge_script(view: ObjectExplorerView) -> str:
   }}
 
   function resetResultsPanel() {{
+    lastSearchResponse = null;
     setText("oe-filter-line", "No search run yet");
     setText("oe-stat-scanned", "0");
     setText("oe-stat-reachable", "0");
@@ -728,19 +654,86 @@ def _oe_bridge_script(view: ObjectExplorerView) -> str:
     params.set("max_workers", (document.getElementById("oe-max-workers") || {{ value: "8" }}).value || "8");
   }}
 
-  function searchParams() {{
-    const params = new URLSearchParams();
-    params.set("oe_action", "search");
-    connectionParams(params);
-    params.set("filter_text", (document.getElementById("oe-filter-text") || {{ value: "" }}).value || "");
-    const typeSelect = document.getElementById("oe-object-type");
-    if (typeSelect) params.set("object_type", typeSelect.options[typeSelect.selectedIndex].text);
+  function buildSearchBody() {{
     const checked = document.querySelector('input[name="match_mode"]:checked');
     const radios = Array.from(document.querySelectorAll('input[name="match_mode"]'));
     const modeIdx = checked ? radios.indexOf(checked) : 0;
-    params.set("operator", MATCH_MODES[modeIdx] || {json.dumps(view.operator)!r});
-    appendFleetParams(params);
-    return params;
+    const typeSelect = document.getElementById("oe-object-type");
+    return {{
+      username: (document.getElementById("oe-username") || {{ value: "" }}).value || "",
+      password: (document.getElementById("oe-password") || {{ value: "" }}).value || "",
+      include_system: (document.getElementById("oe-include-system") || {{ checked: false }}).checked,
+      max_workers: (document.getElementById("oe-max-workers") || {{ value: "8" }}).value || "8",
+      filter_text: (document.getElementById("oe-filter-text") || {{ value: "" }}).value || "",
+      object_type: typeSelect ? typeSelect.options[typeSelect.selectedIndex].text : "Table",
+      operator: MATCH_MODES[modeIdx] || {json.dumps(view.operator)!r},
+      fleet: collectFleetRows(),
+    }};
+  }}
+
+  function applySearchResults(payload, matchesOnly) {{
+    if (!payload || !payload.ok) return;
+    const stats = payload.stats || {{}};
+    setText("oe-filter-line", stats.filter_line || "No search run yet");
+    setText("oe-stat-scanned", String(stats.scanned ?? 0));
+    setText("oe-stat-reachable", String(stats.reachable ?? 0));
+    setText("oe-stat-failed", String(stats.failed ?? 0));
+    setText("oe-stat-matched-dbs", String(stats.matched_dbs ?? 0));
+    setText("oe-stat-total-objects", String(stats.total_objects ?? 0));
+    setText("oe-status-line", stats.status_line || "Ready");
+    setText("oe-scan-time", payload.scan_time_label || "Scan Time: —");
+    setText("oe-connected-line", stats.connected_label || "Connected: —");
+    const tbody = document.getElementById("oe-results-tbody");
+    if (tbody) {{
+      const rowsHtml = matchesOnly ? payload.tbody_html_matches : payload.tbody_html_all;
+      tbody.innerHTML = rowsHtml || EMPTY_RESULTS_HTML;
+    }}
+  }}
+
+  function renderMatchesOnlyFromCache() {{
+    if (!lastSearchResponse) return;
+    const box = document.getElementById("oe-matches-only");
+    applySearchResults(lastSearchResponse, !!(box && box.checked));
+  }}
+
+  async function runSearch() {{
+    if (searchInFlight) return;
+    const searchBtn = document.getElementById("oe-search-btn");
+    const originalHtml = searchBtn ? searchBtn.innerHTML : "";
+    searchInFlight = true;
+    if (searchBtn) {{
+      searchBtn.disabled = true;
+      searchBtn.innerHTML =
+        '<span class="material-symbols-outlined animate-spin text-sm">sync</span> Searching...';
+    }}
+    try {{
+      const response = await fetch(OE_SEARCH_API, {{
+        method: "POST",
+        headers: {{ "Content-Type": "application/json" }},
+        body: JSON.stringify(buildSearchBody()),
+      }});
+      let payload = {{ ok: false, error: "Search failed." }};
+      try {{
+        payload = await response.json();
+      }} catch (parseErr) {{
+        payload = {{ ok: false, error: "Invalid search response." }};
+      }}
+      if (!response.ok || !payload.ok) {{
+        showToast(payload.error || "Search failed.");
+        return;
+      }}
+      lastSearchResponse = payload;
+      const matchesOnly = document.getElementById("oe-matches-only");
+      applySearchResults(payload, !!(matchesOnly && matchesOnly.checked));
+    }} catch (err) {{
+      showToast("Search request failed. Restart the app if this persists.");
+    }} finally {{
+      searchInFlight = false;
+      if (searchBtn) {{
+        searchBtn.disabled = false;
+        searchBtn.innerHTML = originalHtml || "Search all databases";
+      }}
+    }}
   }}
 
   function wireSlider() {{
@@ -845,8 +838,9 @@ def _oe_bridge_script(view: ObjectExplorerView) -> str:
   function wireSearch() {{
     const searchBtn = document.getElementById("oe-search-btn");
     if (!searchBtn) return;
-    searchBtn.addEventListener("click", function () {{
-      oeNavigate(searchParams());
+    searchBtn.addEventListener("click", function (event) {{
+      event.preventDefault();
+      runSearch();
     }});
   }}
 
@@ -854,10 +848,7 @@ def _oe_bridge_script(view: ObjectExplorerView) -> str:
     const box = document.getElementById("oe-matches-only");
     if (!box) return;
     box.addEventListener("change", function () {{
-      const params = new URLSearchParams();
-      params.set("oe_action", "toggle_matches");
-      params.set("matches_only", box.checked ? "1" : "0");
-      oeNavigate(params);
+      renderMatchesOnlyFromCache();
     }});
   }}
 
@@ -1108,6 +1099,7 @@ def _wire_match_operator(doc: str, operator: str) -> str:
 
 def render_object_explorer_page(view: ObjectExplorerView) -> None:
     """Exact stitch 02-object-explorer index.html — full document with live data."""
+    ensure_oe_search_api()
     inject_shell_component(tailwind_config_source="object_explorer")
     doc = _wire_oe_document(_read_html("object_explorer"), view)
     st.markdown(f"<style>{shell_iframe_css()}</style>", unsafe_allow_html=True)
