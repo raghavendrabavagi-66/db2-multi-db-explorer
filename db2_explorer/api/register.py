@@ -31,6 +31,7 @@ RC_TEST_DB2_API_PATH = "/api/rc/test-db2"
 RC_TEST_AZURE_API_PATH = "/api/rc/test-azure"
 RC_LIST_AZURE_DATABASES_API_PATH = "/api/rc/list-azure-databases"
 RC_SAVE_CONNECT_API_PATH = "/api/rc/save-connect"
+RC_RUN_COMPARISON_API_PATH = "/api/rc/run-comparison"
 _CREATE_APP_PATCHED = False
 _OE_ROUTE_REGISTERED = False
 _SEARCH_HANDLER_CLS: type[Any] | None = None
@@ -108,6 +109,11 @@ def rc_list_azure_databases_api_url() -> str:
 def rc_save_connect_api_url() -> str:
     """URL for Row Compare credential save POST."""
     return _background_api_url(RC_SAVE_CONNECT_API_PATH)
+
+
+def rc_run_comparison_api_url() -> str:
+    """URL for Row Compare run POST."""
+    return _background_api_url(RC_RUN_COMPARISON_API_PATH)
 
 
 def _search_handler_cls() -> type[Any]:

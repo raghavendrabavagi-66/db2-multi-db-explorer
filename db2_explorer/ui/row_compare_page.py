@@ -13,6 +13,7 @@ import streamlit.components.v1 as components
 
 from db2_explorer.api.register import (
     rc_list_azure_databases_api_url,
+    rc_run_comparison_api_url,
     rc_save_connect_api_url,
     rc_test_db2_api_url,
 )
@@ -611,7 +612,7 @@ def _comparison_rows_html(rows: list[dict[str, Any]]) -> str:
         )
     parts: list[str] = []
     for row in rows:
-        name = html.escape(str(row.get("Table", "")))
+        name = html.escape(str(row.get("Table Name") or row.get("Table") or ""))
         src = row.get("Source Count", "N/A")
         tgt = row.get("Target Count", "N/A")
         delta = row.get("Delta", "N/A")
@@ -621,7 +622,7 @@ def _comparison_rows_html(rows: list[dict[str, Any]]) -> str:
         delta_s = html.escape(str(delta))
         parts.append(
             f'<tr class="hover:bg-surface-container transition-colors">'
-            f'<td class="px-md py-2 font-code-sm">{name}</td>'
+            f'<td class="px-md py-2 font-code-sm text-xs text-on-surface">{name}</td>'
             f'<td class="px-md py-2 text-right">{src_s}</td>'
             f'<td class="px-md py-2 text-right">{tgt_s}</td>'
             f'<td class="px-md py-2 text-right">{delta_s}</td>'
@@ -631,12 +632,15 @@ def _comparison_rows_html(rows: list[dict[str, Any]]) -> str:
 
 
 def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
+    run_compare_url = rc_run_comparison_api_url()
     return f"""
 <script>
 (function () {{
   const RC_PAGE = {json.dumps(ROW_COMPARE_PAGE)};
   const HOME_CLEAR_URL = {json.dumps(_HOME_CLEAR_URL)};
+  const RUN_COMPARE_URL = {json.dumps(run_compare_url)};
   const RC_SID_KEY = "rc_sid";
+  let runInFlight = false;
 
   function rcSessionId() {{
     try {{
@@ -651,6 +655,15 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
     }} catch (err) {{
       return "rc-" + Date.now();
     }}
+  }}
+
+  function apiUrl(pathOrFull) {{
+    if (pathOrFull.startsWith("http")) return pathOrFull;
+    try {{
+      const origin = window.top.location.origin;
+      if (origin && origin !== "null") return origin + pathOrFull;
+    }} catch (err) {{}}
+    return pathOrFull;
   }}
 
   function rcPagePath() {{
@@ -682,6 +695,85 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
     setTimeout(function () {{ el.style.display = "none"; }}, 5000);
   }}
 
+  function setText(id, text) {{
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }}
+
+  function applyComparisonResults(payload) {{
+    const m = payload.metrics || {{}};
+    setText("rc-metric-total", String(m.tables_source ?? 0));
+    setText("rc-metric-matches", String(m.matched ?? 0));
+    setText("rc-metric-mismatches", String(m.mismatched ?? 0));
+    setText("rc-metric-failed", String(m.missing ?? 0));
+    setText("rc-metric-rows", String(m.rows_label ?? "—"));
+    const tbody = document.getElementById("rc-results-tbody");
+    if (tbody && payload.tbody_html) {{
+      tbody.innerHTML = payload.tbody_html;
+    }}
+  }}
+
+  function runCompareFallback(mode) {{
+    const p = new URLSearchParams();
+    p.set("rc_action", "run");
+    p.set("rc_sid", rcSessionId());
+    p.set("cmp_target_table_mode", mode);
+    rcNavigate(p);
+  }}
+
+  async function runComparison() {{
+    if (runInFlight) return;
+    const runBtn = document.getElementById("rc-run-btn");
+    const originalHtml = runBtn ? runBtn.innerHTML : "";
+    const staging = document.querySelector('input[name="table_type"][value="staging"]');
+    const mode = staging && staging.checked ? "staging" : "original";
+    runInFlight = true;
+    if (runBtn) {{
+      runBtn.disabled = true;
+      runBtn.innerHTML =
+        '<span class="material-symbols-outlined animate-spin">sync</span> RUNNING...';
+    }}
+    try {{
+      const response = await fetch(apiUrl(RUN_COMPARE_URL), {{
+        method: "POST",
+        headers: {{ "Content-Type": "application/json" }},
+        body: JSON.stringify({{
+          rc_sid: rcSessionId(),
+          target_table_mode: mode,
+        }}),
+      }});
+      const contentType = (response.headers.get("content-type") || "").toLowerCase();
+      if (!contentType.includes("application/json")) {{
+        toast("Comparison API unavailable — reloading with server run.", true);
+        runCompareFallback(mode);
+        return;
+      }}
+      let payload = {{ ok: false, error: "Comparison failed." }};
+      try {{
+        payload = await response.json();
+      }} catch (parseErr) {{
+        toast("Comparison API unavailable — reloading with server run.", true);
+        runCompareFallback(mode);
+        return;
+      }}
+      if (!response.ok || !payload.ok) {{
+        toast(payload.error || ("Comparison failed (HTTP " + response.status + ")."), true);
+        return;
+      }}
+      applyComparisonResults(payload);
+      toast(payload.message || "Comparison complete.", false);
+    }} catch (err) {{
+      toast(err.message || "Comparison request failed.", true);
+    }} finally {{
+      runInFlight = false;
+      if (runBtn) {{
+        runBtn.disabled = false;
+        runBtn.innerHTML = originalHtml ||
+          '<span class="material-symbols-outlined">play_arrow</span> RUN COMPARISON';
+      }}
+    }}
+  }}
+
   const homeBtn = document.getElementById("rc-home-back");
   if (homeBtn) homeBtn.addEventListener("click", function (e) {{
     e.preventDefault();
@@ -700,15 +792,7 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
   const runBtn = document.getElementById("rc-run-btn");
   if (runBtn) runBtn.addEventListener("click", function (e) {{
     e.preventDefault();
-    const staging = document.querySelector('input[name="table_type"][value="staging"]');
-    const mode = staging && staging.checked ? "staging" : "original";
-    const p = new URLSearchParams();
-    p.set("rc_action", "run");
-    p.set("rc_sid", rcSessionId());
-    p.set("cmp_target_table_mode", mode);
-    runBtn.disabled = true;
-    runBtn.classList.add("opacity-70", "cursor-wait");
-    rcNavigate(p);
+    runComparison();
   }});
 
   {f'toast({_js_literal(view.toast_message)}, {json.dumps(view.toast_error)});' if view.toast_message else ''}
@@ -729,6 +813,31 @@ def _wire_rc_workspace_document(source: str, view: RowCompareWorkspaceView) -> s
         (">1.2B<", f">{m.get('rows_label', '—')}<"),
     ]
     for old, new in replacements:
+        doc = doc.replace(old, new, 1)
+
+    metric_ids = [
+        (
+            '<p class="text-label-caps text-secondary">TOTAL TABLES</p>\n<p class="font-headline-md text-headline-md font-bold">',
+            '<p class="text-label-caps text-secondary">TOTAL TABLES</p>\n<p id="rc-metric-total" class="font-headline-md text-headline-md font-bold">',
+        ),
+        (
+            '<p class="text-label-caps text-secondary">MATCHES</p>\n<p class="font-headline-md text-headline-md font-bold text-emerald-700">',
+            '<p class="text-label-caps text-secondary">MATCHES</p>\n<p id="rc-metric-matches" class="font-headline-md text-headline-md font-bold text-emerald-700">',
+        ),
+        (
+            '<p class="text-label-caps text-secondary">MISMATCHES</p>\n<p class="font-headline-md text-headline-md font-bold text-amber-700">',
+            '<p class="text-label-caps text-secondary">MISMATCHES</p>\n<p id="rc-metric-mismatches" class="font-headline-md text-headline-md font-bold text-amber-700">',
+        ),
+        (
+            '<p class="text-label-caps text-secondary">FAILED</p>\n<p class="font-headline-md text-headline-md font-bold text-red-700">',
+            '<p class="text-label-caps text-secondary">FAILED</p>\n<p id="rc-metric-failed" class="font-headline-md text-headline-md font-bold text-red-700">',
+        ),
+        (
+            '<p class="text-label-caps text-secondary">ROWS SCANNED</p>\n<p class="font-headline-md text-headline-md font-bold">',
+            '<p class="text-label-caps text-secondary">ROWS SCANNED</p>\n<p id="rc-metric-rows" class="font-headline-md text-headline-md font-bold">',
+        ),
+    ]
+    for old, new in metric_ids:
         doc = doc.replace(old, new, 1)
 
     doc = _regex_inject(

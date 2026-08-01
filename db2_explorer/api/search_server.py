@@ -19,6 +19,7 @@ from db2_explorer.api.rc_connect_service import (
     test_azure_json,
     test_db2_json,
 )
+from db2_explorer.api.rc_run_service import run_comparison_json
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ _POST_ROUTES: dict[str, Callable[[dict], dict]] = {
     "/api/rc/test-azure": test_azure_json,
     "/api/rc/list-azure-databases": list_azure_databases_json,
     "/api/rc/save-connect": save_connect_json,
+    "/api/rc/run-comparison": run_comparison_json,
 }
 
 
