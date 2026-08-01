@@ -580,6 +580,7 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
 <script>
 (function () {{
   const RC_PAGE = {json.dumps(ROW_COMPARE_PAGE)};
+  const HOME_URL = {json.dumps(_HOME_URL)};
 
   function rcPagePath() {{
     try {{
@@ -604,6 +605,13 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
     el.style.display = "block";
     setTimeout(function () {{ el.style.display = "none"; }}, 5000);
   }}
+
+  const homeBtn = document.getElementById("rc-home-back");
+  if (homeBtn) homeBtn.addEventListener("click", function (e) {{
+    e.preventDefault();
+    window.parent.postMessage({{ type: "stitch-oe-nav", url: HOME_URL }}, "*");
+    try {{ window.top.location.href = HOME_URL; }} catch (err) {{}}
+  }});
 
   const editBtn = document.getElementById("rc-edit-creds");
   if (editBtn) editBtn.addEventListener("click", function (e) {{
