@@ -5,9 +5,9 @@ from __future__ import annotations
 import gc
 import json
 import logging
+from typing import Literal
 
 from streamlit import config
-from streamlit.web.server.server_util import make_url_path_regex
 from tornado.routing import PathMatches, Rule
 from tornado.web import Application, RequestHandler
 
@@ -18,6 +18,26 @@ _LOGGER = logging.getLogger(__name__)
 OE_SEARCH_API_PATH = "/api/oe/search"
 _CREATE_APP_PATCHED = False
 _OE_ROUTE_REGISTERED = False
+
+
+def _make_url_path_regex(
+    *path: str,
+    trailing_slash: Literal["optional", "required", "prohibited"] = "optional",
+) -> str:
+    """Build a Tornado path regex compatible with Streamlit route patterns."""
+    try:
+        from streamlit.web.server.server_util import make_url_path_regex
+
+        return make_url_path_regex(*path, trailing_slash=trailing_slash)
+    except ImportError:
+        filtered_paths = [segment.strip("/") for segment in path if segment]
+        if trailing_slash == "optional":
+            path_format = r"^/%s/?$"
+        elif trailing_slash == "required":
+            path_format = r"^/%s/$"
+        else:
+            path_format = r"^/%s$"
+        return path_format % "/".join(filtered_paths)
 
 
 def oe_search_api_path() -> str:
@@ -73,7 +93,7 @@ class _OESearchHandler(RequestHandler):
 
 def _route_pattern() -> str:
     base = config.get_option("server.baseUrlPath") or ""
-    return make_url_path_regex(base, "api/oe/search")
+    return _make_url_path_regex(base, "api/oe/search")
 
 
 def _wildcard_router(app: Application):
