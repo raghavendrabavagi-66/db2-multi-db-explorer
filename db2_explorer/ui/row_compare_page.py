@@ -74,6 +74,7 @@ class RowCompareSetupView:
     az_database_options: list[str] = field(default_factory=list)
     az_auth: str = "entra"
     az_trust_cert: bool = True
+    edit_mode: bool = False
     toast_message: str = ""
     toast_error: bool = False
 
@@ -135,6 +136,7 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
   const LIST_AZ_URL = {json.dumps(list_az_url)};
   const SAVE_CONNECT_URL = {json.dumps(save_connect_url)};
   const RC_SID_KEY = "rc_sid";
+  const EDIT_MODE = {json.dumps(view.edit_mode)};
 
   function rcSessionId() {{
     try {{
@@ -149,6 +151,12 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
     }} catch (err) {{
       return "rc-" + Date.now();
     }}
+  }}
+
+  function navigateBackToWorkspace() {{
+    const p = new URLSearchParams();
+    p.set("rc_action", "back");
+    rcNavigate(p);
   }}
 
   function navigateHomeClear() {{
@@ -514,7 +522,8 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
     const closeBtn = document.getElementById("rc-close-btn");
     if (closeBtn) closeBtn.addEventListener("click", function (e) {{
       e.preventDefault();
-      navigateHomeClear();
+      if (EDIT_MODE) navigateBackToWorkspace();
+      else navigateHomeClear();
     }});
   }}
 
@@ -528,6 +537,27 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
 
 def _wire_rc_setup_document(source: str, view: RowCompareSetupView) -> str:
     doc = source
+    close_btn = (
+        '<button aria-label="Close modal" id="rc-close-btn" type="button" '
+        'class="w-10 h-10 flex items-center justify-center rounded-full '
+        'hover:bg-surface-container-high transition-colors text-outline">'
+        '<span class="material-symbols-outlined">close</span></button>'
+    )
+    back_btn = (
+        '<button aria-label="Back to workspace" id="rc-close-btn" type="button" '
+        'class="flex items-center gap-1 text-on-secondary-container hover:text-primary '
+        'transition-colors text-sm font-medium">'
+        '<span class="material-symbols-outlined text-sm">arrow_back</span>Back</button>'
+    )
+    default_close = (
+        '<button aria-label="Close modal" id="rc-close-btn" class="w-10 h-10 flex items-center '
+        'justify-center rounded-full hover:bg-surface-container-high transition-colors text-outline">\n'
+        '<span class="material-symbols-outlined">close</span>\n</button>'
+    )
+    if view.edit_mode:
+        doc = doc.replace(default_close, back_btn, 1)
+    else:
+        doc = doc.replace(default_close, close_btn, 1)
     doc = doc.replace(
         'id="rc-db2-database" class="flex-1 studio-input" type="text" value=""',
         f'id="rc-db2-database" class="flex-1 studio-input" type="text" value="{html.escape(view.db2_database)}"',
@@ -798,6 +828,7 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
     e.preventDefault();
     const p = new URLSearchParams();
     p.set("rc_action", "edit");
+    p.set("rc_sid", rcSessionId());
     rcNavigate(p);
   }});
 

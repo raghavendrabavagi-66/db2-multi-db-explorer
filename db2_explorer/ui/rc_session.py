@@ -27,6 +27,7 @@ RC_SESSION_KEYS = (
     "cmp_az_auth",
     "cmp_az_trust_cert",
     "rc_setup_done",
+    "rc_setup_mode",
     "rc_sid",
     "rc_toast_message",
     "rc_toast_error",

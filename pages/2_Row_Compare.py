@@ -54,6 +54,7 @@ def _init_session() -> None:
         "cmp_az_auth": "entra",
         "cmp_az_trust_cert": True,
         "rc_setup_done": False,
+        "rc_setup_mode": "initial",
         "rc_sid": "",
         "rc_toast_message": "",
         "rc_toast_error": False,
@@ -94,6 +95,8 @@ def _apply_rc_sid() -> bool:
     """Load saved credentials from the server-side cache when ``rc_sid`` is present."""
     sid = str(st.query_params.get("rc_sid", "")).strip()
     if not sid:
+        sid = str(st.session_state.get("rc_sid", "")).strip()
+    if not sid:
         return False
     payload = get_connect_payload(sid)
     if not payload:
@@ -102,6 +105,16 @@ def _apply_rc_sid() -> bool:
         st.session_state[key] = val
     st.session_state.rc_sid = sid
     return True
+
+
+def _ensure_az_database_in_options() -> None:
+    """Keep the selected Azure database visible in the setup dropdown."""
+    az_db = str(st.session_state.get("cmp_az_database", "")).strip()
+    if not az_db:
+        return
+    options = list(st.session_state.get("cmp_az_database_options", []))
+    if az_db not in options:
+        st.session_state.cmp_az_database_options = [az_db, *options]
 
 
 def _handle_query_actions() -> None:
@@ -128,11 +141,19 @@ def _handle_query_actions() -> None:
             _set_toast("Missing: " + ", ".join(missing), error=True)
         else:
             st.session_state.rc_setup_done = True
+            st.session_state.rc_setup_mode = "initial"
             st.session_state.compare_result = None
             _set_toast("Connected — ready to run comparison.")
     elif action == "edit":
+        if not restored:
+            _apply_rc_sid()
+        _ensure_az_database_in_options()
+        st.session_state.rc_setup_mode = "edit"
         st.session_state.rc_setup_done = False
         _set_toast("Edit connection settings below.")
+    elif action == "back":
+        st.session_state.rc_setup_mode = "initial"
+        st.session_state.rc_setup_done = True
     elif action == "run":
         if not restored:
             sid = str(st.session_state.get("rc_sid", "")).strip()
@@ -221,6 +242,7 @@ def _setup_view() -> RowCompareSetupView:
         az_database_options=list(st.session_state.get("cmp_az_database_options", [])),
         az_auth=str(st.session_state.get("cmp_az_auth", "entra")),
         az_trust_cert=bool(st.session_state.get("cmp_az_trust_cert", True)),
+        edit_mode=st.session_state.get("rc_setup_mode") == "edit",
         toast_message=str(st.session_state.get("rc_toast_message", "")),
         toast_error=bool(st.session_state.get("rc_toast_error", False)),
     )
