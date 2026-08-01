@@ -44,16 +44,53 @@ _FULL_HEIGHT_SCRIPT = """
 _WORKSPACE_FRAME_HEIGHT_SCRIPT = """
 <script>
 (function () {
+  function parentViewportHeight() {
+    try {
+      var h = window.parent.innerHeight;
+      if (h && h > 0) return h;
+    } catch (err) {}
+    try {
+      var topH = window.top.innerHeight;
+      if (topH && topH > 0) return topH;
+    } catch (err2) {}
+    return window.innerHeight;
+  }
   function syncRcFrameHeight() {
-    var h = window.innerHeight;
+    var h = parentViewportHeight();
     window.parent.postMessage({ type: "streamlit:setFrameHeight", height: h }, "*");
   }
   window.syncRcFrameHeight = syncRcFrameHeight;
   syncRcFrameHeight();
   window.addEventListener("load", syncRcFrameHeight);
   window.addEventListener("resize", syncRcFrameHeight);
+  try {
+    window.parent.addEventListener("resize", syncRcFrameHeight);
+  } catch (err) {}
 })();
 </script>
+"""
+
+_RC_WORKSPACE_SHELL_CSS = """
+html.stitch-shell,
+html.stitch-shell body,
+html.stitch-shell #root {
+    overflow: hidden !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+}
+html.stitch-shell [data-testid="stAppViewContainer"],
+html.stitch-shell [data-testid="stAppViewContainer"] > section,
+html.stitch-shell [data-testid="stMain"],
+html.stitch-shell [data-testid="stMainBlockContainer"] {
+    overflow: hidden !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+}
+html.stitch-shell iframe:not([height="0"]):not([height="1"]) {
+    height: 100vh !important;
+    max-height: 100vh !important;
+    min-height: 0 !important;
+}
 """
 
 _RC_SETUP_MICRO = re.compile(
@@ -960,5 +997,8 @@ def render_row_compare_workspace_page(view: RowCompareWorkspaceView) -> None:
 
     _shell._HTML_CACHE.pop("row_workspace", None)
     doc = _wire_rc_workspace_document(_read_html("row_workspace"), view)
-    st.markdown(f"<style>{shell_iframe_css()}</style>", unsafe_allow_html=True)
-    components.html(doc, height=1000, scrolling=False)
+    st.markdown(
+        f"<style>{shell_iframe_css()}{_RC_WORKSPACE_SHELL_CSS}</style>",
+        unsafe_allow_html=True,
+    )
+    components.html(doc, height=900, scrolling=False)

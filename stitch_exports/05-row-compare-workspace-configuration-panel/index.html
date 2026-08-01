@@ -1,4 +1,4 @@
-<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<!DOCTYPE html><html class="light h-full" lang="en"><head>
 <meta charset="utf-8">
 <meta content="width=device-width, initial-scale=1.0" name="viewport">
 <title>Row Compare | DB2 Migration Studio</title>
@@ -15,6 +15,10 @@
             font-family: 'Fira Sans', sans-serif;
             background-color: #faf8ff;
             color: #131b2e;
+        }
+        html, body {
+            height: 100%;
+            overflow: hidden;
         }
         .code-font {
             font-family: 'Fira Code', monospace;
@@ -134,9 +138,9 @@
         }
     </script>
 </head>
-<body class="bg-background text-on-surface h-screen flex flex-col overflow-hidden">
+<body class="bg-background text-on-surface h-full flex flex-col overflow-hidden">
 <!-- TopNavBar -->
-<header class="bg-surface-container-low text-primary font-body-md text-body-md border-b border-outline-variant flex justify-between items-center h-12 px-margin-edge w-full sticky top-0 z-50">
+<header class="bg-surface-container-low text-primary font-body-md text-body-md border-b border-outline-variant flex flex-none justify-between items-center h-12 px-margin-edge w-full">
 <div class="flex items-center gap-md">
 <span class="font-headline-md text-headline-md font-bold text-on-surface">DB2 Migration Studio</span>
 <div class="h-4 w-[1px] bg-outline-variant mx-sm"></div>
@@ -145,7 +149,7 @@
 <span class="text-[10px] leading-tight text-secondary uppercase tracking-wider">DB2 vs Azure row-count comparison</span>
 </div>
 </div>
-</header><div class="bg-surface-container-lowest h-12 border-b border-outline-variant flex items-center justify-between px-margin-edge flex-none sticky top-12 z-40">
+</header><div class="bg-surface-container-lowest h-12 border-b border-outline-variant flex flex-none items-center justify-between px-margin-edge">
 <div class="flex items-center gap-sm"><button id="rc-home-back" type="button" class="flex items-center gap-1 text-on-secondary-container hover:text-primary transition-colors text-sm font-medium"><span class="material-symbols-outlined text-sm">arrow_back</span>Home</button><div class="h-4 w-[1px] bg-outline-variant mx-sm"></div><button id="rc-edit-creds" type="button" class="flex items-center gap-xs px-sm py-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded text-body-sm transition-colors"><span class="material-symbols-outlined text-[18px]">edit_note</span>Edit Credentials</button><button class="flex items-center gap-xs px-sm py-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded text-body-sm transition-colors"><span class="material-symbols-outlined text-[18px]">settings</span>Configuration</button></div>
 <div class="flex items-center gap-md"><div class="relative"><span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span><input class="pl-8 pr-md py-1 border border-outline-variant rounded bg-surface w-64 text-body-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" placeholder="Search objects..." type="text"></div><button class="bg-primary text-on-primary px-md py-1 rounded font-bold active:opacity-80 transition-opacity text-body-sm">Export</button></div>
 </div>
