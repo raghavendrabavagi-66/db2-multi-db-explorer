@@ -678,6 +678,9 @@ def render_row_compare_setup_page(view: RowCompareSetupView) -> None:
 
 def render_row_compare_workspace_page(view: RowCompareWorkspaceView) -> None:
     inject_shell_component(tailwind_config_source="row_workspace")
+    from db2_explorer.ui import stitch_shell as _shell
+
+    _shell._HTML_CACHE.pop("row_workspace", None)
     doc = _wire_rc_workspace_document(_read_html("row_workspace"), view)
     st.markdown(f"<style>{shell_iframe_css()}</style>", unsafe_allow_html=True)
     components.html(doc, height=900, scrolling=False)
