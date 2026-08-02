@@ -32,6 +32,12 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+        .sc-combobox-panel.hidden {
+            display: none;
+        }
+        .sc-combobox-option.sc-combobox-active {
+            background-color: #e2e7ff;
+        }
     </style>
 <script id="tailwind-config">
         tailwind.config = {
@@ -168,10 +174,9 @@
 <label class="font-label-caps text-label-caps text-on-surface">BRANCH</label>
 <div class="flex gap-sm items-center">
   <div class="relative flex-1">
-    <select id="sc-branch" class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">
-      <option value="">Select a branch…</option>
-    </select>
-    <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined pointer-events-none text-outline">expand_more</span>
+    <input id="sc-branch" type="text" autocomplete="off" placeholder="Type to search branches…" class="w-full h-10 pl-md pr-10 border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" value="">
+    <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined pointer-events-none text-outline text-[20px]">search</span>
+    <div id="sc-branch-list" class="sc-combobox-panel hidden absolute z-[100] left-0 right-0 top-full mt-1 max-h-52 overflow-y-auto bg-white border border-outline-variant rounded shadow-lg"></div>
   </div>
   <button id="sc-branch-refresh" type="button" class="h-10 w-10 rounded border border-outline-variant hover:bg-surface-container-low text-secondary transition-colors flex items-center justify-center shrink-0" title="Refresh branches">
     <span class="material-symbols-outlined text-[20px]">refresh</span>
@@ -180,15 +185,17 @@
 </div>
 <div class="space-y-xs">
 <label class="font-label-caps text-label-caps text-on-surface">DATABASE FOLDER</label>
-<select id="sc-database" class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">
-  <option value="">Select a database folder…</option>
-</select>
+<div class="relative">
+<input id="sc-database" type="text" autocomplete="off" placeholder="Type to search database folders…" class="w-full h-10 pl-md pr-10 border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" value="">
+<div id="sc-database-list" class="sc-combobox-panel hidden absolute z-[100] left-0 right-0 top-full mt-1 max-h-52 overflow-y-auto bg-white border border-outline-variant rounded shadow-lg"></div>
+</div>
 </div>
 <div class="space-y-xs">
 <label class="font-label-caps text-label-caps text-on-surface">SERVER FOLDER</label>
-<select id="sc-server" class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">
-  <option value="">Select a server folder…</option>
-</select>
+<div class="relative">
+<input id="sc-server" type="text" autocomplete="off" placeholder="Type to search server folders…" class="w-full h-10 pl-md pr-10 border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" value="">
+<div id="sc-server-list" class="sc-combobox-panel hidden absolute z-[100] left-0 right-0 top-full mt-1 max-h-52 overflow-y-auto bg-white border border-outline-variant rounded shadow-lg"></div>
+</div>
 </div><div class="pt-xs">
   <button id="sc-load-deployment" type="button" class="h-9 px-md border border-outline-variant bg-surface-container-low text-on-surface font-label-caps text-label-caps flex items-center gap-xs hover:bg-surface-container-high transition-colors rounded">
     <span class="material-symbols-outlined text-[18px]">folder_open</span>
@@ -232,10 +239,9 @@
 <div class="space-y-xs"><label class="font-label-caps text-label-caps text-on-surface">Database Name</label>
 <div class="flex gap-sm items-center">
   <div class="relative flex-1">
-    <select id="sc-az-database" class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">
-      <option value="">Select a database…</option>
-    </select>
-    <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined pointer-events-none text-outline">expand_more</span>
+    <input id="sc-az-database" type="text" autocomplete="off" placeholder="Type to search databases…" class="w-full h-10 pl-md pr-10 border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" value="">
+    <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined pointer-events-none text-outline text-[20px]">search</span>
+    <div id="sc-az-database-list" class="sc-combobox-panel hidden absolute z-[100] left-0 right-0 top-full mt-1 max-h-52 overflow-y-auto bg-white border border-outline-variant rounded shadow-lg"></div>
   </div>
   <button id="sc-az-load-dbs" type="button" class="h-10 w-10 rounded border border-outline-variant hover:bg-surface-container-low text-secondary transition-colors flex items-center justify-center shrink-0" title="Refresh databases">
     <span class="material-symbols-outlined text-[20px]">refresh</span>

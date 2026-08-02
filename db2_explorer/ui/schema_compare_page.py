@@ -122,23 +122,6 @@ def _regex_inject(pattern: re.Pattern[str], repl: str, doc: str, *, count: int =
     return pattern.sub(lambda _match: repl, doc, count=count)
 
 
-def _options_html(selected: str, options: list[str], *, placeholder: str) -> str:
-    parts = [f'<option value="">{html.escape(placeholder)}</option>']
-    names: list[str] = []
-    if selected and selected not in options:
-        names.append(selected)
-    names.extend(options)
-    seen: set[str] = set()
-    for name in names:
-        if not name or name in seen:
-            continue
-        seen.add(name)
-        sel = " selected" if name == selected else ""
-        esc = html.escape(name)
-        parts.append(f'<option value="{esc}"{sel}>{esc}</option>')
-    return "".join(parts)
-
-
 def _auth_entra_checked(auth: str) -> str:
     return "checked" if auth != "windows" else ""
 
@@ -293,21 +276,108 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
     }});
   }}
 
-  function fillSelect(id, options, selected, placeholder) {{
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.innerHTML = "";
-    const blank = document.createElement("option");
-    blank.value = "";
-    blank.textContent = placeholder;
-    el.appendChild(blank);
-    options.forEach(function (name) {{
-      const opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = name;
-      if (name === selected) opt.selected = true;
-      el.appendChild(opt);
+  function comboboxSetValue(inputId, value) {{
+    const input = document.getElementById(inputId);
+    if (input) input.value = value || "";
+  }}
+
+  function comboboxFilteredOptions(all, query) {{
+    const q = (query || "").trim().toLowerCase();
+    if (!q) return all.slice();
+    return all.filter(function (name) {{
+      return String(name).toLowerCase().indexOf(q) >= 0;
     }});
+  }}
+
+  function createCombobox(config) {{
+    const input = document.getElementById(config.inputId);
+    const list = document.getElementById(config.listId);
+    if (!input || !list) return null;
+
+    const state = {{
+      input: input,
+      list: list,
+      getOptions: config.getOptions,
+      onSelect: config.onSelect || null,
+      highlight: -1,
+    }};
+
+    function optionButtons() {{
+      return list.querySelectorAll(".sc-combobox-option");
+    }}
+
+    function setHighlight(index) {{
+      const buttons = optionButtons();
+      state.highlight = index;
+      buttons.forEach(function (btn, i) {{
+        btn.classList.toggle("sc-combobox-active", i === index);
+      }});
+      if (index >= 0 && buttons[index]) {{
+        buttons[index].scrollIntoView({{ block: "nearest" }});
+      }}
+    }}
+
+    function hideList() {{
+      list.classList.add("hidden");
+      state.highlight = -1;
+    }}
+
+    function pick(name) {{
+      input.value = name;
+      hideList();
+      if (state.onSelect) state.onSelect(name);
+    }}
+
+    function renderList() {{
+      const items = comboboxFilteredOptions(state.getOptions() || [], input.value);
+      list.innerHTML = "";
+      if (!items.length) {{
+        list.innerHTML = '<div class="px-md py-2 text-body-sm text-secondary">No matches</div>';
+        list.classList.remove("hidden");
+        return;
+      }}
+      items.forEach(function (name) {{
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = "sc-combobox-option block w-full text-left px-md py-2 text-body-sm text-on-surface hover:bg-surface-container-low border-0 bg-transparent cursor-pointer";
+        row.textContent = name;
+        row.addEventListener("mousedown", function (ev) {{
+          ev.preventDefault();
+          pick(name);
+        }});
+        list.appendChild(row);
+      }});
+      list.classList.remove("hidden");
+      setHighlight(-1);
+    }}
+
+    input.addEventListener("focus", renderList);
+    input.addEventListener("input", renderList);
+    input.addEventListener("keydown", function (ev) {{
+      const buttons = optionButtons();
+      if (ev.key === "ArrowDown") {{
+        ev.preventDefault();
+        if (list.classList.contains("hidden")) renderList();
+        const next = buttons.length ? Math.min(state.highlight + 1, buttons.length - 1) : -1;
+        setHighlight(next);
+      }} else if (ev.key === "ArrowUp") {{
+        ev.preventDefault();
+        const prev = buttons.length ? Math.max(state.highlight - 1, 0) : -1;
+        setHighlight(prev);
+      }} else if (ev.key === "Enter") {{
+        if (state.highlight >= 0 && buttons[state.highlight]) {{
+          ev.preventDefault();
+          pick(buttons[state.highlight].textContent || "");
+        }}
+      }} else if (ev.key === "Escape") {{
+        hideList();
+      }}
+    }});
+    input.addEventListener("blur", function () {{
+      setTimeout(hideList, 120);
+    }});
+
+    return state;
   }}
 
   function collectAzure() {{
@@ -332,7 +402,7 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
         return;
       }}
       branchList = out.payload.branches || [];
-      fillSelect("sc-branch", branchList, branchList[0] || "", "Select a branch…");
+      comboboxSetValue("sc-branch", branchList[0] || "");
       toast(out.payload.message || "Branches loaded.", false);
       await loadDbFolders();
     }} catch (err) {{
@@ -349,8 +419,9 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
     const out = await postJson(LIST_DB_FOLDERS_URL, {{ gitlab_token: token, branch: branch }});
     if (!out.res.ok || !out.payload.ok) return;
     dbFolderList = out.payload.folders || [];
-    fillSelect("sc-database", dbFolderList, "", "Select a database folder…");
-    fillSelect("sc-server", [], "", "Select a server folder…");
+    comboboxSetValue("sc-database", "");
+    comboboxSetValue("sc-server", "");
+    serverFolderList = [];
   }}
 
   async function loadServerFolders() {{
@@ -363,7 +434,7 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
     }});
     if (!out.res.ok || !out.payload.ok) return;
     serverFolderList = out.payload.folders || [];
-    fillSelect("sc-server", serverFolderList, "", "Select a server folder…");
+    comboboxSetValue("sc-server", "");
   }}
 
   async function loadDeployment() {{
@@ -394,14 +465,10 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
         if (azServer) azServer.value = out.payload.target_server;
       }}
       if (out.payload.target_database) {{
-        fillSelect("sc-az-database", azDatabaseOptions, out.payload.target_database, "Select a database…");
-        const azDb = document.getElementById("sc-az-database");
-        if (azDb) azDb.value = out.payload.target_database;
+        comboboxSetValue("sc-az-database", out.payload.target_database);
       }}
       if (out.payload.migration_branch) {{
-        fillSelect("sc-branch", branchList, out.payload.migration_branch, "Select a branch…");
-        const br = document.getElementById("sc-branch");
-        if (br) br.value = out.payload.migration_branch;
+        comboboxSetValue("sc-branch", out.payload.migration_branch);
       }}
       toast(out.payload.message || "Deployment loaded.", false);
     }} catch (err) {{
@@ -423,7 +490,7 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
         return;
       }}
       azDatabaseOptions = out.payload.databases || [];
-      fillSelect("sc-az-database", azDatabaseOptions, az.database, "Select a database…");
+      comboboxSetValue("sc-az-database", az.database || azDatabaseOptions[0] || "");
       toast(out.payload.message || "Databases loaded.", false);
     }} catch (err) {{
       toast(err.message || "Database list failed.", true);
@@ -511,16 +578,37 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
     try {{ window.top.location.href = HOME_CLEAR_URL; }} catch (err) {{}}
   }}
 
-  fillSelect("sc-branch", branchList, {_js_literal(view.branch)}, "Select a branch…");
-  fillSelect("sc-database", dbFolderList, {_js_literal(view.database)}, "Select a database folder…");
-  fillSelect("sc-server", serverFolderList, {_js_literal(view.server)}, "Select a server folder…");
-  fillSelect("sc-az-database", azDatabaseOptions, {_js_literal(view.az_database)}, "Select a database…");
+  createCombobox({{
+    inputId: "sc-branch",
+    listId: "sc-branch-list",
+    getOptions: function () {{ return branchList; }},
+    onSelect: function () {{ loadDbFolders(); }},
+  }});
+  createCombobox({{
+    inputId: "sc-database",
+    listId: "sc-database-list",
+    getOptions: function () {{ return dbFolderList; }},
+    onSelect: function () {{ loadServerFolders(); }},
+  }});
+  createCombobox({{
+    inputId: "sc-server",
+    listId: "sc-server-list",
+    getOptions: function () {{ return serverFolderList; }},
+  }});
+  createCombobox({{
+    inputId: "sc-az-database",
+    listId: "sc-az-database-list",
+    getOptions: function () {{ return azDatabaseOptions; }},
+  }});
+
+  comboboxSetValue("sc-branch", {_js_literal(view.branch)});
+  comboboxSetValue("sc-database", {_js_literal(view.database)});
+  comboboxSetValue("sc-server", {_js_literal(view.server)});
+  comboboxSetValue("sc-az-database", {_js_literal(view.az_database)});
 
   document.getElementById("sc-branch-refresh")?.addEventListener("click", function (e) {{
     e.preventDefault(); loadBranches();
   }});
-  document.getElementById("sc-branch")?.addEventListener("change", function () {{ loadDbFolders(); }});
-  document.getElementById("sc-database")?.addEventListener("change", function () {{ loadServerFolders(); }});
   document.getElementById("sc-load-deployment")?.addEventListener("click", function (e) {{
     e.preventDefault(); loadDeployment();
   }});
@@ -837,28 +925,24 @@ def _wire_sc_setup_document(source: str, view: SchemaCompareSetupView) -> str:
         1,
     )
 
-    branch_opts = _options_html(view.branch, view.branch_list, placeholder="Select a branch…")
     doc = doc.replace(
-        '<select id="sc-branch" class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">\n      <option value="">Select a branch…</option>\n    </select>',
-        f'<select id="sc-branch" class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">{branch_opts}</select>',
+        'id="sc-branch" type="text" autocomplete="off" placeholder="Type to search branches…" class="w-full h-10 pl-md pr-10 border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" value=""',
+        f'id="sc-branch" type="text" autocomplete="off" placeholder="Type to search branches…" class="w-full h-10 pl-md pr-10 border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" value="{html.escape(view.branch)}"',
         1,
     )
-    db_opts = _options_html(view.database, view.db_folder_list, placeholder="Select a database folder…")
     doc = doc.replace(
-        '<select id="sc-database" class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">\n  <option value="">Select a database folder…</option>\n</select>',
-        f'<select id="sc-database" class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">{db_opts}</select>',
+        'id="sc-database" type="text" autocomplete="off" placeholder="Type to search database folders…" class="w-full h-10 pl-md pr-10 border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" value=""',
+        f'id="sc-database" type="text" autocomplete="off" placeholder="Type to search database folders…" class="w-full h-10 pl-md pr-10 border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" value="{html.escape(view.database)}"',
         1,
     )
-    srv_opts = _options_html(view.server, view.server_folder_list, placeholder="Select a server folder…")
     doc = doc.replace(
-        '<select id="sc-server" class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">\n  <option value="">Select a server folder…</option>\n</select>',
-        f'<select id="sc-server" class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">{srv_opts}</select>',
+        'id="sc-server" type="text" autocomplete="off" placeholder="Type to search server folders…" class="w-full h-10 pl-md pr-10 border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" value=""',
+        f'id="sc-server" type="text" autocomplete="off" placeholder="Type to search server folders…" class="w-full h-10 pl-md pr-10 border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" value="{html.escape(view.server)}"',
         1,
     )
-    az_opts = _options_html(view.az_database, view.az_database_options, placeholder="Select a database…")
     doc = doc.replace(
-        '<select id="sc-az-database" class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">\n      <option value="">Select a database…</option>\n    </select>',
-        f'<select id="sc-az-database" class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">{az_opts}</select>',
+        'id="sc-az-database" type="text" autocomplete="off" placeholder="Type to search databases…" class="w-full h-10 pl-md pr-10 border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" value=""',
+        f'id="sc-az-database" type="text" autocomplete="off" placeholder="Type to search databases…" class="w-full h-10 pl-md pr-10 border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" value="{html.escape(view.az_database)}"',
         1,
     )
 
