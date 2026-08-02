@@ -106,8 +106,8 @@
 <button id="sc-edit-creds" type="button" class="flex items-center gap-xs px-sm py-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded text-body-sm transition-colors">
 <span class="material-symbols-outlined text-[18px]">edit_note</span>Edit Credentials
 </button>
-<button type="button" class="flex items-center gap-xs px-sm py-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded text-body-sm transition-colors">
-<span class="material-symbols-outlined text-[18px]">settings</span>Configuration
+<button id="sc-refresh-btn" type="button" class="flex items-center gap-xs px-sm py-1 bg-primary text-on-primary hover:opacity-90 rounded text-body-sm font-bold transition-opacity">
+<span class="material-symbols-outlined text-[18px]">compare</span>Refresh
 </button>
 </div>
 <div class="flex items-center gap-md">
@@ -115,9 +115,13 @@
 <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
 <input id="sc-search" class="pl-8 pr-md py-1 border border-outline-variant rounded bg-surface w-64 text-body-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" placeholder="Search objects..." type="text">
 </div>
-<button id="sc-refresh-btn" type="button" class="flex items-center gap-xs px-md py-1 bg-primary text-on-primary hover:opacity-90 rounded text-body-sm font-bold transition-opacity">
-<span class="material-symbols-outlined text-[18px]">compare</span>Refresh
-</button>
+<div class="flex items-center gap-sm">
+<label class="text-label-caps font-label-caps text-secondary">GROUP BY</label>
+<select id="sc-group-by" class="border border-outline-variant rounded bg-surface text-body-sm px-sm py-1 focus:ring-1 focus:ring-primary outline-none">
+<option value="difference">Type of difference</option>
+<option value="object">Type of Object</option>
+</select>
+</div>
 </div>
 </div>
 <section class="bg-surface-container-low border-b border-outline-variant px-margin-edge py-2 flex items-center justify-between flex-none">
