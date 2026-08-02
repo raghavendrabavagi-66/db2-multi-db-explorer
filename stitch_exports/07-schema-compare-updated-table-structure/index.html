@@ -1,4 +1,4 @@
-<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<!DOCTYPE html><html class="light h-full" lang="en"><head>
 <meta charset="utf-8">
 <meta content="width=device-width, initial-scale=1.0" name="viewport">
 <title>DB2 Migration Studio - Comparison Results</title>
@@ -82,6 +82,14 @@
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+        /* Comparison table fills remaining viewport; scroll stays inside this panel. */
+        #sc-results-scroll {
+            -webkit-overflow-scrolling: touch;
+        }
     </style>
 </head>
 <body class="bg-background text-on-surface h-full flex flex-col overflow-hidden">
@@ -145,10 +153,10 @@
 </div>
 </section>
 <!-- Main Workspace Container -->
-<main class="flex-grow flex flex-col overflow-hidden bg-surface">
-<!-- Top Section: Comparison Table (60%) -->
-<div class="h-[60%] flex flex-col border-b border-outline-variant overflow-hidden">
-<div class="overflow-y-auto flex-grow bg-white">
+<main class="flex-1 min-h-0 flex flex-col overflow-hidden bg-surface">
+<!-- Top Section: Comparison Table -->
+<div class="flex-1 min-h-0 flex flex-col border-b border-outline-variant overflow-hidden">
+<div id="sc-results-scroll" class="flex-1 min-h-0 overflow-x-auto overflow-y-auto bg-white">
 <table class="w-full border-collapse">
 <thead class="sticky top-0 z-10 bg-surface-container-low shadow-sm"><tr class="text-left"><th class="px-md py-sm border-b border-outline-variant font-label-caps text-label-caps text-secondary uppercase tracking-wider">Type</th><th class="px-md py-sm border-b border-outline-variant font-label-caps text-label-caps text-secondary uppercase tracking-wider text-right">Source Schema</th><th class="px-md py-sm border-b border-outline-variant font-label-caps text-label-caps text-secondary uppercase tracking-wider text-right">Source Object</th><th class="w-12 px-xs py-sm border-b border-outline-variant text-center font-label-caps text-label-caps text-secondary uppercase tracking-wider"><div class="flex justify-center items-center"><input type="checkbox" class="rounded border-outline-variant text-primary focus:ring-primary" title="Select All"></div></th><th class="px-md py-sm border-b border-outline-variant font-label-caps text-label-caps text-secondary uppercase tracking-wider">Target Object</th><th class="px-md py-sm border-b border-outline-variant font-label-caps text-label-caps text-secondary uppercase tracking-wider">Target Schema</th><th class="px-md py-sm border-b border-outline-variant font-label-caps text-label-caps text-secondary uppercase tracking-wider text-right">Last Modified</th></tr></thead>
 <tbody id="sc-results-tbody" class="text-body-sm">
@@ -185,8 +193,8 @@
 </table>
 </div>
 </div>
-<!-- Bottom Section: SQL Diff View (40%) -->
-<div class="h-[40%] flex flex-col bg-white">
+<!-- Bottom Section: SQL Diff View -->
+<div class="flex-1 min-h-0 flex flex-col bg-white overflow-hidden">
 <div class="bg-surface-container-low border-b border-outline-variant px-md py-1 flex items-center justify-between"><div class="flex items-center gap-xl h-full">
 <div class="flex items-center gap-md">
 </div>
@@ -202,7 +210,7 @@
 <div class="h-4 w-px bg-outline-variant mx-1"></div>
 <button class="p-1 hover:bg-surface-container-high rounded" title="Copy SQL"><span class="material-symbols-outlined text-[18px]">content_copy</span></button>
 </div></div>
-<div class="flex-grow flex flex-col overflow-hidden">
+<div class="flex-1 min-h-0 flex flex-col overflow-hidden">
 <!-- SQL View Content (Active) -->
 <div class="w-full bg-surface-container-low border-b border-outline-variant px-md py-2 flex items-center gap-xl"><div class="flex items-center gap-xl">
 <div class="flex items-center gap-sm">
@@ -219,14 +227,14 @@
 <span class="text-label-caps font-label-caps text-secondary uppercase">OBJECT:</span>
 <span id="sc-detail-object" class="text-body-sm font-bold text-on-surface uppercase">—</span>
 </div>
-</div></div><div class="flex-grow flex overflow-hidden" id="tab-sql-view">
+</div></div><div class="flex-1 min-h-0 flex overflow-hidden" id="tab-sql-view">
 <!-- Source SQL -->
 <div class="w-1/2 border-r border-outline-variant flex flex-col overflow-hidden">
 <div class="bg-surface-container-lowest border-b border-outline-variant px-md py-1 flex items-center gap-sm">
 <span class="material-symbols-outlined text-[14px] text-secondary">source</span>
 <span class="text-[11px] font-bold text-secondary uppercase">Source: GitLab_PRD</span>
 </div>
-<div class="flex-grow overflow-auto font-code-sm text-code-sm bg-slate-50 p-2 whitespace-pre" id="sc-diff-source">
+<div class="flex-1 min-h-0 overflow-auto font-code-sm text-code-sm bg-slate-50 p-2 whitespace-pre" id="sc-diff-source">
 <div class="flex text-secondary"><span class="diff-line-num">—</span>Select an object to view DDL diff.</div>
 </div>
 </div>
@@ -236,19 +244,19 @@
 <span class="material-symbols-outlined text-[14px] text-secondary">target</span>
 <span class="text-[11px] font-bold text-secondary uppercase">Target: Azure_SQL_Managed</span>
 </div>
-<div class="flex-grow overflow-auto font-code-sm text-code-sm bg-slate-50 p-2 whitespace-pre" id="sc-diff-target">
+<div class="flex-1 min-h-0 overflow-auto font-code-sm text-code-sm bg-slate-50 p-2 whitespace-pre" id="sc-diff-target">
 <div class="flex text-secondary"><span class="diff-line-num">—</span>Select an object to view DDL diff.</div>
 </div>
 </div>
 </div>
 <!-- Summary View Placeholder (Hidden) -->
-<div class="hidden flex-grow flex items-center justify-center bg-slate-50 text-secondary p-md" id="tab-summary">
+<div class="hidden flex-1 min-h-0 flex items-center justify-center bg-slate-50 text-secondary p-md" id="tab-summary">
 <div class="text-left w-full max-w-xl text-body-sm" id="sc-summary-content">
 <p>Select an object to view comparison summary.</p>
 </div>
 </div>
 <!-- Sync View Placeholder (Hidden) -->
-<div class="hidden flex-grow flex items-center justify-center bg-slate-50 text-secondary" id="tab-sync">
+<div class="hidden flex-1 min-h-0 flex items-center justify-center bg-slate-50 text-secondary" id="tab-sync">
 <div class="text-center">
 <span class="material-symbols-outlined text-[48px] mb-2">sync_alt</span>
 <p class="text-body-md">Synchronization options and script generation.</p>
