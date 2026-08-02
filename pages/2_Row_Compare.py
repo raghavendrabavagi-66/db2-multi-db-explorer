@@ -7,10 +7,15 @@ from datetime import datetime
 import streamlit as st
 
 from db2_explorer.api.register import ensure_oe_search_api
-from db2_explorer.api.rc_credential_store import consume_bind_token, get_connect_payload
+from db2_explorer.api.rc_credential_store import (
+    consume_bind_token,
+    get_connect_payload,
+    get_connect_token,
+)
 from db2_explorer.api.rc_result_store import (
     credentials_payload_from_session,
     get_result_snapshot,
+    get_result_snapshot_for_session,
     save_result_snapshot,
 )
 from db2_explorer.clients.azure import AUTH_METHOD_LABELS, AzureConnection
@@ -119,14 +124,22 @@ def _apply_rc_bind() -> bool:
 def _restore_from_session_cache() -> bool:
     """Reload credentials from the server cache using session_state sid + token."""
     sid = str(st.session_state.get("rc_sid", "")).strip()
+    if not sid:
+        return False
     token = str(st.session_state.get("rc_token", "")).strip()
-    if not sid or not token:
+    if not token:
+        token = get_connect_token(sid) or ""
+        if token:
+            st.session_state.rc_token = token
+    if not token:
         return False
     payload = get_connect_payload(sid, token)
     if not payload:
         return False
     for key, val in payload.items():
         st.session_state[key] = val
+    st.session_state.rc_sid = sid
+    st.session_state.rc_token = token
     return True
 
 
@@ -144,11 +157,21 @@ def _session_credentials() -> dict[str, object]:
     return credentials_payload_from_session(dict(st.session_state))
 
 
-def _cached_results_available() -> bool:
+def _lookup_result_snapshot() -> dict[str, object] | None:
+    """Return the latest comparison snapshot for the active Row Compare session."""
     sid = str(st.session_state.get("rc_sid", "")).strip()
-    if not sid:
-        return False
-    return get_result_snapshot(sid, _session_credentials()) is not None
+    token = str(st.session_state.get("rc_token", "")).strip()
+    if sid and token:
+        snapshot = get_result_snapshot_for_session(sid, token)
+        if snapshot:
+            return snapshot
+    if sid:
+        return get_result_snapshot(sid, _session_credentials())
+    return None
+
+
+def _cached_results_available() -> bool:
+    return _lookup_result_snapshot() is not None
 
 
 def _ensure_setup_credentials() -> None:
@@ -203,6 +226,8 @@ def _handle_query_actions() -> None:
         st.session_state.rc_setup_done = False
         _set_toast("Edit connection settings below.")
     elif action == "back":
+        if not restored:
+            _restore_from_session_cache()
         st.session_state.rc_setup_mode = "initial"
         st.session_state.rc_setup_done = True
     elif action == "run":
@@ -330,8 +355,7 @@ def _workspace_view() -> RowCompareWorkspaceView:
         tbody_views = comparison_tbody_views(records)
         rows_html = tbody_views.get("all", comparison_rows_html(records))
     else:
-        sid = str(st.session_state.get("rc_sid", "")).strip()
-        snapshot = get_result_snapshot(sid, _session_credentials()) if sid else None
+        snapshot = _lookup_result_snapshot()
         if snapshot:
             has_results = True
             metrics = dict(snapshot.get("metrics") or {})

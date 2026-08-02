@@ -201,6 +201,7 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
     test_db2_url = rc_test_db2_api_url()
     list_az_url = rc_list_azure_databases_api_url()
     save_connect_url = rc_save_connect_api_url()
+    create_bind_url = rc_create_bind_api_url()
     return f"""
 <script>
 (function () {{
@@ -209,6 +210,7 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
   const TEST_DB2_URL = {json.dumps(test_db2_url)};
   const LIST_AZ_URL = {json.dumps(list_az_url)};
   const SAVE_CONNECT_URL = {json.dumps(save_connect_url)};
+  const CREATE_BIND_URL = {json.dumps(create_bind_url)};
   const RC_SID_KEY = "rc_sid";
   const RC_TOKEN_KEY = "rc_token";
   const EDIT_MODE = {json.dumps(view.edit_mode)};
@@ -250,9 +252,34 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
   }}
 
   function navigateBackToWorkspace() {{
-    const p = new URLSearchParams();
-    p.set("rc_action", "back");
-    rcNavigate(p);
+    const sid = rcSessionId();
+    const token = rcSessionToken();
+    if (!sid || !token) {{
+      const p = new URLSearchParams();
+      p.set("rc_action", "back");
+      rcNavigate(p);
+      return;
+    }}
+    fetch(apiUrl(CREATE_BIND_URL), {{
+      method: "POST",
+      headers: {{ "Content-Type": "application/json" }},
+      body: JSON.stringify({{ rc_sid: sid, rc_token: token }}),
+    }}).then(function (res) {{
+      return res.json().then(function (payload) {{
+        return {{ res: res, payload: payload }};
+      }});
+    }}).then(function (out) {{
+      const p = new URLSearchParams();
+      p.set("rc_action", "back");
+      if (out.res.ok && out.payload.ok && out.payload.rc_bind) {{
+        p.set("rc_bind", out.payload.rc_bind);
+      }}
+      rcNavigate(p);
+    }}).catch(function () {{
+      const p = new URLSearchParams();
+      p.set("rc_action", "back");
+      rcNavigate(p);
+    }});
   }}
 
   function navigateHomeClear() {{
@@ -745,6 +772,7 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
   const CREATE_BIND_URL = {json.dumps(create_bind_url)};
   const RC_SID_KEY = "rc_sid";
   const RC_TOKEN_KEY = "rc_token";
+  const RC_COMPARISON_CACHE_KEY = "rc_comparison_cache";
   const FILTER_ACTIVE =
     "h-10 px-md text-body-sm font-bold text-primary border-b-2 border-primary transition-all";
   const FILTER_IDLE =
@@ -860,6 +888,30 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
       all: payload.tbody_html || "",
     }};
     applyResultFilter(currentFilter);
+    try {{
+      sessionStorage.setItem(RC_COMPARISON_CACHE_KEY, JSON.stringify({{
+        sid: rcSessionId(),
+        metrics: m,
+        tbody_views: lastComparisonViews,
+        tbody_html: payload.tbody_html || lastComparisonViews.all || "",
+      }}));
+    }} catch (err) {{}}
+  }}
+
+  function restoreCachedComparisonIfNeeded() {{
+    try {{
+      const raw = sessionStorage.getItem(RC_COMPARISON_CACHE_KEY);
+      if (!raw) return;
+      const cached = JSON.parse(raw);
+      if (cached.sid && cached.sid !== rcSessionId()) return;
+      const hasServerRows = lastComparisonViews &&
+        typeof lastComparisonViews === "object" &&
+        Object.keys(lastComparisonViews).some(function (key) {{
+          return String(lastComparisonViews[key] || "").trim().length > 0;
+        }});
+      if (hasServerRows) return;
+      applyComparisonResults(cached);
+    }} catch (err) {{}}
   }}
 
   function wireResultFilters() {{
@@ -989,6 +1041,7 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
   }});
 
   wireResultFilters();
+  restoreCachedComparisonIfNeeded();
   if (lastComparisonViews) {{
     applyResultFilter(currentFilter);
   }}

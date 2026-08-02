@@ -8,7 +8,11 @@ import os
 import time
 from typing import Any
 
-from db2_explorer.api.rc_credential_store import has_connect_session, purge_expired
+from db2_explorer.api.rc_credential_store import (
+    get_connect_payload,
+    has_connect_session,
+    purge_expired,
+)
 
 _DEFAULT_TTL_SECONDS = 30 * 60
 
@@ -95,6 +99,21 @@ def save_result_snapshot(
         "expires_at": now + _ttl_seconds(),
         "updated_at": now,
     }
+
+
+def get_result_snapshot_for_session(
+    rc_sid: str,
+    rc_token: str,
+) -> dict[str, Any] | None:
+    """Look up cached results using credentials from the server store (avoids session drift)."""
+    sid = (rc_sid or "").strip()
+    token = (rc_token or "").strip()
+    if not sid or not token:
+        return None
+    payload = get_connect_payload(sid, token)
+    if not payload:
+        return None
+    return get_result_snapshot(sid, payload)
 
 
 def get_result_snapshot(rc_sid: str, credentials: dict[str, Any]) -> dict[str, Any] | None:
