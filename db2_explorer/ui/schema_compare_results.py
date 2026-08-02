@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import html
-from typing import Any
+from typing import Any, Literal
 
 from db2_explorer.compare.schema_compare import (
     CompareStatusLiteral,
@@ -14,6 +14,8 @@ from db2_explorer.compare.schema_compare import (
 )
 from db2_explorer.ddl.diff_viewer import prepare_display_ddl
 from db2_explorer.gitlab.deployment_parser import OBJECT_TYPE_FILES
+
+GroupByMode = Literal["difference", "object"]
 
 _TYPE_LABELS = {
     "SCHEMA": "Schema",
@@ -102,7 +104,7 @@ def _build_stitch_diff_panes(gitlab_ddl: str, db_ddl: str) -> tuple[str, str]:
     return _stitch_diff_lines(paired_left, pane="source"), _stitch_diff_lines(paired_right, pane="target")
 
 
-def _object_row_html(item: ObjectCompareResult) -> str:
+def _object_row_html(item: ObjectCompareResult, *, parent_group: str) -> str:
     icon = _STATUS_ROW_ICON.get(item.status, "help")
     type_label = _type_label(item.object_type)
     src_schema = html.escape(item.schema or "—")
@@ -110,9 +112,12 @@ def _object_row_html(item: ObjectCompareResult) -> str:
     tgt_schema = html.escape(item.schema or "—")
     tgt_name = html.escape(item.name or "—")
     key = html.escape(item.object_key, quote=True)
+    group_key = html.escape(parent_group, quote=True)
+    status = html.escape(item.status, quote=True)
+    obj_type = html.escape(item.object_type, quote=True)
     return (
-        f'<tr class="border-b border-outline-variant hover:bg-surface-container-low transition-colors sc-object-row" '
-        f'data-object-key="{key}">'
+        f'<tr class="border-b border-outline-variant hover:bg-surface-container-low transition-colors sc-object-row sc-group-member" '
+        f'data-object-key="{key}" data-parent-group="{group_key}" data-status="{status}" data-object-type="{obj_type}">'
         f'<td class="px-md py-2"><div class="flex items-center gap-xs">'
         f'<span class="material-symbols-outlined text-tertiary text-[18px]">{icon}</span>'
         f'<span class="text-secondary">{html.escape(type_label)}</span></div></td>'
@@ -127,14 +132,16 @@ def _object_row_html(item: ObjectCompareResult) -> str:
     )
 
 
-def _group_header_html(status: CompareStatusLiteral, label: str, count: int, icon: str) -> str:
+def _group_header_html(group_key: str, label: str, count: int, *, expanded: bool = True) -> str:
+    chevron = "expand_more" if expanded else "chevron_right"
+    expanded_attr = "true" if expanded else "false"
     return (
         f'<tr class="bg-surface-container-high/50 group cursor-pointer hover:bg-surface-container-high transition-colors sc-group-row" '
-        f'data-group-status="{html.escape(status, quote=True)}">'
+        f'data-group-key="{html.escape(group_key, quote=True)}" data-expanded="{expanded_attr}">'
         f'<td class="px-md py-2 border-b border-outline-variant font-bold text-on-surface text-center" colspan="7">'
         f'<div class="flex items-center justify-between w-full">'
         f'<div class="flex items-center w-full"><div class="flex items-center gap-sm w-[33%]">'
-        f'<span class="material-symbols-outlined text-primary">expand_more</span>'
+        f'<span class="material-symbols-outlined text-primary sc-group-chevron">{chevron}</span>'
         f"<span>{count} {html.escape(label)}</span></div>"
         f'<div class="w-12 flex justify-center"><span class="text-body-sm font-medium text-secondary">0 of {count}</span></div>'
         f'<div class="w-12 flex justify-center">'
@@ -143,30 +150,66 @@ def _group_header_html(status: CompareStatusLiteral, label: str, count: int, ico
     )
 
 
-def comparison_table_html(result: SchemaCompareResult) -> str:
-    """Grouped comparison table body rows matching stitch 07 layout."""
-    by_status: dict[CompareStatusLiteral, list[ObjectCompareResult]] = {
-        "different": [],
-        "only_gitlab": [],
-        "only_db": [],
-        "identical": [],
-    }
-    for item in flatten_results(result):
-        by_status.setdefault(item.status, []).append(item)
+def _object_type_sort_keys(present: set[str] | None = None) -> list[str]:
+    known = list(OBJECT_TYPE_FILES.keys())
+    if not present:
+        return known
+    return known + sorted(present - set(known))
 
-    parts: list[str] = []
-    for status, icon, label in _GROUP_ORDER:
-        items = by_status.get(status, [])
-        if not items:
-            continue
-        parts.append(_group_header_html(status, label, len(items), icon))
-        for item in items:
-            parts.append(_object_row_html(item))
-    if not parts:
-        parts.append(
+
+def comparison_table_group_config() -> dict[str, Any]:
+    """JSON-serializable grouping metadata for workspace iframe JS."""
+    return {
+        "differenceGroups": [
+            {"key": status, "label": label} for status, _icon, label in _GROUP_ORDER
+        ],
+        "objectTypeOrder": list(OBJECT_TYPE_FILES.keys()),
+        "typeLabels": dict(_TYPE_LABELS),
+        "statusIcons": dict(_STATUS_ROW_ICON),
+    }
+
+
+def comparison_table_html(
+    result: SchemaCompareResult,
+    *,
+    group_by: GroupByMode = "difference",
+) -> str:
+    """Grouped comparison table body rows matching stitch 07 layout."""
+    flat = flatten_results(result)
+    if not flat:
+        return (
             '<tr><td colspan="7" class="px-md py-lg text-center text-secondary">'
             "No objects compared yet.</td></tr>"
         )
+
+    parts: list[str] = []
+    if group_by == "object":
+        by_type: dict[str, list[ObjectCompareResult]] = {}
+        for item in flat:
+            by_type.setdefault(item.object_type, []).append(item)
+        for object_type in _object_type_sort_keys(set(by_type.keys())):
+            items = by_type.get(object_type, [])
+            if not items:
+                continue
+            parts.append(_group_header_html(object_type, _type_label(object_type), len(items)))
+            for item in items:
+                parts.append(_object_row_html(item, parent_group=object_type))
+    else:
+        by_status: dict[CompareStatusLiteral, list[ObjectCompareResult]] = {
+            "different": [],
+            "only_gitlab": [],
+            "only_db": [],
+            "identical": [],
+        }
+        for item in flat:
+            by_status.setdefault(item.status, []).append(item)
+        for status, _icon, label in _GROUP_ORDER:
+            items = by_status.get(status, [])
+            if not items:
+                continue
+            parts.append(_group_header_html(status, label, len(items)))
+            for item in items:
+                parts.append(_object_row_html(item, parent_group=status))
     return "".join(parts)
 
 

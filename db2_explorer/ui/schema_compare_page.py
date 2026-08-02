@@ -23,6 +23,7 @@ from db2_explorer.api.register import (
 )
 from db2_explorer.gitlab.client import gitlab_repo_display
 from db2_explorer.ui.sch_session import schema_compare_home_clear_url
+from db2_explorer.ui.schema_compare_results import comparison_table_group_config
 from db2_explorer.ui.stitch_shell import (
     _read_html,
     inject_shell_component,
@@ -769,6 +770,7 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
 
 def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
     objects_json = json.dumps(view.objects) if view.objects else "{}"
+    group_config_json = json.dumps(comparison_table_group_config())
     return f"""
 <script>
 (function () {{
@@ -779,11 +781,202 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
   const SC_SID_KEY = "sch_sid";
   const SC_TOKEN_KEY = "sch_token";
   const SC_CACHE_KEY = "sch_comparison_cache";
+  const SC_GROUP_BY_KEY = "sch_group_by";
+  const GROUP_CONFIG = {group_config_json};
 
   let objectMap = {objects_json};
   let selectedKey = {_js_literal(view.selected_object_key)};
   let activeTab = "sql";
   let compareInFlight = false;
+  let groupByMode = "difference";
+
+  function escHtml(value) {{
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/"/g, "&quot;");
+  }}
+
+  function groupBySelectValue() {{
+    const el = document.getElementById("sc-group-by");
+    const value = el ? el.value : "difference";
+    return value === "object" ? "object" : "difference";
+  }}
+
+  function saveGroupByPreference(mode) {{
+    try {{ sessionStorage.setItem(SC_GROUP_BY_KEY, mode); }} catch (err) {{}}
+  }}
+
+  function loadGroupByPreference() {{
+    try {{
+      const saved = sessionStorage.getItem(SC_GROUP_BY_KEY);
+      if (saved === "object" || saved === "difference") return saved;
+    }} catch (err) {{}}
+    return "difference";
+  }}
+
+  function objectList() {{
+    return Object.keys(objectMap).map(function (key) {{
+      const obj = objectMap[key];
+      obj.object_key = obj.object_key || key;
+      return obj;
+    }}).sort(function (a, b) {{
+      const ta = (a.object_type || "").localeCompare(b.object_type || "");
+      if (ta !== 0) return ta;
+      const sa = (a.schema || "").localeCompare(b.schema || "");
+      if (sa !== 0) return sa;
+      return (a.name || "").localeCompare(b.name || "");
+    }});
+  }}
+
+  function groupedObjects(mode) {{
+    const groups = [];
+    const items = objectList();
+    if (mode === "object") {{
+      const byType = {{}};
+      items.forEach(function (obj) {{
+        const key = obj.object_type || "UNKNOWN";
+        if (!byType[key]) byType[key] = [];
+        byType[key].push(obj);
+      }});
+      const order = GROUP_CONFIG.objectTypeOrder || [];
+      const seen = {{}};
+      order.forEach(function (typeKey) {{
+        if (!byType[typeKey] || !byType[typeKey].length) return;
+        seen[typeKey] = true;
+        groups.push({{
+          key: typeKey,
+          label: (GROUP_CONFIG.typeLabels && GROUP_CONFIG.typeLabels[typeKey]) || typeKey,
+          items: byType[typeKey],
+        }});
+      }});
+      Object.keys(byType).sort().forEach(function (typeKey) {{
+        if (seen[typeKey]) return;
+        groups.push({{
+          key: typeKey,
+          label: (GROUP_CONFIG.typeLabels && GROUP_CONFIG.typeLabels[typeKey]) || typeKey,
+          items: byType[typeKey],
+        }});
+      }});
+      return groups;
+    }}
+    const byStatus = {{}};
+    items.forEach(function (obj) {{
+      const key = obj.status || "identical";
+      if (!byStatus[key]) byStatus[key] = [];
+      byStatus[key].push(obj);
+    }});
+    (GROUP_CONFIG.differenceGroups || []).forEach(function (def) {{
+      const bucket = byStatus[def.key];
+      if (!bucket || !bucket.length) return;
+      groups.push({{ key: def.key, label: def.label, items: bucket }});
+    }});
+    return groups;
+  }}
+
+  function buildGroupHeaderHtml(groupKey, label, count, expanded) {{
+    const chevron = expanded ? "expand_more" : "chevron_right";
+    const expandedAttr = expanded ? "true" : "false";
+    return (
+      '<tr class="bg-surface-container-high/50 group cursor-pointer hover:bg-surface-container-high transition-colors sc-group-row" '
+      + 'data-group-key="' + escHtml(groupKey) + '" data-expanded="' + expandedAttr + '">'
+      + '<td class="px-md py-2 border-b border-outline-variant font-bold text-on-surface text-center" colspan="7">'
+      + '<div class="flex items-center justify-between w-full">'
+      + '<div class="flex items-center w-full"><div class="flex items-center gap-sm w-[33%]">'
+      + '<span class="material-symbols-outlined text-primary sc-group-chevron">' + chevron + '</span>'
+      + "<span>" + count + " " + escHtml(label) + "</span></div>"
+      + '<div class="w-12 flex justify-center"><span class="text-body-sm font-medium text-secondary">0 of ' + count + '</span></div>'
+      + '<div class="w-12 flex justify-center">'
+      + '<input type="checkbox" class="rounded border-outline-variant text-primary focus:ring-primary sc-group-check" title="Select Group"></div>'
+      + '<div class="flex-grow"></div></div></div></td></tr>'
+    );
+  }}
+
+  function buildObjectRowHtml(obj, parentGroup) {{
+    const icons = GROUP_CONFIG.statusIcons || {{}};
+    const icon = icons[obj.status] || "help";
+    const typeLabel = obj.type_label || obj.object_type || "—";
+    const srcSchema = obj.schema || "—";
+    const srcName = obj.name || "—";
+    const tgtSchema = obj.schema || "—";
+    const tgtName = obj.name || "—";
+    return (
+      '<tr class="border-b border-outline-variant hover:bg-surface-container-low transition-colors sc-object-row sc-group-member" '
+      + 'data-object-key="' + escHtml(obj.object_key) + '" data-parent-group="' + escHtml(parentGroup) + '" '
+      + 'data-status="' + escHtml(obj.status || "") + '" data-object-type="' + escHtml(obj.object_type || "") + '">'
+      + '<td class="px-md py-2"><div class="flex items-center gap-xs">'
+      + '<span class="material-symbols-outlined text-tertiary text-[18px]">' + escHtml(icon) + '</span>'
+      + '<span class="text-secondary">' + escHtml(typeLabel) + '</span></div></td>'
+      + '<td class="px-md py-2 font-medium text-right text-secondary">' + escHtml(srcSchema) + '</td>'
+      + '<td class="px-md py-2 font-medium text-right">' + escHtml(srcName) + '</td>'
+      + '<td class="px-xs py-2 text-center flex justify-center">'
+      + '<input class="rounded border-outline-variant text-primary focus:ring-primary sc-row-check" type="checkbox"></td>'
+      + '<td class="px-md py-2 font-medium">' + escHtml(tgtName) + '</td>'
+      + '<td class="px-md py-2 text-secondary text-left">' + escHtml(tgtSchema) + '</td>'
+      + '<td class="px-md py-2 text-secondary text-left">—</td>'
+      + "</tr>"
+    );
+  }}
+
+  function renderComparisonTable(mode, expandedState) {{
+    const tbody = document.getElementById("sc-results-tbody");
+    if (!tbody) return;
+    groupByMode = mode === "object" ? "object" : "difference";
+    const groups = groupedObjects(groupByMode);
+    if (!groups.length) {{
+      tbody.innerHTML = (
+        '<tr><td colspan="7" class="px-md py-lg text-center text-secondary">'
+        + "No objects compared yet.</td></tr>"
+      );
+      return;
+    }}
+    const expanded = expandedState || {{}};
+    const parts = [];
+    groups.forEach(function (group) {{
+      const isExpanded = expanded[group.key] !== false;
+      parts.push(buildGroupHeaderHtml(group.key, group.label, group.items.length, isExpanded));
+      group.items.forEach(function (obj) {{
+        parts.push(buildObjectRowHtml(obj, group.key));
+      }});
+    }});
+    tbody.innerHTML = parts.join("");
+    wireGroupRows();
+    wireObjectRows();
+    updateTableVisibility();
+  }}
+
+  function updateTableVisibility() {{
+    const q = (document.getElementById("sc-search")?.value || "").toLowerCase();
+    document.querySelectorAll(".sc-object-row").forEach(function (row) {{
+      const groupKey = row.dataset.parentGroup || "";
+      const groupRow = document.querySelector('.sc-group-row[data-group-key="' + groupKey + '"]');
+      const collapsed = groupRow && groupRow.dataset.expanded === "false";
+      const matchSearch = !q || (row.textContent || "").toLowerCase().indexOf(q) >= 0;
+      row.style.display = collapsed || !matchSearch ? "none" : "";
+    }});
+    document.querySelectorAll(".sc-group-row").forEach(function (groupRow) {{
+      const groupKey = groupRow.dataset.groupKey || "";
+      const members = document.querySelectorAll('.sc-group-member[data-parent-group="' + groupKey + '"]');
+      let anyVisible = false;
+      members.forEach(function (member) {{
+        if (member.style.display !== "none") anyVisible = true;
+      }});
+      groupRow.style.display = anyVisible ? "" : "none";
+    }});
+  }}
+
+  function wireGroupRows() {{
+    document.querySelectorAll(".sc-group-row").forEach(function (groupRow) {{
+      groupRow.addEventListener("click", function (e) {{
+        if (e.target.closest("input")) return;
+        const expanded = groupRow.dataset.expanded !== "false";
+        groupRow.dataset.expanded = expanded ? "false" : "true";
+        const chevron = groupRow.querySelector(".sc-group-chevron");
+        if (chevron) chevron.textContent = expanded ? "chevron_right" : "expand_more";
+        updateTableVisibility();
+      }});
+    }});
+  }}
 
   function scSessionToken() {{
     try {{ return sessionStorage.getItem(SC_TOKEN_KEY) || ""; }} catch (err) {{ return ""; }}
@@ -858,15 +1051,11 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
 
   function applyComparisonResults(payload) {{
     objectMap = payload.objects || {{}};
-    if (payload.table_html) {{
-      const tbody = document.getElementById("sc-results-tbody");
-      if (tbody) tbody.innerHTML = payload.table_html;
-    }}
     setText("sc-source-label", payload.source_label || "GitLab Source");
     setText("sc-target-label", payload.target_label || "Azure SQL Target");
     const total = payload.total_objects || payload.summary?.total || 0;
     setText("sc-selected-count", "0 of " + total);
-    wireObjectRows();
+    renderComparisonTable(groupBySelectValue());
     try {{
       sessionStorage.setItem(SC_CACHE_KEY, JSON.stringify({{
         sid: scSessionId(), payload: payload,
@@ -1029,13 +1218,21 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
     e.preventDefault(); runComparison();
   }});
 
-  document.getElementById("sc-search")?.addEventListener("input", function (e) {{
-    const q = (e.target.value || "").toLowerCase();
-    document.querySelectorAll(".sc-object-row").forEach(function (row) {{
-      const text = (row.textContent || "").toLowerCase();
-      row.style.display = !q || text.indexOf(q) >= 0 ? "" : "none";
-    }});
+  document.getElementById("sc-search")?.addEventListener("input", function () {{
+    updateTableVisibility();
   }});
+
+  document.getElementById("sc-group-by")?.addEventListener("change", function (e) {{
+    const mode = e.target.value === "object" ? "object" : "difference";
+    saveGroupByPreference(mode);
+    renderComparisonTable(mode);
+  }});
+
+  (function initGroupBySelect() {{
+    const saved = loadGroupByPreference();
+    const select = document.getElementById("sc-group-by");
+    if (select) select.value = saved;
+  }})();
 
   document.getElementById("sc-tab-sql")?.addEventListener("click", function (e) {{
     e.preventDefault(); setActiveTab("sql");
@@ -1048,7 +1245,13 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
   }});
 
   restoreCachedComparisonIfNeeded();
-  wireObjectRows();
+  if (Object.keys(objectMap).length) {{
+    renderComparisonTable(groupBySelectValue());
+  }} else {{
+    wireGroupRows();
+    wireObjectRows();
+    updateTableVisibility();
+  }}
   setActiveTab("sql");
 
   {f'toast({_js_literal(view.toast_message)}, {json.dumps(view.toast_error)});' if view.toast_message else ''}
