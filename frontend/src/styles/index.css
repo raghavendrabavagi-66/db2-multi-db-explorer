@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+.studio-input {
+  @apply w-full rounded border border-outline-variant bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary;
+}
+
+.studio-btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded bg-primary px-4 py-2 text-sm font-semibold text-on-primary transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+.studio-btn-outline {
+  @apply inline-flex items-center justify-center gap-2 rounded border border-primary px-4 py-2 text-sm font-medium text-primary transition hover:bg-surface-container-low disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+.studio-card {
+  @apply rounded border border-outline-variant bg-surface-container-lowest shadow-sm;
+}

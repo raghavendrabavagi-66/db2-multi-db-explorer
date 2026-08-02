@@ -32,4 +32,8 @@ fi
 pip install ibm_db
 
 echo ""
-echo "Done. Run:  source .venv/bin/activate && streamlit run app.py"
+echo "Done."
+echo "  React + FastAPI:  source .venv/bin/activate"
+echo "    PYTHONPATH=. uvicorn backend.app.main:app --reload --port 8000"
+echo "    cd frontend && npm install && npm run dev"
+echo "  Legacy Streamlit: streamlit run legacy/streamlit/app.py"

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from db2_explorer.api.rc_credential_store import save_connect_payload
+from db2_explorer.api.rc_credential_store import get_connect_payload, save_connect_payload
 from db2_explorer.clients.azure import AUTH_METHOD_LABELS, AzureConnection, query as azure_query, test_connection as test_azure
 from db2_explorer.clients.db2 import query_single
 from db2_explorer.data.connections import Connection
@@ -105,6 +105,17 @@ def save_connect_json(body: dict[str, Any]) -> dict[str, Any]:
         },
     )
     return {"ok": True, "message": "Credentials saved."}
+
+
+def get_connect_json(rc_sid: str) -> dict[str, Any]:
+    """Return saved Row Compare credentials for a browser session id."""
+    sid = str(rc_sid or "").strip()
+    if not sid:
+        return {"ok": False, "error": "Session id is required."}
+    payload = get_connect_payload(sid)
+    if not payload:
+        return {"ok": False, "error": "Connection not found."}
+    return {"ok": True, "credentials": payload}
 
 
 def list_azure_databases_json(body: dict[str, Any]) -> dict[str, Any]:
