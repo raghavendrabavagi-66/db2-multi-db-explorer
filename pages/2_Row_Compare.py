@@ -135,6 +135,16 @@ def _ensure_az_database_in_options() -> None:
         st.session_state.cmp_az_database_options = [az_db, *options]
 
 
+def _ensure_setup_credentials() -> None:
+    """Prefill setup form from server cache when entering edit mode."""
+    if st.session_state.get("rc_setup_mode") != "edit":
+        return
+    if str(st.session_state.get("cmp_db2_database", "")).strip():
+        return
+    _restore_from_session_cache()
+    _ensure_az_database_in_options()
+
+
 def _handle_query_actions() -> None:
     action = st.query_params.get("rc_action", "")
     if not action:
@@ -165,6 +175,12 @@ def _handle_query_actions() -> None:
     elif action == "edit":
         if not restored:
             _restore_from_session_cache()
+        if not str(st.session_state.get("cmp_db2_database", "")).strip():
+            _set_toast("Session expired — connect again.", error=True)
+            st.session_state.rc_setup_done = True
+            st.session_state.rc_setup_mode = "initial"
+            st.query_params.clear()
+            return
         _ensure_az_database_in_options()
         st.session_state.rc_setup_mode = "edit"
         st.session_state.rc_setup_done = False
@@ -301,6 +317,7 @@ def _workspace_view() -> RowCompareWorkspaceView:
 _init_session()
 ensure_oe_search_api()
 _handle_query_actions()
+_ensure_setup_credentials()
 
 if st.session_state.rc_setup_done:
     render_row_compare_workspace_page(_workspace_view())

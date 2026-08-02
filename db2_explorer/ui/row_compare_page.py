@@ -12,6 +12,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from db2_explorer.api.register import (
+    rc_create_bind_api_url,
     rc_list_azure_databases_api_url,
     rc_run_comparison_api_url,
     rc_save_connect_api_url,
@@ -733,6 +734,7 @@ def _table_type_original_checked(mode: str) -> str:
 
 def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
     run_compare_url = rc_run_comparison_api_url()
+    create_bind_url = rc_create_bind_api_url()
     initial_views = json.dumps(view.result_tbody_views) if view.result_tbody_views else "null"
     return f"""
 <script>
@@ -740,6 +742,7 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
   const RC_PAGE = {json.dumps(ROW_COMPARE_PAGE)};
   const HOME_CLEAR_URL = {json.dumps(_HOME_CLEAR_URL)};
   const RUN_COMPARE_URL = {json.dumps(run_compare_url)};
+  const CREATE_BIND_URL = {json.dumps(create_bind_url)};
   const RC_SID_KEY = "rc_sid";
   const RC_TOKEN_KEY = "rc_token";
   const FILTER_ACTIVE =
@@ -948,9 +951,35 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
   const editBtn = document.getElementById("rc-edit-creds");
   if (editBtn) editBtn.addEventListener("click", function (e) {{
     e.preventDefault();
-    const p = new URLSearchParams();
-    p.set("rc_action", "edit");
-    rcNavigate(p);
+    const sid = rcSessionId();
+    const token = rcSessionToken();
+    if (!sid || !token) {{
+      toast("Session expired — connect again from setup.", true);
+      return;
+    }}
+    editBtn.disabled = true;
+    fetch(apiUrl(CREATE_BIND_URL), {{
+      method: "POST",
+      headers: {{ "Content-Type": "application/json" }},
+      body: JSON.stringify({{ rc_sid: sid, rc_token: token }}),
+    }}).then(function (res) {{
+      return res.json().then(function (payload) {{
+        return {{ res: res, payload: payload }};
+      }});
+    }}).then(function (out) {{
+      editBtn.disabled = false;
+      if (!out.res.ok || !out.payload.ok || !out.payload.rc_bind) {{
+        toast(out.payload.error || "Could not open edit.", true);
+        return;
+      }}
+      const p = new URLSearchParams();
+      p.set("rc_action", "edit");
+      p.set("rc_bind", out.payload.rc_bind);
+      rcNavigate(p);
+    }}).catch(function (err) {{
+      editBtn.disabled = false;
+      toast(err.message || "Edit request failed.", true);
+    }});
   }});
 
   const runBtn = document.getElementById("rc-run-btn");

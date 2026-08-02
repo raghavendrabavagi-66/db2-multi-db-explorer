@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 
 from db2_explorer.api.oe_search_service import execute_search_json
 from db2_explorer.api.rc_connect_service import (
+    create_bind_json,
     list_azure_databases_json,
     save_connect_json,
     test_azure_json,
@@ -35,6 +36,7 @@ _POST_ROUTES: dict[str, Callable[[dict], dict]] = {
     "/api/rc/test-azure": test_azure_json,
     "/api/rc/list-azure-databases": list_azure_databases_json,
     "/api/rc/save-connect": save_connect_json,
+    "/api/rc/create-bind": create_bind_json,
     "/api/rc/run-comparison": run_comparison_json,
 }
 
