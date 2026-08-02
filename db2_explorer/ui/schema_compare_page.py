@@ -473,9 +473,6 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
       if (out.payload.target_database) {{
         comboboxSetValue("sc-az-database", out.payload.target_database);
       }}
-      if (out.payload.migration_branch) {{
-        comboboxSetValue("sc-branch", out.payload.migration_branch);
-      }}
       toast(out.payload.message || "Deployment loaded.", false);
     }} catch (err) {{
       toast(err.message || "Load deployment failed.", true);

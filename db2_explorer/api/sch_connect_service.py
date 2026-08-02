@@ -105,13 +105,11 @@ def load_deployment_json(body: dict[str, Any]) -> dict[str, Any]:
 
     mig_az_server = ""
     mig_az_database = ""
-    mig_branch = branch
     info = client.fetch_migration_info(database, server_folder, branch)
     if info.ok and info.data:
         mig = info.data
         mig_az_server = str(mig.get("target_server", "") or "").strip()
         mig_az_database = str(mig.get("target_database", "") or "").strip()
-        mig_branch = str(mig.get("branch", "") or branch).strip() or branch
 
     base_url, project_id = gitlab_repo_display()
     return {
@@ -122,7 +120,6 @@ def load_deployment_json(body: dict[str, Any]) -> dict[str, Any]:
         "bundle_path": bundle_path,
         "target_server": mig_az_server,
         "target_database": mig_az_database,
-        "migration_branch": mig_branch,
         "gitlab_base_url": base_url,
         "gitlab_project_id": project_id,
     }
