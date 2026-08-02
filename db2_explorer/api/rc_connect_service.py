@@ -6,10 +6,12 @@ from typing import Any
 
 from db2_explorer.api.rc_credential_store import (
     create_bind_token,
+    get_connect_payload,
     has_connect_session,
     save_connect_payload,
     verify_connect_token,
 )
+from db2_explorer.api.rc_result_store import invalidate_if_credentials_changed
 from db2_explorer.clients.azure import AUTH_METHOD_LABELS, AzureConnection, query as azure_query, test_connection as test_azure
 from db2_explorer.clients.db2 import query_single
 from db2_explorer.data.connections import Connection
@@ -108,9 +110,13 @@ def save_connect_json(body: dict[str, Any]) -> dict[str, Any]:
     }
 
     rc_token_in = str(body.get("rc_token", "")).strip()
+    old_payload: dict[str, Any] | None = None
     if has_connect_session(rc_sid):
         if not verify_connect_token(rc_sid, rc_token_in):
             return {"ok": False, "error": "Invalid session token."}
+        old_payload = get_connect_payload(rc_sid, rc_token_in)
+
+    invalidate_if_credentials_changed(rc_sid, old_payload, payload_data)
 
     rc_token = save_connect_payload(rc_sid, payload_data)
     rc_bind = create_bind_token(rc_sid, rc_token)

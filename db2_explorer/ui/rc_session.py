@@ -5,6 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from db2_explorer.api.rc_credential_store import clear_connect_payload
+from db2_explorer.api.rc_result_store import clear_result_snapshot
 
 RC_CLEAR_QUERY_PARAM = "rc_clear"
 
@@ -45,6 +46,7 @@ def clear_row_compare_session() -> None:
     sid = str(st.session_state.get("rc_sid", "")).strip()
     if sid:
         clear_connect_payload(sid)
+        clear_result_snapshot(sid)
     for key in RC_SESSION_KEYS:
         st.session_state.pop(key, None)
 

@@ -8,6 +8,11 @@ import streamlit as st
 
 from db2_explorer.api.register import ensure_oe_search_api
 from db2_explorer.api.rc_credential_store import consume_bind_token, get_connect_payload
+from db2_explorer.api.rc_result_store import (
+    credentials_payload_from_session,
+    get_result_snapshot,
+    save_result_snapshot,
+)
 from db2_explorer.clients.azure import AUTH_METHOD_LABELS, AzureConnection
 from db2_explorer.data.connections import Connection
 from db2_explorer.compare.row_compare import (
@@ -135,6 +140,17 @@ def _ensure_az_database_in_options() -> None:
         st.session_state.cmp_az_database_options = [az_db, *options]
 
 
+def _session_credentials() -> dict[str, object]:
+    return credentials_payload_from_session(dict(st.session_state))
+
+
+def _cached_results_available() -> bool:
+    sid = str(st.session_state.get("rc_sid", "")).strip()
+    if not sid:
+        return False
+    return get_result_snapshot(sid, _session_credentials()) is not None
+
+
 def _ensure_setup_credentials() -> None:
     """Prefill setup form from server cache when entering edit mode."""
     if st.session_state.get("rc_setup_mode") != "edit":
@@ -170,7 +186,8 @@ def _handle_query_actions() -> None:
         else:
             st.session_state.rc_setup_done = True
             st.session_state.rc_setup_mode = "initial"
-            st.session_state.compare_result = None
+            if not _cached_results_available():
+                st.session_state.compare_result = None
             _set_toast("Connected — ready to run comparison.")
     elif action == "edit":
         if not restored:
@@ -256,6 +273,24 @@ def _run_comparison() -> None:
 
     st.session_state.compare_result = result
     st.session_state.compare_ran_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    records = result.comparison.to_dict(orient="records")
+    metrics = comparison_metrics(result.comparison)
+    metrics["rows_label"] = f"{metrics.get('tables_source', 0):,}"
+    tbody_views = comparison_tbody_views(records)
+    tbody_html = tbody_views.get("all", comparison_rows_html(records))
+    sid = str(st.session_state.get("rc_sid", "")).strip()
+    if sid:
+        save_result_snapshot(
+            sid,
+            _session_credentials(),
+            metrics=metrics,
+            tbody_views=tbody_views,
+            tbody_html=tbody_html,
+            target_table_mode=target_table_mode,
+            table_count=len(result.comparison),
+        )
+
     _set_toast(f"Comparison complete — {len(result.comparison)} table(s).")
 
 
@@ -285,6 +320,7 @@ def _workspace_view() -> RowCompareWorkspaceView:
     rows_html = comparison_rows_html([])
     tbody_views: dict[str, str] = {}
     has_results = False
+    target_table_mode = str(st.session_state.get("cmp_target_table_mode", "original"))
 
     if result is not None and result.status == "ok" and not result.comparison.empty:
         has_results = True
@@ -293,6 +329,18 @@ def _workspace_view() -> RowCompareWorkspaceView:
         records = result.comparison.to_dict(orient="records")
         tbody_views = comparison_tbody_views(records)
         rows_html = tbody_views.get("all", comparison_rows_html(records))
+    else:
+        sid = str(st.session_state.get("rc_sid", "")).strip()
+        snapshot = get_result_snapshot(sid, _session_credentials()) if sid else None
+        if snapshot:
+            has_results = True
+            metrics = dict(snapshot.get("metrics") or {})
+            tbody_views = dict(snapshot.get("tbody_views") or {})
+            rows_html = str(
+                tbody_views.get("all") or snapshot.get("tbody_html") or comparison_rows_html([]),
+            )
+            target_table_mode = str(snapshot.get("target_table_mode") or target_table_mode)
+            st.session_state.cmp_target_table_mode = target_table_mode
 
     auth = _azure_auth_method()
     return RowCompareWorkspaceView(
@@ -302,7 +350,7 @@ def _workspace_view() -> RowCompareWorkspaceView:
         az_server=str(st.session_state.get("cmp_az_server", "")),
         az_database=str(st.session_state.get("cmp_az_database", "")),
         az_auth_label=AUTH_METHOD_LABELS.get(auth, auth),
-        target_table_mode=str(st.session_state.get("cmp_target_table_mode", "original")),
+        target_table_mode=target_table_mode,
         metrics=metrics,
         result_rows_html=rows_html,
         result_tbody_views=tbody_views,

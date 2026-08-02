@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from db2_explorer.api.rc_credential_store import get_connect_payload
+from db2_explorer.api.rc_result_store import save_result_snapshot
 from db2_explorer.clients.azure import AzureConnection
 from db2_explorer.compare.row_compare import comparison_metrics, run_comparison
 from db2_explorer.data.connections import Connection
@@ -85,12 +86,24 @@ def run_comparison_json(body: dict[str, Any]) -> dict[str, Any]:
     records = result.comparison.to_dict(orient="records")
     metrics = comparison_metrics(result.comparison)
     metrics["rows_label"] = f"{metrics.get('tables_source', 0):,}"
+    tbody_html = comparison_rows_html(records)
+    tbody_views = comparison_tbody_views(records)
+
+    save_result_snapshot(
+        rc_sid,
+        payload,
+        metrics=metrics,
+        tbody_views=tbody_views,
+        tbody_html=tbody_html,
+        target_table_mode=target_table_mode,
+        table_count=len(result.comparison),
+    )
 
     return {
         "ok": True,
         "message": f"Comparison complete — {len(result.comparison)} table(s).",
         "metrics": metrics,
-        "tbody_html": comparison_rows_html(records),
-        "tbody_views": comparison_tbody_views(records),
+        "tbody_html": tbody_html,
+        "tbody_views": tbody_views,
         "table_count": len(result.comparison),
     }

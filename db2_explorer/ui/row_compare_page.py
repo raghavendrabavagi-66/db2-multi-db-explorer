@@ -989,6 +989,9 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
   }});
 
   wireResultFilters();
+  if (lastComparisonViews) {{
+    applyResultFilter(currentFilter);
+  }}
 
   {f'toast({_js_literal(view.toast_message)}, {json.dumps(view.toast_error)});' if view.toast_message else ''}
 }})();
