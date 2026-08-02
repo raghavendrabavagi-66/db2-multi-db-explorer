@@ -878,17 +878,20 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
     const chevron = expanded ? "expand_more" : "chevron_right";
     const expandedAttr = expanded ? "true" : "false";
     return (
-      '<tr class="bg-surface-container-high/50 group cursor-pointer hover:bg-surface-container-high transition-colors sc-group-row" '
+      '<tr class="bg-surface-container-high/50 group cursor-pointer hover:bg-surface-container-high transition-colors sc-group-row border-b border-outline-variant" '
       + 'data-group-key="' + escHtml(groupKey) + '" data-expanded="' + expandedAttr + '">'
-      + '<td class="px-md py-2 border-b border-outline-variant font-bold text-on-surface text-center" colspan="7">'
-      + '<div class="flex items-center justify-between w-full">'
-      + '<div class="flex items-center w-full"><div class="flex items-center gap-sm w-[33%]">'
+      + '<td colspan="2" class="px-md py-2 font-bold text-on-surface">'
+      + '<div class="flex items-center gap-sm">'
       + '<span class="material-symbols-outlined text-primary sc-group-chevron">' + chevron + '</span>'
-      + "<span>" + count + " " + escHtml(label) + "</span></div>"
-      + '<div class="w-12 flex justify-center"><span class="text-body-sm font-medium text-secondary">0 of ' + count + '</span></div>'
-      + '<div class="w-12 flex justify-center">'
-      + '<input type="checkbox" class="rounded border-outline-variant text-primary focus:ring-primary sc-group-check" title="Select Group"></div>'
-      + '<div class="flex-grow"></div></div></div></td></tr>'
+      + "<span>" + count + " " + escHtml(label) + "</span>"
+      + "</div></td>"
+      + '<td class="px-md py-2 text-right text-body-sm font-medium text-secondary whitespace-nowrap">0 of ' + count + '</td>'
+      + '<td class="w-12 px-xs py-2 text-center align-middle">'
+      + '<div class="flex justify-center items-center">'
+      + '<input type="checkbox" class="rounded border-outline-variant text-primary focus:ring-primary sc-group-check" title="Select Group">'
+      + "</div></td>"
+      + '<td colspan="3"></td>'
+      + "</tr>"
     );
   }}
 
@@ -909,8 +912,10 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
       + '<span class="text-secondary">' + escHtml(typeLabel) + '</span></div></td>'
       + '<td class="px-md py-2 font-medium text-right text-secondary">' + escHtml(srcSchema) + '</td>'
       + '<td class="px-md py-2 font-medium text-right">' + escHtml(srcName) + '</td>'
-      + '<td class="px-xs py-2 text-center flex justify-center">'
-      + '<input class="rounded border-outline-variant text-primary focus:ring-primary sc-row-check" type="checkbox"></td>'
+      + '<td class="px-xs py-2 text-center align-middle">'
+      + '<div class="flex justify-center items-center">'
+      + '<input class="rounded border-outline-variant text-primary focus:ring-primary sc-row-check" type="checkbox">'
+      + "</div></td>"
       + '<td class="px-md py-2 font-medium">' + escHtml(tgtName) + '</td>'
       + '<td class="px-md py-2 text-secondary text-left">' + escHtml(tgtSchema) + '</td>'
       + '<td class="px-md py-2 text-secondary text-left">—</td>'

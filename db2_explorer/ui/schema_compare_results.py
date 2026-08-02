@@ -123,8 +123,10 @@ def _object_row_html(item: ObjectCompareResult, *, parent_group: str) -> str:
         f'<span class="text-secondary">{html.escape(type_label)}</span></div></td>'
         f'<td class="px-md py-2 font-medium text-right text-secondary">{src_schema}</td>'
         f'<td class="px-md py-2 font-medium text-right">{src_name}</td>'
-        f'<td class="px-xs py-2 text-center flex justify-center">'
-        f'<input class="rounded border-outline-variant text-primary focus:ring-primary sc-row-check" type="checkbox"></td>'
+        f'<td class="px-xs py-2 text-center align-middle">'
+        f'<div class="flex justify-center items-center">'
+        f'<input class="rounded border-outline-variant text-primary focus:ring-primary sc-row-check" type="checkbox">'
+        f"</div></td>"
         f'<td class="px-md py-2 font-medium">{tgt_name}</td>'
         f'<td class="px-md py-2 text-secondary text-left">{tgt_schema}</td>'
         f'<td class="px-md py-2 text-secondary text-left">—</td>'
@@ -136,17 +138,20 @@ def _group_header_html(group_key: str, label: str, count: int, *, expanded: bool
     chevron = "expand_more" if expanded else "chevron_right"
     expanded_attr = "true" if expanded else "false"
     return (
-        f'<tr class="bg-surface-container-high/50 group cursor-pointer hover:bg-surface-container-high transition-colors sc-group-row" '
+        f'<tr class="bg-surface-container-high/50 group cursor-pointer hover:bg-surface-container-high transition-colors sc-group-row border-b border-outline-variant" '
         f'data-group-key="{html.escape(group_key, quote=True)}" data-expanded="{expanded_attr}">'
-        f'<td class="px-md py-2 border-b border-outline-variant font-bold text-on-surface text-center" colspan="7">'
-        f'<div class="flex items-center justify-between w-full">'
-        f'<div class="flex items-center w-full"><div class="flex items-center gap-sm w-[33%]">'
+        f'<td colspan="2" class="px-md py-2 font-bold text-on-surface">'
+        f'<div class="flex items-center gap-sm">'
         f'<span class="material-symbols-outlined text-primary sc-group-chevron">{chevron}</span>'
-        f"<span>{count} {html.escape(label)}</span></div>"
-        f'<div class="w-12 flex justify-center"><span class="text-body-sm font-medium text-secondary">0 of {count}</span></div>'
-        f'<div class="w-12 flex justify-center">'
-        f'<input type="checkbox" class="rounded border-outline-variant text-primary focus:ring-primary" title="Select Group"></div>'
-        f'<div class="flex-grow"></div></div></div></td></tr>'
+        f"<span>{count} {html.escape(label)}</span>"
+        f"</div></td>"
+        f'<td class="px-md py-2 text-right text-body-sm font-medium text-secondary whitespace-nowrap">0 of {count}</td>'
+        f'<td class="w-12 px-xs py-2 text-center align-middle">'
+        f'<div class="flex justify-center items-center">'
+        f'<input type="checkbox" class="rounded border-outline-variant text-primary focus:ring-primary sc-group-check" title="Select Group">'
+        f"</div></td>"
+        f'<td colspan="3"></td>'
+        f"</tr>"
     )
 
 
