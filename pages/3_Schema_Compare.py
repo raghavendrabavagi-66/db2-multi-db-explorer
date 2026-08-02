@@ -148,7 +148,10 @@ def _lookup_result_snapshot() -> dict[str, object] | None:
 def _ensure_setup_credentials() -> None:
     if st.session_state.get("sch_setup_mode") != "edit":
         return
-    if str(st.session_state.get("sch_gitlab_token", "")).strip():
+    if (
+        str(st.session_state.get("sch_gitlab_token", "")).strip()
+        and st.session_state.get("sch_deployment_files")
+    ):
         return
     _restore_from_session_cache()
 
@@ -228,9 +231,16 @@ def _handle_query_actions() -> None:
         if missing:
             _set_toast("Missing: " + ", ".join(missing), error=True)
         else:
+            from_edit = st.session_state.get("sch_setup_mode") == "edit"
             st.session_state.sch_setup_done = True
             st.session_state.sch_setup_mode = "initial"
-            _run_schema_compare()
+            if from_edit:
+                if _lookup_result_snapshot():
+                    _set_toast("Credentials updated.")
+                else:
+                    _run_schema_compare()
+            else:
+                _run_schema_compare()
     elif action == "edit":
         if not restored:
             _restore_from_session_cache()
@@ -248,6 +258,9 @@ def _handle_query_actions() -> None:
             _restore_from_session_cache()
         st.session_state.sch_setup_mode = "initial"
         st.session_state.sch_setup_done = True
+        snapshot = _lookup_result_snapshot()
+        if snapshot and not st.session_state.get("sch_compare_result"):
+            _set_toast("Returned to comparison results.")
     elif action == "refresh":
         if not restored:
             _restore_from_session_cache()

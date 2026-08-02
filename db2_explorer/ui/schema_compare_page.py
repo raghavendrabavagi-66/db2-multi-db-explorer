@@ -113,6 +113,12 @@ _SC_TBODY_MICRO = re.compile(
     re.DOTALL,
 )
 
+_SC_CLOSE_BTN_MICRO = re.compile(
+    r'<button aria-label="Close modal" id="sc-close-btn"[^>]*>\s*'
+    r'<span class="material-symbols-outlined[^"]*">close</span>\s*</button>',
+    re.DOTALL,
+)
+
 
 def _js_literal(value: object) -> str:
     return json.dumps(value, ensure_ascii=False)
@@ -731,6 +737,11 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
     setDeployLoadState("idle");
   }}
 
+  if (EDIT_MODE) {{
+    const azServer = (document.getElementById("sc-az-server") || {{ value: "" }}).value.trim();
+    if (azServer) loadAzureDatabases();
+  }}
+
   document.getElementById("sc-branch-refresh")?.addEventListener("click", function (e) {{
     e.preventDefault(); loadBranches();
   }});
@@ -772,6 +783,7 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
   let objectMap = {objects_json};
   let selectedKey = {_js_literal(view.selected_object_key)};
   let activeTab = "sql";
+  let compareInFlight = false;
 
   function scSessionToken() {{
     try {{ return sessionStorage.getItem(SC_TOKEN_KEY) || ""; }} catch (err) {{ return ""; }}
@@ -916,17 +928,36 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
   }}
 
   async function runComparison() {{
+    if (compareInFlight) return;
     const btn = document.getElementById("sc-refresh-btn");
-    if (btn) btn.disabled = true;
+    const originalHtml = btn ? btn.innerHTML : "";
+    compareInFlight = true;
+    if (btn) {{
+      btn.disabled = true;
+      btn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">sync</span>Refreshing…';
+    }}
     try {{
       const response = await fetch(apiUrl(RUN_COMPARE_URL), {{
         method: "POST",
         headers: {{ "Content-Type": "application/json" }},
         body: JSON.stringify({{ sch_sid: scSessionId(), sch_token: scSessionToken() }}),
       }});
-      const payload = await response.json();
+      const contentType = (response.headers.get("content-type") || "").toLowerCase();
+      if (!contentType.includes("application/json")) {{
+        toast("Comparison API unavailable — reloading with server run.", true);
+        scNavigate(new URLSearchParams([["sch_action", "refresh"]]));
+        return;
+      }}
+      let payload = {{ ok: false, error: "Comparison failed." }};
+      try {{
+        payload = await response.json();
+      }} catch (parseErr) {{
+        toast("Comparison API unavailable — reloading with server run.", true);
+        scNavigate(new URLSearchParams([["sch_action", "refresh"]]));
+        return;
+      }}
       if (!response.ok || !payload.ok) {{
-        toast(payload.error || "Comparison failed.", true);
+        toast(payload.error || ("Comparison failed (HTTP " + response.status + ")."), true);
         return;
       }}
       applyComparisonResults(payload);
@@ -934,7 +965,12 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
     }} catch (err) {{
       toast(err.message || "Comparison request failed.", true);
     }} finally {{
-      if (btn) btn.disabled = false;
+      compareInFlight = false;
+      if (btn) {{
+        btn.disabled = false;
+        btn.innerHTML = originalHtml ||
+          '<span class="material-symbols-outlined text-[18px]">compare</span>Refresh';
+      }}
     }}
   }}
 
@@ -958,9 +994,11 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
 
   document.getElementById("sc-edit-creds")?.addEventListener("click", function (e) {{
     e.preventDefault();
+    const editBtn = document.getElementById("sc-edit-creds");
     const sid = scSessionId();
     const token = scSessionToken();
     if (!sid || !token) {{ toast("Session expired — connect again.", true); return; }}
+    if (editBtn) editBtn.disabled = true;
     fetch(apiUrl(CREATE_BIND_URL), {{
       method: "POST",
       headers: {{ "Content-Type": "application/json" }},
@@ -975,6 +1013,12 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
         p.set("sch_action", "edit");
         p.set("sch_bind", out.payload.sch_bind);
         scNavigate(p);
+      }})
+      .catch(function (err) {{
+        toast(err.message || "Could not open edit.", true);
+      }})
+      .finally(function () {{
+        if (editBtn) editBtn.disabled = false;
       }});
   }});
 
@@ -1025,14 +1069,18 @@ def _wire_sc_setup_document(source: str, view: SchemaCompareSetupView) -> str:
         'transition-colors text-sm font-medium">'
         '<span class="material-symbols-outlined text-sm">arrow_back</span>Back</button>'
     )
-    default_close = (
-        '<button aria-label="Close modal" id="sc-close-btn" type="button" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors">\n'
-        '<span class="material-symbols-outlined text-outline">close</span>\n</button>'
+    doc = _regex_inject(
+        _SC_CLOSE_BTN_MICRO,
+        back_btn if view.edit_mode else close_btn,
+        doc,
+        count=1,
     )
     if view.edit_mode:
-        doc = doc.replace(default_close, back_btn, 1)
-    else:
-        doc = doc.replace(default_close, close_btn, 1)
+        doc = doc.replace(
+            "<h1 class=\"font-headline-md text-headline-md text-on-surface\">New Comparison Project</h1>",
+            "<h1 class=\"font-headline-md text-headline-md text-on-surface\">Edit Connection Settings</h1>",
+            1,
+        )
 
     doc = doc.replace(
         '<div id="sc-gitlab-repo-label" class="flex items-center gap-xs text-body-md"><!-- injected from db2_explorer/gitlab/client.py --></div>',
