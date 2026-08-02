@@ -1003,10 +1003,13 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
       method: "POST",
       headers: {{ "Content-Type": "application/json" }},
       body: JSON.stringify({{ sch_sid: sid, sch_token: token }}),
-    }}).then(function (res) {{ return res.json().then(function (p) {{ return {{ res, p }}; }}); }})
-      .then(function (out) {{
+    }}).then(function (res) {{
+      return res.json().then(function (payload) {{
+        return {{ res: res, payload: payload }};
+      }});
+    }}).then(function (out) {{
         if (!out.res.ok || !out.payload.ok || !out.payload.sch_bind) {{
-          toast(out.payload.error || "Could not open edit.", true);
+          toast((out.payload && out.payload.error) || "Could not open edit.", true);
           return;
         }}
         const p = new URLSearchParams();
