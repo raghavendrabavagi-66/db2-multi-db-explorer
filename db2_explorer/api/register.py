@@ -33,6 +33,15 @@ RC_LIST_AZURE_DATABASES_API_PATH = "/api/rc/list-azure-databases"
 RC_SAVE_CONNECT_API_PATH = "/api/rc/save-connect"
 RC_CREATE_BIND_API_PATH = "/api/rc/create-bind"
 RC_RUN_COMPARISON_API_PATH = "/api/rc/run-comparison"
+SC_LIST_BRANCHES_API_PATH = "/api/sc/list-branches"
+SC_LIST_DB_FOLDERS_API_PATH = "/api/sc/list-db-folders"
+SC_LIST_SERVER_FOLDERS_API_PATH = "/api/sc/list-server-folders"
+SC_LOAD_DEPLOYMENT_API_PATH = "/api/sc/load-deployment"
+SC_TEST_AZURE_API_PATH = "/api/sc/test-azure"
+SC_LIST_AZURE_DATABASES_API_PATH = "/api/sc/list-azure-databases"
+SC_SAVE_CONNECT_API_PATH = "/api/sc/save-connect"
+SC_CREATE_BIND_API_PATH = "/api/sc/create-bind"
+SC_RUN_COMPARISON_API_PATH = "/api/sc/run-comparison"
 _CREATE_APP_PATCHED = False
 _OE_ROUTE_REGISTERED = False
 _SEARCH_HANDLER_CLS: type[Any] | None = None
@@ -120,6 +129,42 @@ def rc_create_bind_api_url() -> str:
 def rc_run_comparison_api_url() -> str:
     """URL for Row Compare run POST."""
     return _background_api_url(RC_RUN_COMPARISON_API_PATH)
+
+
+def sc_list_branches_api_url() -> str:
+    return _background_api_url(SC_LIST_BRANCHES_API_PATH)
+
+
+def sc_list_db_folders_api_url() -> str:
+    return _background_api_url(SC_LIST_DB_FOLDERS_API_PATH)
+
+
+def sc_list_server_folders_api_url() -> str:
+    return _background_api_url(SC_LIST_SERVER_FOLDERS_API_PATH)
+
+
+def sc_load_deployment_api_url() -> str:
+    return _background_api_url(SC_LOAD_DEPLOYMENT_API_PATH)
+
+
+def sc_test_azure_api_url() -> str:
+    return _background_api_url(SC_TEST_AZURE_API_PATH)
+
+
+def sc_list_azure_databases_api_url() -> str:
+    return _background_api_url(SC_LIST_AZURE_DATABASES_API_PATH)
+
+
+def sc_save_connect_api_url() -> str:
+    return _background_api_url(SC_SAVE_CONNECT_API_PATH)
+
+
+def sc_create_bind_api_url() -> str:
+    return _background_api_url(SC_CREATE_BIND_API_PATH)
+
+
+def sc_run_comparison_api_url() -> str:
+    return _background_api_url(SC_RUN_COMPARISON_API_PATH)
 
 
 def _search_handler_cls() -> type[Any]:

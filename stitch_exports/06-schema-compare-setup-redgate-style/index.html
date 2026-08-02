@@ -145,7 +145,7 @@
 <h1 class="font-headline-md text-headline-md text-on-surface">New Comparison Project</h1>
 <p class="font-body-sm text-body-sm text-secondary mt-xs">Configure your source and target data environments</p>
 </div>
-<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors">
+<button aria-label="Close modal" id="sc-close-btn" type="button" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors">
 <span class="material-symbols-outlined text-outline">close</span>
 </button>
 </div>
@@ -162,33 +162,35 @@
 <p class="font-label-caps text-label-caps text-secondary uppercase">Project Repository</p>
 </div>
 </div>
-<div class="space-y-md"><div class="space-y-xs mb-md"><label class="font-label-caps text-label-caps text-on-surface">Source Repository</label><div class="flex items-center gap-xs text-body-md"><a href="https://gitlab.com" class="text-primary hover:underline">https://gitlab.com</a><span class="text-outline">·</span><span class="text-on-surface">project 12345</span></div></div><div class="space-y-xs"><label class="font-label-caps text-label-caps text-on-surface">Personal Access Token</label><input class="w-full h-10 px-md border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" placeholder="glpat-xxxxxxxxxxxx" type="password"></div>
+<div class="space-y-md"><div class="space-y-xs mb-md"><label class="font-label-caps text-label-caps text-on-surface">Source Repository</label><div class="flex items-center gap-xs text-body-md"><a href="https://gitlab.com" class="text-primary hover:underline">https://gitlab.com</a><span class="text-outline">·</span><span class="text-on-surface">project 12345</span></div></div><div class="space-y-xs"><label class="font-label-caps text-label-caps text-on-surface">Personal Access Token</label><input id="sc-gitlab-token" class="w-full h-10 px-md border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" placeholder="glpat-xxxxxxxxxxxx" type="password"></div>
 
 <div class="space-y-xs">
 <label class="font-label-caps text-label-caps text-on-surface">BRANCH</label>
 <div class="flex gap-sm items-center">
   <div class="relative flex-1">
-    <select class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">
-      <option>release/v2.4.0-hotfix</option>
-      <option>develop</option>
-      <option>main</option>
+    <select id="sc-branch" class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">
+      <option value="">Select a branch…</option>
     </select>
     <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined pointer-events-none text-outline">expand_more</span>
   </div>
-  <button class="h-10 w-10 rounded border border-outline-variant hover:bg-surface-container-low text-secondary transition-colors flex items-center justify-center shrink-0" title="Refresh branches">
+  <button id="sc-branch-refresh" type="button" class="h-10 w-10 rounded border border-outline-variant hover:bg-surface-container-low text-secondary transition-colors flex items-center justify-center shrink-0" title="Refresh branches">
     <span class="material-symbols-outlined text-[20px]">refresh</span>
   </button>
 </div>
 </div>
 <div class="space-y-xs">
 <label class="font-label-caps text-label-caps text-on-surface">DATABASE FOLDER</label>
-<input class="w-full h-10 px-md border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" type="text" value="/src/database/schemas">
+<select id="sc-database" class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">
+  <option value="">Select a database folder…</option>
+</select>
 </div>
 <div class="space-y-xs">
 <label class="font-label-caps text-label-caps text-on-surface">SERVER FOLDER</label>
-<input class="w-full h-10 px-md border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" placeholder="e.g. /src/database/procs" type="text">
+<select id="sc-server" class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">
+  <option value="">Select a server folder…</option>
+</select>
 </div><div class="pt-xs">
-  <button class="h-9 px-md border border-outline-variant bg-surface-container-low text-on-surface font-label-caps text-label-caps flex items-center gap-xs hover:bg-surface-container-high transition-colors rounded">
+  <button id="sc-load-deployment" type="button" class="h-9 px-md border border-outline-variant bg-surface-container-low text-on-surface font-label-caps text-label-caps flex items-center gap-xs hover:bg-surface-container-high transition-colors rounded">
     <span class="material-symbols-outlined text-[18px]">folder_open</span>
     Load Deployment
   </button>
@@ -208,21 +210,21 @@
 </div>
 <div class="space-y-md"><div class="space-y-xs">
 <label class="font-label-caps text-label-caps text-on-surface">Azure SQL Server</label>
-<input class="w-full h-10 px-md border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" placeholder="az-db-prod-sql.database.windows.net" type="text">
+<input id="sc-az-server" class="w-full h-10 px-md border border-outline focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md" placeholder="az-db-prod-sql.database.windows.net" type="text">
 </div>
 <div class="space-y-xs">
 <label class="font-label-caps text-label-caps text-on-surface">AUTHENTICATION</label>
 <div class="flex flex-col gap-sm py-1">
   <label class="flex items-center gap-sm cursor-pointer group">
-    <input type="radio" name="auth_type_modal" value="entra" class="w-4 h-4 text-primary border-outline focus:ring-primary" checked="">
+    <input id="sc-auth-entra" type="radio" name="auth_type_modal" value="entra" class="w-4 h-4 text-primary border-outline focus:ring-primary" checked="">
     <span class="text-body-sm text-on-surface group-hover:text-primary transition-colors">Microsoft Entra MFA</span>
   </label>
   <label class="flex items-center gap-sm cursor-pointer group">
-    <input type="radio" name="auth_type_modal" value="windows" class="w-4 h-4 text-primary border-outline focus:ring-primary">
+    <input id="sc-auth-windows" type="radio" name="auth_type_modal" value="windows" class="w-4 h-4 text-primary border-outline focus:ring-primary">
     <span class="text-body-sm text-on-surface group-hover:text-primary transition-colors">Windows Authentication</span>
   </label>
   <label class="flex items-center gap-sm cursor-pointer group mt-1 ml-6">
-    <input type="checkbox" class="rounded border-outline text-primary focus:ring-primary w-4 h-4">
+    <input id="sc-az-trust-cert" type="checkbox" class="rounded border-outline text-primary focus:ring-primary w-4 h-4">
     <span class="text-body-sm text-on-surface group-hover:text-primary transition-colors">Trust Server certificate</span>
   </label>
 </div>
@@ -230,14 +232,12 @@
 <div class="space-y-xs"><label class="font-label-caps text-label-caps text-on-surface">Database Name</label>
 <div class="flex gap-sm items-center">
   <div class="relative flex-1">
-    <select class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">
-      <option>CRM_PROD_EASTUS</option>
-      <option>CRM_STAGING_EASTUS</option>
-      <option>CRM_DEV_EASTUS</option>
+    <select id="sc-az-database" class="w-full h-10 pl-md pr-10 border border-outline appearance-none focus:border-primary focus:ring-1 focus:ring-primary rounded bg-white text-body-md">
+      <option value="">Select a database…</option>
     </select>
     <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined pointer-events-none text-outline">expand_more</span>
   </div>
-  <button class="h-10 w-10 rounded border border-outline-variant hover:bg-surface-container-low text-secondary transition-colors flex items-center justify-center shrink-0" title="Refresh databases">
+  <button id="sc-az-load-dbs" type="button" class="h-10 w-10 rounded border border-outline-variant hover:bg-surface-container-low text-secondary transition-colors flex items-center justify-center shrink-0" title="Refresh databases">
     <span class="material-symbols-outlined text-[20px]">refresh</span>
   </button>
 </div></div>
@@ -248,37 +248,14 @@
 
 <!-- Full-Width Comparison Button -->
 <div class="p-xl bg-surface-container-lowest border-t border-outline-variant">
-<button class="w-full h-14 bg-primary text-on-primary font-headline-md text-title-sm flex items-center justify-center gap-md hover:brightness-110 active:opacity-90 transition-all shadow-lg" id="compareBtn">
+<button type="button" id="sc-compare-btn" class="w-full h-14 bg-primary text-on-primary font-headline-md text-title-sm flex items-center justify-center gap-md hover:brightness-110 active:opacity-90 transition-all shadow-lg">
                     Compare Now
                     <span class="material-symbols-outlined">sync_alt</span>
 </button>
 </div>
 </div>
 </div>
-<!-- Micro-interaction script -->
-<script>
-        document.getElementById('compareBtn').addEventListener('click', function() {
-            this.innerHTML = '<span class="material-symbols-outlined animate-spin">refresh</span> Analyzing schemas...';
-            this.classList.add('pointer-events-none', 'bg-primary-container');
-            
-            setTimeout(() => {
-                alert('Connection valid. Schema comparison initiated.');
-                this.innerHTML = 'Compare Now <span class="material-symbols-outlined">sync_alt</span>';
-                this.classList.remove('pointer-events-none', 'bg-primary-container');
-            }, 2000);
-        });
-
-        // Focus ring effect simulation for inputs
-        const inputs = document.querySelectorAll('input, select');
-        inputs.forEach(input => {
-            input.addEventListener('focus', () => {
-                input.parentElement.classList.add('scale-[1.01]');
-            });
-            input.addEventListener('blur', () => {
-                input.parentElement.classList.remove('scale-[1.01]');
-            });
-        });
-    </script>
+<script id="sc-setup-bridge-placeholder"></script>
 
 
 </body></html>

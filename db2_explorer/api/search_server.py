@@ -22,6 +22,17 @@ from db2_explorer.api.rc_connect_service import (
     test_db2_json,
 )
 from db2_explorer.api.rc_run_service import run_comparison_json
+from db2_explorer.api.sch_connect_service import (
+    create_bind_json as sc_create_bind_json,
+    list_azure_databases_json as sc_list_azure_databases_json,
+    list_branches_json as sc_list_branches_json,
+    list_db_folders_json as sc_list_db_folders_json,
+    list_server_folders_json as sc_list_server_folders_json,
+    load_deployment_json as sc_load_deployment_json,
+    save_connect_json as sc_save_connect_json,
+    test_azure_json as sc_test_azure_json,
+)
+from db2_explorer.api.sch_run_service import run_schema_compare_json
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,6 +49,15 @@ _POST_ROUTES: dict[str, Callable[[dict], dict]] = {
     "/api/rc/save-connect": save_connect_json,
     "/api/rc/create-bind": create_bind_json,
     "/api/rc/run-comparison": run_comparison_json,
+    "/api/sc/list-branches": sc_list_branches_json,
+    "/api/sc/list-db-folders": sc_list_db_folders_json,
+    "/api/sc/list-server-folders": sc_list_server_folders_json,
+    "/api/sc/load-deployment": sc_load_deployment_json,
+    "/api/sc/test-azure": sc_test_azure_json,
+    "/api/sc/list-azure-databases": sc_list_azure_databases_json,
+    "/api/sc/save-connect": sc_save_connect_json,
+    "/api/sc/create-bind": sc_create_bind_json,
+    "/api/sc/run-comparison": run_schema_compare_json,
 }
 
 

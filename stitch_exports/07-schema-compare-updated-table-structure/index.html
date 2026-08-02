@@ -87,7 +87,7 @@
 <div class="flex items-center gap-xl">
 <span class="font-headline-md text-headline-md font-bold text-on-surface">DB2 Migration Studio</span>
 <nav class="hidden md:flex items-center gap-md h-full">
-<a class="text-secondary hover:bg-surface-container-high transition-colors px-sm py-xs font-body-md text-body-md" href="#">Home</a>
+<a id="sc-home-back" class="text-secondary hover:bg-surface-container-high transition-colors px-sm py-xs font-body-md text-body-md" href="#">Home</a>
 <a class="text-secondary hover:bg-surface-container-high transition-colors px-sm py-xs font-body-md text-body-md" href="#">Projects</a>
 <a class="text-primary font-bold border-b-2 border-primary pb-1 font-body-md text-body-md" href="#">Migrations</a>
 <a class="text-secondary hover:bg-surface-container-high transition-colors px-sm py-xs font-body-md text-body-md" href="#">Monitoring</a>
@@ -112,11 +112,11 @@
 <!-- Secondary Comparison Toolbar -->
 <section class="bg-surface-container-lowest h-12 border-b border-outline-variant flex items-center justify-between px-margin-edge flex-none">
 <div class="flex items-center gap-md">
-<button class="flex items-center gap-xs px-sm py-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded text-body-sm transition-colors">
+<button id="sc-edit-creds" type="button" class="flex items-center gap-xs px-sm py-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded text-body-sm transition-colors">
 <span class="material-symbols-outlined text-[18px]">edit_note</span>
                 Edit Credentials
             </button>
-<button class="flex items-center gap-xs px-sm py-1 bg-primary text-on-primary hover:opacity-90 rounded text-body-sm transition-opacity">
+<button id="sc-refresh-btn" type="button" class="flex items-center gap-xs px-sm py-1 bg-primary text-on-primary hover:opacity-90 rounded text-body-sm transition-opacity">
 <span class="material-symbols-outlined text-[18px]">compare</span>
                 Refresh
             </button>
@@ -124,7 +124,7 @@
 <div class="flex items-center gap-md">
 <div class="relative">
 <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
-<input class="pl-8 pr-md py-1 border border-outline-variant rounded bg-surface w-64 text-body-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" placeholder="Search objects..." type="text">
+<input id="sc-search" class="pl-8 pr-md py-1 border border-outline-variant rounded bg-surface w-64 text-body-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" placeholder="Search objects..." type="text">
 </div>
 <div class="flex items-center gap-sm">
 <label class="text-label-caps font-label-caps text-secondary">GROUP BY</label>
@@ -137,12 +137,12 @@
 </section><section class="bg-surface-container-low border-b border-outline-variant px-margin-edge py-2 flex items-center justify-between flex-none">
 <div class="flex flex-col">
 <span class="text-label-caps text-secondary uppercase">Source</span>
-<span class="text-body-md font-bold text-on-surface">GitLab_PRD</span>
+<span id="sc-source-label" class="text-body-md font-bold text-on-surface">GitLab Source</span>
 </div>
 <div class="flex items-center gap-xl">
 <div class="text-center">
 <span class="text-label-caps text-secondary uppercase">Selected</span>
-<div class="text-body-md font-bold text-on-surface">0 of 170</div>
+<div id="sc-selected-count" class="text-body-md font-bold text-on-surface">0 of 0</div>
 </div>
 <button class="bg-primary text-on-primary px-lg py-2 rounded font-bold flex items-center gap-sm hover:opacity-90 transition-opacity">
 <span class="material-symbols-outlined">sync</span>
@@ -151,7 +151,7 @@
 </div>
 <div class="flex flex-col text-right">
 <span class="text-label-caps text-secondary uppercase">Target</span>
-<span class="text-body-md font-bold text-on-surface">Azure_SQL_Managed</span>
+<span id="sc-target-label" class="text-body-md font-bold text-on-surface">Azure SQL Target</span>
 </div>
 </section>
 <!-- Main Workspace Container -->
@@ -161,7 +161,7 @@
 <div class="overflow-y-auto flex-grow bg-white">
 <table class="w-full border-collapse">
 <thead class="sticky top-0 z-10 bg-surface-container-low shadow-sm"><tr class="text-left"><th class="px-md py-sm border-b border-outline-variant font-label-caps text-label-caps text-secondary uppercase tracking-wider">Type</th><th class="px-md py-sm border-b border-outline-variant font-label-caps text-label-caps text-secondary uppercase tracking-wider text-right">Source Schema</th><th class="px-md py-sm border-b border-outline-variant font-label-caps text-label-caps text-secondary uppercase tracking-wider text-right">Source Object</th><th class="w-12 px-xs py-sm border-b border-outline-variant text-center font-label-caps text-label-caps text-secondary uppercase tracking-wider"><div class="flex justify-center items-center"><input type="checkbox" class="rounded border-outline-variant text-primary focus:ring-primary" title="Select All"></div></th><th class="px-md py-sm border-b border-outline-variant font-label-caps text-label-caps text-secondary uppercase tracking-wider">Target Object</th><th class="px-md py-sm border-b border-outline-variant font-label-caps text-label-caps text-secondary uppercase tracking-wider">Target Schema</th><th class="px-md py-sm border-b border-outline-variant font-label-caps text-label-caps text-secondary uppercase tracking-wider text-right">Last Modified</th></tr></thead>
-<tbody class="text-body-sm">
+<tbody id="sc-results-tbody" class="text-body-sm">
 <!-- Group: In both but different -->
 <tr class="bg-surface-container-high/50 group cursor-pointer hover:bg-surface-container-high transition-colors bg-secondary-container">
 <td class="px-md py-2 border-b border-outline-variant font-bold text-on-surface text-center" colspan="7"><div class="flex items-center justify-between w-full"><div class="flex items-center w-full"><div class="flex items-center gap-sm w-[33%]"><span class="material-symbols-outlined text-primary">expand_more</span><span class="">12 In both but different</span></div><div class="w-12 flex justify-center"><span class="text-body-sm font-medium text-secondary">0 of 12</span></div><div class="w-12 flex justify-center"><input type="checkbox" class="rounded border-outline-variant text-primary focus:ring-primary" title="Select Group"></div><div class="flex-grow"></div></div></div></td>
@@ -201,9 +201,9 @@
 <div class="flex items-center gap-md">
 </div>
 <nav class="flex items-center h-full gap-sm">
-<button class="px-md h-8 flex items-center text-body-sm font-bold text-primary border-b-2 border-primary transition-colors">SQL VIEW</button>
-<button class="px-md h-8 flex items-center text-body-sm font-medium text-secondary hover:bg-surface-container-high transition-colors">SUMMARY</button>
-<button class="px-md h-8 flex items-center text-body-sm font-medium text-secondary hover:bg-surface-container-high transition-colors">SYNC</button>
+<button id="sc-tab-sql" type="button" class="px-md h-8 flex items-center text-body-sm font-bold text-primary border-b-2 border-primary transition-colors">SQL VIEW</button>
+<button id="sc-tab-summary" type="button" class="px-md h-8 flex items-center text-body-sm font-medium text-secondary hover:bg-surface-container-high transition-colors">SUMMARY</button>
+<button id="sc-tab-sync" type="button" class="px-md h-8 flex items-center text-body-sm font-medium text-secondary hover:bg-surface-container-high transition-colors">SYNC</button>
 </nav>
 </div>
 <div class="flex items-center gap-xs">
@@ -217,17 +217,17 @@
 <div class="w-full bg-surface-container-low border-b border-outline-variant px-md py-2 flex items-center gap-xl"><div class="flex items-center gap-xl">
 <div class="flex items-center gap-sm">
 <span class="text-label-caps font-label-caps text-secondary uppercase">TYPE:</span>
-<span class="text-body-sm font-bold text-on-surface uppercase">TABLE</span>
+<span id="sc-detail-type" class="text-body-sm font-bold text-on-surface uppercase">—</span>
 </div>
 <div class="h-4 w-px bg-outline-variant"></div>
 <div class="flex items-center gap-sm">
 <span class="text-label-caps font-label-caps text-secondary uppercase">SCHEMA:</span>
-<span class="text-body-sm font-bold text-on-surface uppercase">DBO</span>
+<span id="sc-detail-schema" class="text-body-sm font-bold text-on-surface uppercase">—</span>
 </div>
 <div class="h-4 w-px bg-outline-variant"></div>
 <div class="flex items-center gap-sm">
 <span class="text-label-caps font-label-caps text-secondary uppercase">OBJECT:</span>
-<span class="text-body-sm font-bold text-on-surface uppercase">SALES_ORDER_HEADER</span>
+<span id="sc-detail-object" class="text-body-sm font-bold text-on-surface uppercase">—</span>
 </div>
 </div></div><div class="flex-grow flex overflow-hidden" id="tab-sql-view">
 <!-- Source SQL -->
@@ -236,15 +236,8 @@
 <span class="material-symbols-outlined text-[14px] text-secondary">source</span>
 <span class="text-[11px] font-bold text-secondary uppercase">Source: GitLab_PRD</span>
 </div>
-<div class="flex-grow overflow-auto font-code-sm text-code-sm bg-slate-50 p-2 whitespace-pre">
-<div class="flex"><span class="diff-line-num">1</span>CREATE TABLE [dbo].[SALES_ORDER_HEADER] (</div>
-<div class="flex"><span class="diff-line-num">2</span>    [OrderID] [int] IDENTITY(1,1) NOT NULL,</div>
-<div class="flex"><span class="diff-line-num">3</span>    [OrderDate] [datetime] NOT NULL,</div>
-<div class="flex diff-removed"><span class="diff-line-num">4</span>-   [CustomerID] [int] NOT NULL,</div>
-<div class="flex"><span class="diff-line-num">5</span>    [SalesPersonID] [int] NULL,</div>
-<div class="flex diff-removed"><span class="diff-line-num">6</span>-   [Status] [tinyint] DEFAULT (1),</div>
-<div class="flex"><span class="diff-line-num">7</span>    [TotalDue] [money] NOT NULL</div>
-<div class="flex"><span class="diff-line-num">8</span>) ON [PRIMARY]</div>
+<div class="flex-grow overflow-auto font-code-sm text-code-sm bg-slate-50 p-2 whitespace-pre" id="sc-diff-source">
+<div class="flex text-secondary"><span class="diff-line-num">—</span>Select an object to view DDL diff.</div>
 </div>
 </div>
 <!-- Target SQL -->
@@ -253,23 +246,15 @@
 <span class="material-symbols-outlined text-[14px] text-secondary">target</span>
 <span class="text-[11px] font-bold text-secondary uppercase">Target: Azure_SQL_Managed</span>
 </div>
-<div class="flex-grow overflow-auto font-code-sm text-code-sm bg-slate-50 p-2 whitespace-pre">
-<div class="flex"><span class="diff-line-num">1</span>CREATE TABLE [dbo].[SALES_ORDER_HEADER] (</div>
-<div class="flex"><span class="diff-line-num">2</span>    [OrderID] [int] IDENTITY(1,1) NOT NULL,</div>
-<div class="flex"><span class="diff-line-num">3</span>    [OrderDate] [datetime] NOT NULL,</div>
-<div class="flex diff-added"><span class="diff-line-num">4</span>+   [CustomerGUID] [uniqueidentifier] NOT NULL,</div>
-<div class="flex"><span class="diff-line-num">5</span>    [SalesPersonID] [int] NULL,</div>
-<div class="flex diff-added"><span class="diff-line-num">6</span>+   [Status] [nvarchar](20) DEFAULT ('Pending'),</div>
-<div class="flex"><span class="diff-line-num">7</span>    [TotalDue] [money] NOT NULL</div>
-<div class="flex"><span class="diff-line-num">8</span>) ON [PRIMARY]</div>
+<div class="flex-grow overflow-auto font-code-sm text-code-sm bg-slate-50 p-2 whitespace-pre" id="sc-diff-target">
+<div class="flex text-secondary"><span class="diff-line-num">—</span>Select an object to view DDL diff.</div>
 </div>
 </div>
 </div>
 <!-- Summary View Placeholder (Hidden) -->
-<div class="hidden flex-grow flex items-center justify-center bg-slate-50 text-secondary" id="tab-summary">
-<div class="text-center">
-<span class="material-symbols-outlined text-[48px] mb-2">summarize</span>
-<p class="text-body-md">Object comparison summary will appear here.</p>
+<div class="hidden flex-grow flex items-center justify-center bg-slate-50 text-secondary p-md" id="tab-summary">
+<div class="text-left w-full max-w-xl text-body-sm" id="sc-summary-content">
+<p>Select an object to view comparison summary.</p>
 </div>
 </div>
 <!-- Sync View Placeholder (Hidden) -->
@@ -282,16 +267,7 @@
 </div>
 </div>
 </main>
-<!-- App Status Footer -->
-<script>
-        // Micro-interaction for row selection
-        document.querySelectorAll('tbody tr:not([colspan])').forEach(row => {
-            row.addEventListener('click', function() {
-                document.querySelectorAll('tbody tr').forEach(r => r.classList.remove('bg-secondary-container'));
-                this.classList.add('bg-secondary-container');
-            });
-        });
-    </script>
+<script id="sc-workspace-bridge-placeholder"></script>
 
 
 </body></html>
