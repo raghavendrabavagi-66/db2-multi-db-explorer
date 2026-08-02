@@ -14,8 +14,36 @@ from db2_explorer.compare.schema_compare import (
 )
 from db2_explorer.ddl.diff_viewer import prepare_display_ddl
 from db2_explorer.gitlab.deployment_parser import OBJECT_TYPE_FILES
+from db2_explorer.sync.constraint_summary import fk_summary_table
+from db2_explorer.sync.index_summary import index_summary_table
 
 GroupByMode = Literal["difference", "object"]
+
+_STATUS_BADGE: dict[CompareStatusLiteral, str] = {
+    "identical": "IDENTICAL",
+    "different": "DIFFERENT",
+    "only_gitlab": "ONLY IN GITLAB",
+    "only_db": "ONLY IN AZURE",
+}
+
+_STATUS_ALERT: dict[CompareStatusLiteral, dict[str, str]] = {
+    "identical": {
+        "variant": "success",
+        "message": "Definitions match.",
+    },
+    "different": {
+        "variant": "warning",
+        "message": "Definitions differ after normalization — review inline highlights in SQL view.",
+    },
+    "only_gitlab": {
+        "variant": "warning",
+        "message": "Object exists in GitLab deployment but was not found in the target database.",
+    },
+    "only_db": {
+        "variant": "warning",
+        "message": "Object exists in the database but is not in the GitLab deployment files.",
+    },
+}
 
 _TYPE_LABELS = {
     "SCHEMA": "Schema",
@@ -162,6 +190,32 @@ def _object_type_sort_keys(present: set[str] | None = None) -> list[str]:
     return known + sorted(present - set(known))
 
 
+def _side_presence(status: CompareStatusLiteral) -> dict[str, Any]:
+    in_gitlab = status in ("identical", "different", "only_gitlab")
+    in_target = status in ("identical", "different", "only_db")
+    if status == "identical":
+        ddl_match = "Yes"
+    elif status == "different":
+        ddl_match = "No"
+    else:
+        ddl_match = "N/A"
+    return {
+        "gitlab": in_gitlab,
+        "target": in_target,
+        "ddl_match": ddl_match,
+    }
+
+
+def _property_compare_rows(item: ObjectCompareResult) -> tuple[list[dict[str, str]] | None, list[dict[str, str]] | None]:
+    fk_rows: list[dict[str, str]] | None = None
+    index_rows: list[dict[str, str]] | None = None
+    if item.object_type == "CONSTRAINT":
+        fk_rows = fk_summary_table(item.gitlab_ddl, item.db_ddl)
+    elif item.object_type == "INDEX":
+        index_rows = index_summary_table(item.gitlab_ddl, item.db_ddl)
+    return fk_rows, index_rows
+
+
 def comparison_table_group_config() -> dict[str, Any]:
     """JSON-serializable grouping metadata for workspace iframe JS."""
     return {
@@ -171,6 +225,7 @@ def comparison_table_group_config() -> dict[str, Any]:
         "objectTypeOrder": list(OBJECT_TYPE_FILES.keys()),
         "typeLabels": dict(_TYPE_LABELS),
         "statusIcons": dict(_STATUS_ROW_ICON),
+        "statusBadges": dict(_STATUS_BADGE),
     }
 
 
@@ -223,6 +278,7 @@ def build_objects_map(result: SchemaCompareResult) -> dict[str, dict[str, Any]]:
     for item in flatten_results(result):
         src_html, tgt_html = _build_stitch_diff_panes(item.gitlab_ddl, item.db_ddl)
         src_file = item.source_file or OBJECT_TYPE_FILES.get(item.object_type, "—")
+        fk_rows, index_rows = _property_compare_rows(item)
         objects[item.object_key] = {
             "object_key": item.object_key,
             "object_type": item.object_type,
@@ -232,16 +288,14 @@ def build_objects_map(result: SchemaCompareResult) -> dict[str, dict[str, Any]]:
             "parent": item.parent or "",
             "status": item.status,
             "status_label": redgate_status_label(item.status),
+            "status_badge": _STATUS_BADGE.get(item.status, item.status.upper()),
+            "status_alert": dict(_STATUS_ALERT.get(item.status, _STATUS_ALERT["different"])),
+            "side_presence": _side_presence(item.status),
             "source_file": src_file,
             "gitlab_line": item.gitlab_line,
             "diff_source_html": src_html,
             "diff_target_html": tgt_html,
-            "summary_html": (
-                f"<p><strong>Status:</strong> {html.escape(redgate_status_label(item.status))}</p>"
-                f"<p><strong>Type:</strong> {html.escape(_type_label(item.object_type))}</p>"
-                f"<p><strong>Schema:</strong> {html.escape(item.schema)}</p>"
-                f"<p><strong>Object:</strong> {html.escape(item.name)}</p>"
-                f"<p><strong>Source file:</strong> {html.escape(src_file)}</p>"
-            ),
+            "fk_property_rows": fk_rows,
+            "index_property_rows": index_rows,
         }
     return objects

@@ -217,8 +217,8 @@
 <button class="p-1 hover:bg-surface-container-high rounded" title="Copy SQL"><span class="material-symbols-outlined text-[18px]">content_copy</span></button>
 </div></div>
 <div class="flex-1 min-h-0 flex flex-col overflow-hidden">
-<!-- SQL View Content (Active) -->
-<div class="w-full bg-surface-container-low border-b border-outline-variant px-md py-2 flex items-center gap-xl"><div class="flex items-center gap-xl">
+<!-- Object detail bar (all tabs) -->
+<div id="sc-detail-bar" class="w-full bg-surface-container-low border-b border-outline-variant px-md py-2 flex flex-wrap items-center gap-x-xl gap-y-sm flex-none">
 <div class="flex items-center gap-sm">
 <span class="text-label-caps font-label-caps text-secondary uppercase">TYPE:</span>
 <span id="sc-detail-type" class="text-body-sm font-bold text-on-surface uppercase">—</span>
@@ -233,7 +233,13 @@
 <span class="text-label-caps font-label-caps text-secondary uppercase">OBJECT:</span>
 <span id="sc-detail-object" class="text-body-sm font-bold text-on-surface uppercase">—</span>
 </div>
-</div></div><div class="flex-1 min-h-0 flex overflow-hidden" id="tab-sql-view">
+<div class="h-4 w-px bg-outline-variant"></div>
+<div class="flex items-center gap-sm">
+<span class="text-label-caps font-label-caps text-secondary uppercase">STATUS:</span>
+<span id="sc-detail-status" class="text-body-sm font-bold uppercase">—</span>
+</div>
+</div>
+<div class="flex-1 min-h-0 flex overflow-hidden" id="tab-sql-view">
 <!-- Source SQL -->
 <div class="w-1/2 border-r border-outline-variant flex flex-col overflow-hidden">
 <div class="bg-surface-container-lowest border-b border-outline-variant px-md py-1 flex items-center gap-sm">
@@ -255,11 +261,9 @@
 </div>
 </div>
 </div>
-<!-- Summary View Placeholder (Hidden) -->
-<div class="hidden flex-1 min-h-0 flex items-center justify-center bg-slate-50 text-secondary p-md" id="tab-summary">
-<div class="text-left w-full max-w-xl text-body-sm" id="sc-summary-content">
-<p>Select an object to view comparison summary.</p>
-</div>
+<!-- Summary View (Hidden) -->
+<div class="hidden flex-1 min-h-0 overflow-y-auto bg-surface p-md" id="tab-summary">
+<div id="sc-summary-content" class="flex flex-col gap-md w-full"></div>
 </div>
 <!-- Sync View Placeholder (Hidden) -->
 <div class="hidden flex-1 min-h-0 flex items-center justify-center bg-slate-50 text-secondary" id="tab-sync">

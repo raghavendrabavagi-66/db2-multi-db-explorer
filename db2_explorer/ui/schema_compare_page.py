@@ -783,6 +783,12 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
   const SC_CACHE_KEY = "sch_comparison_cache";
   const SC_GROUP_BY_KEY = "sch_group_by";
   const GROUP_CONFIG = {group_config_json};
+  const STATUS_BADGE_CLASS = {{
+    identical: "text-emerald-700",
+    different: "text-amber-700",
+    only_gitlab: "text-primary",
+    only_db: "text-red-700",
+  }};
 
   let objectMap = {objects_json};
   let selectedKey = {_js_literal(view.selected_object_key)};
@@ -1070,22 +1076,170 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
     if (typeof window.syncScFrameHeight === "function") window.syncScFrameHeight();
   }}
 
+  function setDetailStatus(obj) {{
+    const el = document.getElementById("sc-detail-status");
+    if (!el) return;
+    if (!obj) {{
+      el.textContent = "—";
+      el.className = "text-body-sm font-bold uppercase text-on-surface";
+      return;
+    }}
+    const status = obj.status || "identical";
+    const badges = GROUP_CONFIG.statusBadges || {{}};
+    el.textContent = obj.status_badge || badges[status] || status.toUpperCase();
+    el.className = "text-body-sm font-bold uppercase " + (STATUS_BADGE_CLASS[status] || "text-on-surface");
+  }}
+
+  function renderSummaryEmpty() {{
+    const el = document.getElementById("sc-summary-content");
+    if (!el) return;
+    el.innerHTML = (
+      '<div class="flex flex-col items-center justify-center text-secondary py-xl gap-sm">'
+      + '<span class="material-symbols-outlined text-[40px]">info</span>'
+      + '<p class="text-body-md font-medium text-on-surface">Select an object</p>'
+      + '<p class="text-body-sm">Choose a row above to view comparison summary.</p>'
+      + "</div>"
+    );
+  }}
+
+  function buildSummaryDlRow(label, value, mono) {{
+    const valCls = mono ? "font-code-sm text-on-surface" : "font-medium text-on-surface";
+    return (
+      '<div class="grid grid-cols-[140px_1fr] px-md py-sm gap-md">'
+      + '<dt class="text-label-caps text-secondary uppercase">' + escHtml(label) + "</dt>"
+      + '<dd class="text-body-sm ' + valCls + '">' + escHtml(value || "—") + "</dd>"
+      + "</div>"
+    );
+  }}
+
+  function buildSummaryAlert(alert) {{
+    if (!alert || !alert.message) return "";
+    const isSuccess = alert.variant === "success";
+    const boxCls = isSuccess
+      ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+      : "bg-amber-50 border-amber-200 text-amber-900";
+    const icon = isSuccess ? "check_circle" : "warning";
+    return (
+      '<div class="flex items-start gap-sm px-md py-sm rounded border ' + boxCls + '">'
+      + '<span class="material-symbols-outlined text-[20px]">' + icon + "</span>"
+      + '<p class="text-body-sm">' + escHtml(alert.message) + "</p>"
+      + "</div>"
+    );
+  }}
+
+  function buildSummarySection(title, rowsHtml) {{
+    return (
+      '<section class="bg-surface-container-lowest border border-outline-variant rounded overflow-hidden">'
+      + '<div class="px-md py-sm bg-surface-container-low border-b border-outline-variant">'
+      + '<span class="text-label-caps font-label-caps text-secondary uppercase">' + escHtml(title) + "</span>"
+      + "</div>"
+      + '<dl class="divide-y divide-outline-variant">' + rowsHtml + "</dl>"
+      + "</section>"
+    );
+  }}
+
+  function presenceLabel(present) {{
+    return present ? "Present" : "Absent";
+  }}
+
+  function buildPropertyCompareSection(title, rows) {{
+    if (!rows || !rows.length) return "";
+    const mismatches = rows.filter(function (row) {{ return row.Match === "no"; }});
+    let body = "";
+    rows.forEach(function (row) {{
+      const isNo = row.Match === "no";
+      const rowCls = isNo ? "bg-amber-50/60" : "";
+      const matchCls = isNo ? "text-amber-700 font-medium" : "text-emerald-700";
+      const matchLabel = row.Match === "yes" ? "✓ yes" : "✗ no";
+      body += (
+        '<tr class="border-b border-outline-variant ' + rowCls + '">'
+        + '<td class="px-md py-2 text-body-sm text-on-surface">' + escHtml(row.Property) + "</td>"
+        + '<td class="px-md py-2 text-body-sm font-code-sm text-secondary">' + escHtml(row.GitLab) + "</td>"
+        + '<td class="px-md py-2 text-body-sm font-code-sm text-secondary">' + escHtml(row.Database) + "</td>"
+        + '<td class="px-md py-2 text-body-sm ' + matchCls + '">' + matchLabel + "</td>"
+        + "</tr>"
+      );
+    }});
+    let footer = "";
+    if (mismatches.length) {{
+      const props = mismatches.map(function (row) {{ return (row.Property || "").trim(); }}).join(", ");
+      footer = (
+        '<div class="px-md py-sm bg-amber-50 border-t border-amber-200 text-body-sm text-amber-800 flex items-center gap-sm">'
+        + '<span class="material-symbols-outlined text-[18px]">warning</span>'
+        + "<span>Mismatch: " + escHtml(props) + "</span></div>"
+      );
+    }}
+    return (
+      '<section class="bg-surface-container-lowest border border-outline-variant rounded overflow-hidden">'
+      + '<div class="px-md py-sm bg-surface-container-low border-b border-outline-variant">'
+      + '<span class="text-label-caps font-label-caps text-secondary uppercase">' + escHtml(title) + "</span>"
+      + "</div>"
+      + '<div class="overflow-x-auto"><table class="w-full border-collapse text-left">'
+      + '<thead><tr class="bg-surface-container-low border-b border-outline-variant">'
+      + '<th class="px-md py-sm text-label-caps text-secondary uppercase">Property</th>'
+      + '<th class="px-md py-sm text-label-caps text-secondary uppercase">GitLab</th>'
+      + '<th class="px-md py-sm text-label-caps text-secondary uppercase">Database</th>'
+      + '<th class="px-md py-sm text-label-caps text-secondary uppercase">Match</th>'
+      + "</tr></thead><tbody>" + body + "</tbody></table></div>"
+      + footer + "</section>"
+    );
+  }}
+
+  function renderSummary(obj) {{
+    const el = document.getElementById("sc-summary-content");
+    if (!el) return;
+    if (!obj) {{
+      renderSummaryEmpty();
+      return;
+    }}
+    const gitlabLine = obj.gitlab_line != null && obj.gitlab_line !== "" ? String(obj.gitlab_line) : "—";
+    const detailRows = (
+      buildSummaryDlRow("Type", obj.type_label || obj.object_type)
+      + buildSummaryDlRow("Schema", obj.schema)
+      + buildSummaryDlRow("Object", obj.name, true)
+      + buildSummaryDlRow("Parent table", obj.parent || "—", !!(obj.parent))
+      + buildSummaryDlRow("Source file", obj.source_file, true)
+      + buildSummaryDlRow("GitLab line", gitlabLine)
+    );
+    const presence = obj.side_presence || {{}};
+    const presenceRows = (
+      buildSummaryDlRow("In GitLab (source)", presenceLabel(!!presence.gitlab))
+      + buildSummaryDlRow("In Azure SQL (target)", presenceLabel(!!presence.target))
+      + buildSummaryDlRow("DDL normalized match", presence.ddl_match || "N/A")
+    );
+    const parts = [
+      buildSummaryAlert(obj.status_alert),
+      buildSummarySection("Object details", detailRows),
+      buildSummarySection("Side presence", presenceRows),
+      buildPropertyCompareSection("Index properties (GitLab vs database)", obj.index_property_rows),
+      buildPropertyCompareSection("Foreign key properties (GitLab vs database)", obj.fk_property_rows),
+    ].filter(function (chunk) {{ return chunk; }});
+    el.innerHTML = parts.join("");
+  }}
+
   function showObject(key) {{
     const obj = objectMap[key];
-    if (!obj) return;
+    if (!obj) {{
+      setText("sc-detail-type", "—");
+      setText("sc-detail-schema", "—");
+      setText("sc-detail-object", "—");
+      setDetailStatus(null);
+      renderSummaryEmpty();
+      return;
+    }}
     selectedKey = key;
     document.querySelectorAll(".sc-object-row").forEach(function (row) {{
       row.classList.toggle("bg-secondary-container", row.dataset.objectKey === key);
     }});
-    setText("sc-detail-type", obj.type_label || obj.object_type || "—");
+    setText("sc-detail-type", (obj.type_label || obj.object_type || "—").toUpperCase());
     setText("sc-detail-schema", (obj.schema || "—").toUpperCase());
     setText("sc-detail-object", (obj.name || "—").toUpperCase());
+    setDetailStatus(obj);
     const src = document.getElementById("sc-diff-source");
     const tgt = document.getElementById("sc-diff-target");
     if (src) src.innerHTML = obj.diff_source_html || "<div class=\\"flex text-secondary\\"><span class=\\"diff-line-num\\">—</span>No source DDL</div>";
     if (tgt) tgt.innerHTML = obj.diff_target_html || "<div class=\\"flex text-secondary\\"><span class=\\"diff-line-num\\">—</span>No target DDL</div>";
-    const summary = document.getElementById("sc-summary-content");
-    if (summary) summary.innerHTML = obj.summary_html || "<p>No summary.</p>";
+    renderSummary(obj);
   }}
 
   function wireObjectRows() {{
@@ -1257,6 +1411,7 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
     wireGroupRows();
     wireObjectRows();
     updateTableVisibility();
+    renderSummaryEmpty();
   }}
   setActiveTab("sql");
 
