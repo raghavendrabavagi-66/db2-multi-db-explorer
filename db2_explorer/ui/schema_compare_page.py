@@ -396,6 +396,91 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
     }};
   }}
 
+  const DEPLOY_BTN_BASE = "h-9 px-md font-label-caps text-label-caps flex items-center gap-xs transition-colors rounded";
+  const DEPLOY_BTN_IDLE = DEPLOY_BTN_BASE + " border border-outline-variant bg-surface-container-low text-on-surface hover:bg-surface-container-high";
+  const DEPLOY_BTN_SUCCESS = DEPLOY_BTN_BASE + " bg-emerald-600 text-white border border-emerald-600 hover:brightness-110";
+  const DEPLOY_BTN_FAILED = DEPLOY_BTN_BASE + " border border-red-600 text-red-700 bg-red-50";
+  const DEPLOY_BTN_LOADING = DEPLOY_BTN_BASE + " border border-outline-variant bg-surface-container-low text-on-surface opacity-70 cursor-wait";
+  const SC_GITLAB_SOURCE_IDS = ["sc-gitlab-token", "sc-branch", "sc-database", "sc-server"];
+
+  let deployVerifiedSnapshot = null;
+  let deployFailTimer = null;
+
+  function deployIdleHtml() {{
+    return '<span class="material-symbols-outlined text-[18px]">folder_open</span>Load Deployment';
+  }}
+
+  function deploySuccessHtml() {{
+    return '<span class="material-symbols-outlined text-[18px]">check_circle</span>Loaded';
+  }}
+
+  function deployFingerprint() {{
+    return JSON.stringify([
+      (document.getElementById("sc-gitlab-token") || {{ value: "" }}).value.trim(),
+      (document.getElementById("sc-branch") || {{ value: "" }}).value.trim(),
+      (document.getElementById("sc-database") || {{ value: "" }}).value.trim(),
+      (document.getElementById("sc-server") || {{ value: "" }}).value.trim(),
+    ]);
+  }}
+
+  function setGitLabFieldsDirty(dirty) {{
+    SC_GITLAB_SOURCE_IDS.forEach(function (id) {{
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.toggle("border-amber-500", dirty);
+      el.classList.toggle("ring-1", dirty);
+      el.classList.toggle("ring-amber-200", dirty);
+    }});
+  }}
+
+  function clearDeploymentCache() {{
+    deploymentFiles = {{}};
+    missingFiles = [];
+    bundlePath = "";
+    deploymentLoaded = false;
+  }}
+
+  function setDeployLoadState(state) {{
+    const btn = document.getElementById("sc-load-deployment");
+    if (!btn) return;
+    if (deployFailTimer) {{
+      clearTimeout(deployFailTimer);
+      deployFailTimer = null;
+    }}
+    if (state === "loading") {{
+      btn.disabled = true;
+      btn.className = DEPLOY_BTN_LOADING;
+      btn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">refresh</span>Loading…';
+      return;
+    }}
+    if (state === "loaded") {{
+      btn.disabled = false;
+      btn.className = DEPLOY_BTN_SUCCESS;
+      btn.innerHTML = deploySuccessHtml();
+      setGitLabFieldsDirty(false);
+      return;
+    }}
+    if (state === "failed") {{
+      btn.disabled = false;
+      btn.className = DEPLOY_BTN_FAILED;
+      btn.innerHTML = deployIdleHtml();
+      deployFailTimer = setTimeout(function () {{ setDeployLoadState("idle"); }}, 10000);
+      return;
+    }}
+    btn.disabled = false;
+    btn.className = DEPLOY_BTN_IDLE;
+    btn.innerHTML = deployIdleHtml();
+  }}
+
+  function onGitLabSourceChange() {{
+    if (deployVerifiedSnapshot !== null && deployVerifiedSnapshot !== deployFingerprint()) {{
+      deployVerifiedSnapshot = null;
+      clearDeploymentCache();
+      setDeployLoadState("idle");
+      setGitLabFieldsDirty(true);
+    }}
+  }}
+
   async function loadBranches() {{
     const token = (document.getElementById("sc-gitlab-token") || {{ value: "" }}).value.trim();
     if (!token) {{ toast("Enter GitLab token first.", true); return; }}
@@ -409,6 +494,7 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
       }}
       branchList = out.payload.branches || [];
       comboboxSetValue("sc-branch", branchList[0] || "");
+      onGitLabSourceChange();
       toast(out.payload.message || "Branches loaded.", false);
       await loadDbFolders();
     }} catch (err) {{
@@ -428,6 +514,7 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
     comboboxSetValue("sc-database", "");
     comboboxSetValue("sc-server", "");
     serverFolderList = [];
+    onGitLabSourceChange();
   }}
 
   async function loadServerFolders() {{
@@ -441,6 +528,7 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
     if (!out.res.ok || !out.payload.ok) return;
     serverFolderList = out.payload.folders || [];
     comboboxSetValue("sc-server", "");
+    onGitLabSourceChange();
   }}
 
   async function loadDeployment() {{
@@ -452,13 +540,15 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
       toast("Complete GitLab branch, database, and server folder.", true);
       return;
     }}
-    const btn = document.getElementById("sc-load-deployment");
-    if (btn) btn.disabled = true;
+    setDeployLoadState("loading");
     try {{
       const out = await postJson(LOAD_DEPLOYMENT_URL, {{
         gitlab_token: token, branch: branch, database: database, server_folder: serverFolder,
       }});
       if (!out.res.ok || !out.payload.ok) {{
+        deployVerifiedSnapshot = null;
+        clearDeploymentCache();
+        setDeployLoadState("failed");
         toast(out.payload.error || "Load deployment failed.", true);
         return;
       }}
@@ -466,6 +556,14 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
       missingFiles = out.payload.missing_files || [];
       bundlePath = out.payload.bundle_path || "";
       deploymentLoaded = Object.keys(deploymentFiles).length > 0;
+      if (!deploymentLoaded) {{
+        deployVerifiedSnapshot = null;
+        setDeployLoadState("failed");
+        toast("No deployment files found for this selection.", true);
+        return;
+      }}
+      deployVerifiedSnapshot = deployFingerprint();
+      setDeployLoadState("loaded");
       if (out.payload.target_server) {{
         const azServer = document.getElementById("sc-az-server");
         if (azServer) azServer.value = out.payload.target_server;
@@ -474,10 +572,14 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
         comboboxSetValue("sc-az-database", out.payload.target_database);
       }}
       toast(out.payload.message || "Deployment loaded.", false);
+      if (missingFiles.length) {{
+        toast("Missing in repo: " + missingFiles.join(", "), true);
+      }}
     }} catch (err) {{
+      deployVerifiedSnapshot = null;
+      clearDeploymentCache();
+      setDeployLoadState("failed");
       toast(err.message || "Load deployment failed.", true);
-    }} finally {{
-      if (btn) btn.disabled = false;
     }}
   }}
 
@@ -585,18 +687,19 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
     inputId: "sc-branch",
     listId: "sc-branch-list",
     getOptions: function () {{ return branchList; }},
-    onSelect: function () {{ loadDbFolders(); }},
+    onSelect: function () {{ loadDbFolders(); onGitLabSourceChange(); }},
   }});
   createCombobox({{
     inputId: "sc-database",
     listId: "sc-database-list",
     getOptions: function () {{ return dbFolderList; }},
-    onSelect: function () {{ loadServerFolders(); }},
+    onSelect: function () {{ loadServerFolders(); onGitLabSourceChange(); }},
   }});
   createCombobox({{
     inputId: "sc-server",
     listId: "sc-server-list",
     getOptions: function () {{ return serverFolderList; }},
+    onSelect: function () {{ onGitLabSourceChange(); }},
   }});
   createCombobox({{
     inputId: "sc-az-database",
@@ -608,6 +711,18 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
   comboboxSetValue("sc-database", {_js_literal(view.database)});
   comboboxSetValue("sc-server", {_js_literal(view.server)});
   comboboxSetValue("sc-az-database", {_js_literal(view.az_database)});
+
+  SC_GITLAB_SOURCE_IDS.forEach(function (id) {{
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", onGitLabSourceChange);
+  }});
+
+  if (deploymentLoaded) {{
+    deployVerifiedSnapshot = deployFingerprint();
+    setDeployLoadState("loaded");
+  }} else {{
+    setDeployLoadState("idle");
+  }}
 
   document.getElementById("sc-branch-refresh")?.addEventListener("click", function (e) {{
     e.preventDefault(); loadBranches();
