@@ -328,8 +328,9 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
       if (state.onSelect) state.onSelect(name);
     }}
 
-    function renderList() {{
-      const items = comboboxFilteredOptions(state.getOptions() || [], input.value);
+    function renderList(filterQuery) {{
+      const query = filterQuery !== undefined ? filterQuery : input.value;
+      const items = comboboxFilteredOptions(state.getOptions() || [], query);
       list.innerHTML = "";
       if (!items.length) {{
         list.innerHTML = '<div class="px-md py-2 text-body-sm text-secondary">No matches</div>';
@@ -351,8 +352,13 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
       setHighlight(-1);
     }}
 
-    input.addEventListener("focus", renderList);
-    input.addEventListener("input", renderList);
+    input.addEventListener("focus", function () {{
+      renderList("");
+      input.select();
+    }});
+    input.addEventListener("input", function () {{
+      renderList();
+    }});
     input.addEventListener("keydown", function (ev) {{
       const buttons = optionButtons();
       if (ev.key === "ArrowDown") {{
