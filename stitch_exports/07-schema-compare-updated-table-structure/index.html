@@ -30,10 +30,13 @@
                     "outline-variant": "#c3c6d7",
                     "outline": "#737686",
                     "surface": "#faf8ff",
+                    "background": "#faf8ff",
                     "on-background": "#131b2e",
                     "on-surface": "#131b2e",
                     "secondary-container": "#d0e1fb",
-                    "on-secondary-container": "#54647a"
+                    "on-secondary-container": "#54647a",
+                    "secondary": "#505f76",
+                    "on-primary-fixed": "#00174b",
             },
             "spacing": {
                     "lg": "24px",
@@ -81,60 +84,43 @@
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
-<body class="bg-surface text-on-surface font-body-md selection:bg-primary-container selection:text-on-primary-container overflow-hidden h-screen flex flex-col">
-<!-- Top Navigation Bar (Immutable from JSON Logic) -->
-<header class="flex justify-between items-center h-12 px-margin-edge w-full sticky top-0 z-50 bg-surface-container-low border-b border-outline-variant">
-<div class="flex items-center gap-xl">
-<span class="font-headline-md text-headline-md font-bold text-on-surface">DB2 Migration Studio</span>
-<nav class="hidden md:flex items-center gap-md h-full">
-<a id="sc-home-back" class="text-secondary hover:bg-surface-container-high transition-colors px-sm py-xs font-body-md text-body-md" href="#">Home</a>
-<a class="text-secondary hover:bg-surface-container-high transition-colors px-sm py-xs font-body-md text-body-md" href="#">Projects</a>
-<a class="text-primary font-bold border-b-2 border-primary pb-1 font-body-md text-body-md" href="#">Migrations</a>
-<a class="text-secondary hover:bg-surface-container-high transition-colors px-sm py-xs font-body-md text-body-md" href="#">Monitoring</a>
-<a class="text-secondary hover:bg-surface-container-high transition-colors px-sm py-xs font-body-md text-body-md" href="#">Settings</a>
-</nav>
-</div>
+<body class="bg-background text-on-surface h-full flex flex-col overflow-hidden">
+<!-- TopNavBar -->
+<header class="bg-surface-container-low text-primary font-body-md text-body-md border-b border-outline-variant flex flex-none justify-between items-center h-12 px-margin-edge w-full">
 <div class="flex items-center gap-md">
-<div class="flex items-center gap-xs">
-<button class="p-xs hover:bg-surface-container-high transition-colors rounded">
-<span class="material-symbols-outlined text-secondary">notifications</span>
-</button>
-<button class="p-xs hover:bg-surface-container-high transition-colors rounded">
-<span class="material-symbols-outlined text-secondary">help_outline</span>
-</button>
-<button class="p-xs hover:bg-surface-container-high transition-colors rounded">
-<span class="material-symbols-outlined text-secondary">account_circle</span>
-</button>
+<span class="font-headline-md text-headline-md font-bold text-on-surface">DB2 Migration Studio</span>
+<div class="h-4 w-[1px] bg-outline-variant mx-sm"></div>
+<div class="flex flex-col">
+<span class="font-title-sm text-primary font-bold">Schema Compare</span>
+<span class="text-[10px] leading-tight text-secondary uppercase tracking-wider">GitLab DDL vs Azure SQL target</span>
 </div>
-<button class="bg-primary text-on-primary px-md py-xs rounded font-bold active:opacity-80 transition-opacity">Deploy</button>
 </div>
 </header>
-<!-- Secondary Comparison Toolbar -->
-<section class="bg-surface-container-lowest h-12 border-b border-outline-variant flex items-center justify-between px-margin-edge flex-none">
-<div class="flex items-center gap-md">
+<!-- Secondary toolbar -->
+<div class="bg-surface-container-lowest h-12 border-b border-outline-variant flex flex-none items-center justify-between px-margin-edge">
+<div class="flex items-center gap-sm">
+<button id="sc-home-back" type="button" class="flex items-center gap-1 text-on-secondary-container hover:text-primary transition-colors text-sm font-medium">
+<span class="material-symbols-outlined text-sm">arrow_back</span>Home
+</button>
+<div class="h-4 w-[1px] bg-outline-variant mx-sm"></div>
 <button id="sc-edit-creds" type="button" class="flex items-center gap-xs px-sm py-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded text-body-sm transition-colors">
-<span class="material-symbols-outlined text-[18px]">edit_note</span>
-                Edit Credentials
-            </button>
-<button id="sc-refresh-btn" type="button" class="flex items-center gap-xs px-sm py-1 bg-primary text-on-primary hover:opacity-90 rounded text-body-sm transition-opacity">
-<span class="material-symbols-outlined text-[18px]">compare</span>
-                Refresh
-            </button>
+<span class="material-symbols-outlined text-[18px]">edit_note</span>Edit Credentials
+</button>
+<button type="button" class="flex items-center gap-xs px-sm py-1 border border-outline-variant text-on-surface-variant hover:bg-surface-container-low rounded text-body-sm transition-colors">
+<span class="material-symbols-outlined text-[18px]">settings</span>Configuration
+</button>
 </div>
 <div class="flex items-center gap-md">
 <div class="relative">
 <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
 <input id="sc-search" class="pl-8 pr-md py-1 border border-outline-variant rounded bg-surface w-64 text-body-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" placeholder="Search objects..." type="text">
 </div>
-<div class="flex items-center gap-sm">
-<label class="text-label-caps font-label-caps text-secondary">GROUP BY</label>
-<select class="border border-outline-variant rounded bg-surface text-body-sm px-sm py-1 focus:ring-1 focus:ring-primary outline-none">
-<option>Type of difference</option>
-<option>Type of Object</option>
-</select>
+<button id="sc-refresh-btn" type="button" class="flex items-center gap-xs px-md py-1 bg-primary text-on-primary hover:opacity-90 rounded text-body-sm font-bold transition-opacity">
+<span class="material-symbols-outlined text-[18px]">compare</span>Refresh
+</button>
 </div>
 </div>
-</section><section class="bg-surface-container-low border-b border-outline-variant px-margin-edge py-2 flex items-center justify-between flex-none">
+<section class="bg-surface-container-low border-b border-outline-variant px-margin-edge py-2 flex items-center justify-between flex-none">
 <div class="flex flex-col">
 <span class="text-label-caps text-secondary uppercase">Source</span>
 <span id="sc-source-label" class="text-body-md font-bold text-on-surface">GitLab Source</span>

@@ -679,7 +679,14 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
   }}
 
   function navigateHomeClear() {{
+    try {{
+      sessionStorage.removeItem(SC_SID_KEY);
+      sessionStorage.removeItem(SC_TOKEN_KEY);
+    }} catch (err) {{}}
     window.parent.postMessage({{ type: "stitch-oe-nav", url: HOME_CLEAR_URL }}, "*");
+    if (window.top && window.top !== window) {{
+      window.top.postMessage({{ type: "stitch-oe-nav", url: HOME_CLEAR_URL }}, "*");
+    }}
     try {{ window.top.location.href = HOME_CLEAR_URL; }} catch (err) {{}}
   }}
 
@@ -769,6 +776,24 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
   function scSessionToken() {{
     try {{ return sessionStorage.getItem(SC_TOKEN_KEY) || ""; }} catch (err) {{ return ""; }}
   }}
+
+  function clearScBrowserSession() {{
+    try {{
+      sessionStorage.removeItem(SC_SID_KEY);
+      sessionStorage.removeItem(SC_TOKEN_KEY);
+      sessionStorage.removeItem(SC_CACHE_KEY);
+    }} catch (err) {{}}
+  }}
+
+  function navigateHomeClear() {{
+    clearScBrowserSession();
+    window.parent.postMessage({{ type: "stitch-oe-nav", url: HOME_CLEAR_URL }}, "*");
+    if (window.top && window.top !== window) {{
+      window.top.postMessage({{ type: "stitch-oe-nav", url: HOME_CLEAR_URL }}, "*");
+    }}
+    try {{ window.top.location.href = HOME_CLEAR_URL; }} catch (err) {{}}
+  }}
+
   (function syncServerSession() {{
     var sid = {_js_literal(view.sch_sid)};
     var token = {_js_literal(view.sch_token)};
@@ -928,8 +953,7 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
 
   document.getElementById("sc-home-back")?.addEventListener("click", function (e) {{
     e.preventDefault();
-    window.parent.postMessage({{ type: "stitch-oe-nav", url: HOME_CLEAR_URL }}, "*");
-    try {{ window.top.location.href = HOME_CLEAR_URL; }} catch (err) {{}}
+    navigateHomeClear();
   }});
 
   document.getElementById("sc-edit-creds")?.addEventListener("click", function (e) {{
