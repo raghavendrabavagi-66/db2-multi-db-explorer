@@ -144,6 +144,8 @@ class RowCompareSetupView:
     az_auth: str = "entra"
     az_trust_cert: bool = True
     edit_mode: bool = False
+    rc_sid: str = ""
+    rc_token: str = ""
     toast_message: str = ""
     toast_error: bool = False
 
@@ -162,6 +164,8 @@ class RowCompareWorkspaceView:
     result_rows_html: str = ""
     result_tbody_views: dict[str, str] = field(default_factory=dict)
     has_results: bool = False
+    rc_sid: str = ""
+    rc_token: str = ""
     status_message: str = ""
     toast_message: str = ""
     toast_error: bool = False
@@ -205,7 +209,29 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
   const LIST_AZ_URL = {json.dumps(list_az_url)};
   const SAVE_CONNECT_URL = {json.dumps(save_connect_url)};
   const RC_SID_KEY = "rc_sid";
+  const RC_TOKEN_KEY = "rc_token";
   const EDIT_MODE = {json.dumps(view.edit_mode)};
+
+  function rcSessionToken() {{
+    try {{
+      return sessionStorage.getItem(RC_TOKEN_KEY) || "";
+    }} catch (err) {{
+      return "";
+    }}
+  }}
+
+  function setRcSessionToken(token) {{
+    try {{
+      if (token) sessionStorage.setItem(RC_TOKEN_KEY, token);
+    }} catch (err) {{}}
+  }}
+
+  (function syncServerSession() {{
+    var sid = {_js_literal(view.rc_sid)};
+    var token = {_js_literal(view.rc_token)};
+    if (sid) sessionStorage.setItem(RC_SID_KEY, sid);
+    if (token) setRcSessionToken(token);
+  }})();
 
   function rcSessionId() {{
     try {{
@@ -532,6 +558,7 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
     }}
     postJson(SAVE_CONNECT_URL, {{
       rc_sid: sid,
+      rc_token: rcSessionToken(),
       database: db2.database,
       host: db2.host,
       port: db2.port || "50000",
@@ -550,9 +577,14 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
         toast(payload.error || payload.message || "Could not save credentials.", true);
         return;
       }}
+      if (payload.rc_token) {{
+        setRcSessionToken(payload.rc_token);
+      }}
       const params = new URLSearchParams();
       params.set("rc_action", "connect");
-      params.set("rc_sid", sid);
+      if (payload.rc_bind) {{
+        params.set("rc_bind", payload.rc_bind);
+      }}
       rcNavigate(params);
     }}).catch(function (err) {{
       if (compareBtn) {{
@@ -709,6 +741,7 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
   const HOME_CLEAR_URL = {json.dumps(_HOME_CLEAR_URL)};
   const RUN_COMPARE_URL = {json.dumps(run_compare_url)};
   const RC_SID_KEY = "rc_sid";
+  const RC_TOKEN_KEY = "rc_token";
   const FILTER_ACTIVE =
     "h-10 px-md text-body-sm font-bold text-primary border-b-2 border-primary transition-all";
   const FILTER_IDLE =
@@ -716,6 +749,21 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
   let runInFlight = false;
   let lastComparisonViews = {initial_views};
   let currentFilter = "all";
+
+  function rcSessionToken() {{
+    try {{
+      return sessionStorage.getItem(RC_TOKEN_KEY) || "";
+    }} catch (err) {{
+      return "";
+    }}
+  }}
+
+  (function syncServerSession() {{
+    var sid = {_js_literal(view.rc_sid)};
+    var token = {_js_literal(view.rc_token)};
+    if (sid) sessionStorage.setItem(RC_SID_KEY, sid);
+    if (token) sessionStorage.setItem(RC_TOKEN_KEY, token);
+  }})();
 
   function rcSessionId() {{
     try {{
@@ -832,7 +880,6 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
   function runCompareFallback(mode) {{
     const p = new URLSearchParams();
     p.set("rc_action", "run");
-    p.set("rc_sid", rcSessionId());
     p.set("cmp_target_table_mode", mode);
     rcNavigate(p);
   }}
@@ -855,6 +902,7 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
         headers: {{ "Content-Type": "application/json" }},
         body: JSON.stringify({{
           rc_sid: rcSessionId(),
+          rc_token: rcSessionToken(),
           target_table_mode: mode,
         }}),
       }});
@@ -902,7 +950,6 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
     e.preventDefault();
     const p = new URLSearchParams();
     p.set("rc_action", "edit");
-    p.set("rc_sid", rcSessionId());
     rcNavigate(p);
   }});
 

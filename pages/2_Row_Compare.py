@@ -7,7 +7,7 @@ from datetime import datetime
 import streamlit as st
 
 from db2_explorer.api.register import ensure_oe_search_api
-from db2_explorer.api.rc_credential_store import get_connect_payload
+from db2_explorer.api.rc_credential_store import consume_bind_token, get_connect_payload
 from db2_explorer.clients.azure import AUTH_METHOD_LABELS, AzureConnection
 from db2_explorer.data.connections import Connection
 from db2_explorer.compare.row_compare import (
@@ -56,6 +56,7 @@ def _init_session() -> None:
         "rc_setup_done": False,
         "rc_setup_mode": "initial",
         "rc_sid": "",
+        "rc_token": "",
         "rc_toast_message": "",
         "rc_toast_error": False,
     }
@@ -91,19 +92,36 @@ def _apply_connect_params() -> None:
     st.session_state.cmp_az_trust_cert = st.query_params.get("cmp_az_trust_cert", "1") == "1"
 
 
-def _apply_rc_sid() -> bool:
-    """Load saved credentials from the server-side cache when ``rc_sid`` is present."""
-    sid = str(st.query_params.get("rc_sid", "")).strip()
-    if not sid:
-        sid = str(st.session_state.get("rc_sid", "")).strip()
-    if not sid:
+def _apply_rc_bind() -> bool:
+    """Bind Streamlit session from a one-time ``rc_bind`` query param."""
+    bind = str(st.query_params.get("rc_bind", "")).strip()
+    if not bind:
         return False
-    payload = get_connect_payload(sid)
+    pair = consume_bind_token(bind)
+    if not pair:
+        return False
+    sid, token = pair
+    payload = get_connect_payload(sid, token)
     if not payload:
         return False
     for key, val in payload.items():
         st.session_state[key] = val
     st.session_state.rc_sid = sid
+    st.session_state.rc_token = token
+    return True
+
+
+def _restore_from_session_cache() -> bool:
+    """Reload credentials from the server cache using session_state sid + token."""
+    sid = str(st.session_state.get("rc_sid", "")).strip()
+    token = str(st.session_state.get("rc_token", "")).strip()
+    if not sid or not token:
+        return False
+    payload = get_connect_payload(sid, token)
+    if not payload:
+        return False
+    for key, val in payload.items():
+        st.session_state[key] = val
     return True
 
 
@@ -122,7 +140,7 @@ def _handle_query_actions() -> None:
     if not action:
         return
 
-    restored = _apply_rc_sid()
+    restored = _apply_rc_bind() or _restore_from_session_cache()
 
     if action == "connect":
         if not restored:
@@ -146,7 +164,7 @@ def _handle_query_actions() -> None:
             _set_toast("Connected — ready to run comparison.")
     elif action == "edit":
         if not restored:
-            _apply_rc_sid()
+            _restore_from_session_cache()
         _ensure_az_database_in_options()
         st.session_state.rc_setup_mode = "edit"
         st.session_state.rc_setup_done = False
@@ -156,12 +174,7 @@ def _handle_query_actions() -> None:
         st.session_state.rc_setup_done = True
     elif action == "run":
         if not restored:
-            sid = str(st.session_state.get("rc_sid", "")).strip()
-            if sid:
-                payload = get_connect_payload(sid)
-                if payload:
-                    for key, val in payload.items():
-                        st.session_state[key] = val
+            _restore_from_session_cache()
         mode = st.query_params.get("cmp_target_table_mode", "original")
         if mode in {"original", "staging"}:
             st.session_state.cmp_target_table_mode = mode
@@ -243,6 +256,8 @@ def _setup_view() -> RowCompareSetupView:
         az_auth=str(st.session_state.get("cmp_az_auth", "entra")),
         az_trust_cert=bool(st.session_state.get("cmp_az_trust_cert", True)),
         edit_mode=st.session_state.get("rc_setup_mode") == "edit",
+        rc_sid=str(st.session_state.get("rc_sid", "")),
+        rc_token=str(st.session_state.get("rc_token", "")),
         toast_message=str(st.session_state.get("rc_toast_message", "")),
         toast_error=bool(st.session_state.get("rc_toast_error", False)),
     )
@@ -276,6 +291,8 @@ def _workspace_view() -> RowCompareWorkspaceView:
         result_rows_html=rows_html,
         result_tbody_views=tbody_views,
         has_results=has_results,
+        rc_sid=str(st.session_state.get("rc_sid", "")),
+        rc_token=str(st.session_state.get("rc_token", "")),
         toast_message=str(st.session_state.get("rc_toast_message", "")),
         toast_error=bool(st.session_state.get("rc_toast_error", False)),
     )

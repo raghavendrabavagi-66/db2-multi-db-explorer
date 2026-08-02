@@ -25,10 +25,13 @@ def _azure_auth_method(raw: str) -> str:
 def run_comparison_json(body: dict[str, Any]) -> dict[str, Any]:
     """Run Row Compare using credentials stored for ``rc_sid``."""
     rc_sid = str(body.get("rc_sid", "")).strip()
+    rc_token = str(body.get("rc_token", "")).strip()
     if not rc_sid:
         return {"ok": False, "error": "Session id is required."}
+    if not rc_token:
+        return {"ok": False, "error": "Session token is required."}
 
-    payload = get_connect_payload(rc_sid)
+    payload = get_connect_payload(rc_sid, rc_token)
     if not payload:
         return {"ok": False, "error": "Connection not found. Connect again from setup."}
 

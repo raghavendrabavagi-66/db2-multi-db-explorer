@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from db2_explorer.api.rc_credential_store import save_connect_payload
+from db2_explorer.api.rc_credential_store import (
+    create_bind_token,
+    has_connect_session,
+    save_connect_payload,
+    verify_connect_token,
+)
 from db2_explorer.clients.azure import AUTH_METHOD_LABELS, AzureConnection, query as azure_query, test_connection as test_azure
 from db2_explorer.clients.db2 import query_single
 from db2_explorer.data.connections import Connection
@@ -90,21 +95,31 @@ def save_connect_json(body: dict[str, Any]) -> dict[str, Any]:
     if missing:
         return {"ok": False, "error": "Missing: " + ", ".join(missing)}
 
-    save_connect_payload(
-        rc_sid,
-        {
-            "cmp_db2_database": database,
-            "cmp_db2_host": host,
-            "cmp_db2_port": port,
-            "cmp_db2_user": username,
-            "cmp_db2_password": password,
-            "cmp_az_server": server,
-            "cmp_az_database": az_database,
-            "cmp_az_auth": auth_raw,
-            "cmp_az_trust_cert": trust,
-        },
-    )
-    return {"ok": True, "message": "Credentials saved."}
+    payload_data = {
+        "cmp_db2_database": database,
+        "cmp_db2_host": host,
+        "cmp_db2_port": port,
+        "cmp_db2_user": username,
+        "cmp_db2_password": password,
+        "cmp_az_server": server,
+        "cmp_az_database": az_database,
+        "cmp_az_auth": auth_raw,
+        "cmp_az_trust_cert": trust,
+    }
+
+    rc_token_in = str(body.get("rc_token", "")).strip()
+    if has_connect_session(rc_sid):
+        if not verify_connect_token(rc_sid, rc_token_in):
+            return {"ok": False, "error": "Invalid session token."}
+
+    rc_token = save_connect_payload(rc_sid, payload_data)
+    rc_bind = create_bind_token(rc_sid, rc_token)
+    return {
+        "ok": True,
+        "message": "Credentials saved.",
+        "rc_token": rc_token,
+        "rc_bind": rc_bind,
+    }
 
 
 def list_azure_databases_json(body: dict[str, Any]) -> dict[str, Any]:

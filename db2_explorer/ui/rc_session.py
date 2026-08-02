@@ -29,6 +29,7 @@ RC_SESSION_KEYS = (
     "rc_setup_done",
     "rc_setup_mode",
     "rc_sid",
+    "rc_token",
     "rc_toast_message",
     "rc_toast_error",
 )
