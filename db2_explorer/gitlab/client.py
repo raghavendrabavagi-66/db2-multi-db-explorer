@@ -15,6 +15,11 @@ GITLAB_BASE_URL = "https://gitlab.com"
 GITLAB_PROJECT_ID = "75690564"
 
 
+def gitlab_repo_display() -> tuple[str, str]:
+    """Return ``(base_url, project_id)`` for UI labels and API responses."""
+    return GITLAB_BASE_URL.rstrip("/"), GITLAB_PROJECT_ID
+
+
 @dataclass
 class GitLabConfig:
     base_url: str
@@ -39,9 +44,10 @@ def make_gitlab_config(token: str, branch: str = "main") -> GitLabConfig | None:
     token = (token or "").strip()
     if not token:
         return None
+    base_url, project_id = gitlab_repo_display()
     return GitLabConfig(
-        base_url=GITLAB_BASE_URL.rstrip("/"),
-        project_id=GITLAB_PROJECT_ID,
+        base_url=base_url,
+        project_id=project_id,
         token=token,
         default_branch=(branch or "main").strip() or "main",
     )

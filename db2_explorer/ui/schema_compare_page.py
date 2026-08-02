@@ -21,7 +21,7 @@ from db2_explorer.api.register import (
     sc_run_comparison_api_url,
     sc_save_connect_api_url,
 )
-from db2_explorer.gitlab.client import GITLAB_BASE_URL, GITLAB_PROJECT_ID
+from db2_explorer.gitlab.client import gitlab_repo_display
 from db2_explorer.ui.sch_session import schema_compare_home_clear_url
 from db2_explorer.ui.stitch_shell import (
     _read_html,
@@ -145,6 +145,15 @@ def _auth_entra_checked(auth: str) -> str:
 
 def _auth_windows_checked(auth: str) -> str:
     return "checked" if auth == "windows" else ""
+
+
+def _gitlab_repo_label_html() -> str:
+    base_url, project_id = gitlab_repo_display()
+    return (
+        f'<a href="{html.escape(base_url)}" class="text-primary hover:underline">'
+        f'{html.escape(base_url)}</a><span class="text-outline">·</span>'
+        f'<span class="text-on-surface">project {html.escape(project_id)}</span>'
+    )
 
 
 @dataclass
@@ -795,16 +804,9 @@ def _wire_sc_setup_document(source: str, view: SchemaCompareSetupView) -> str:
     else:
         doc = doc.replace(default_close, close_btn, 1)
 
-    repo_line = (
-        f'<div class="space-y-xs mb-md"><label class="font-label-caps text-label-caps text-on-surface">'
-        f'Source Repository</label><div class="flex items-center gap-xs text-body-md">'
-        f'<a href="{html.escape(GITLAB_BASE_URL)}" class="text-primary hover:underline">'
-        f'{html.escape(GITLAB_BASE_URL)}</a><span class="text-outline">·</span>'
-        f'<span class="text-on-surface">project {html.escape(GITLAB_PROJECT_ID)}</span></div></div>'
-    )
     doc = doc.replace(
-        '<div class="space-y-xs mb-md"><label class="font-label-caps text-label-caps text-on-surface">Source Repository</label><div class="flex items-center gap-xs text-body-md"><a href="https://gitlab.com" class="text-primary hover:underline">https://gitlab.com</a><span class="text-outline">·</span><span class="text-on-surface">project 12345</span></div></div>',
-        repo_line,
+        '<div id="sc-gitlab-repo-label" class="flex items-center gap-xs text-body-md"><!-- injected from db2_explorer/gitlab/client.py --></div>',
+        f'<div id="sc-gitlab-repo-label" class="flex items-center gap-xs text-body-md">{_gitlab_repo_label_html()}</div>',
         1,
     )
 

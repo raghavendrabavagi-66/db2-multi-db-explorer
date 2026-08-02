@@ -20,7 +20,7 @@ Open **Schema Compare** from the Streamlit sidebar.
 
 ### GitLab setup
 
-GitLab **URL** (`https://gitlab.com`) and **project ID** (`75690564`) are built into the app. On the Schema Compare page:
+GitLab **URL** and **project ID** are configured in `db2_explorer/gitlab/client.py` (`GITLAB_BASE_URL`, `GITLAB_PROJECT_ID`). On the Schema Compare page:
 
 1. Enter your **GitLab personal access token** (scopes: **read_api**, **read_repository**).
 2. Click **Load branches** and pick a **branch** from the dropdown.

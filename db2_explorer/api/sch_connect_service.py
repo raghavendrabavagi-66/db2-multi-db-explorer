@@ -13,7 +13,7 @@ from db2_explorer.api.sch_credential_store import (
 )
 from db2_explorer.api.sch_result_store import invalidate_if_credentials_changed
 from db2_explorer.clients.azure import AUTH_METHOD_LABELS, AzureConnection, query as azure_query, test_connection as test_azure
-from db2_explorer.gitlab.client import GITLAB_BASE_URL, GITLAB_PROJECT_ID, GitLabClient, make_gitlab_config
+from db2_explorer.gitlab.client import GitLabClient, gitlab_repo_display, make_gitlab_config
 from db2_explorer.gitlab.deployment_parser import OBJECT_TYPE_FILES
 
 _AZ_AUTH_MAP = {
@@ -113,6 +113,7 @@ def load_deployment_json(body: dict[str, Any]) -> dict[str, Any]:
         mig_az_database = str(mig.get("target_database", "") or "").strip()
         mig_branch = str(mig.get("branch", "") or branch).strip() or branch
 
+    base_url, project_id = gitlab_repo_display()
     return {
         "ok": True,
         "message": f"Loaded {len(files)} file(s) from `{bundle_path}`.",
@@ -122,8 +123,8 @@ def load_deployment_json(body: dict[str, Any]) -> dict[str, Any]:
         "target_server": mig_az_server,
         "target_database": mig_az_database,
         "migration_branch": mig_branch,
-        "gitlab_base_url": GITLAB_BASE_URL,
-        "gitlab_project_id": GITLAB_PROJECT_ID,
+        "gitlab_base_url": base_url,
+        "gitlab_project_id": project_id,
     }
 
 
