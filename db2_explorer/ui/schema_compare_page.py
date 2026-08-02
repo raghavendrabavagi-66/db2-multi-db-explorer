@@ -957,11 +957,12 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
     document.querySelectorAll(".sc-group-row").forEach(function (groupRow) {{
       const groupKey = groupRow.dataset.groupKey || "";
       const members = document.querySelectorAll('.sc-group-member[data-parent-group="' + groupKey + '"]');
-      let anyVisible = false;
+      let anySearchMatch = false;
       members.forEach(function (member) {{
-        if (member.style.display !== "none") anyVisible = true;
+        const matchSearch = !q || (member.textContent || "").toLowerCase().indexOf(q) >= 0;
+        if (matchSearch) anySearchMatch = true;
       }});
-      groupRow.style.display = anyVisible ? "" : "none";
+      groupRow.style.display = anySearchMatch ? "" : "none";
     }});
   }}
 
