@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 
 from db2_explorer.api.oe_search_service import execute_search_json
 from db2_explorer.api.rc_connect_service import (
+    check_session_json,
     create_bind_json,
     list_azure_databases_json,
     save_connect_json,
@@ -23,6 +24,7 @@ from db2_explorer.api.rc_connect_service import (
 )
 from db2_explorer.api.rc_run_service import run_comparison_json
 from db2_explorer.api.sch_connect_service import (
+    check_session_json as sc_check_session_json,
     create_bind_json as sc_create_bind_json,
     list_azure_databases_json as sc_list_azure_databases_json,
     list_branches_json as sc_list_branches_json,
@@ -48,6 +50,7 @@ _POST_ROUTES: dict[str, Callable[[dict], dict]] = {
     "/api/rc/list-azure-databases": list_azure_databases_json,
     "/api/rc/save-connect": save_connect_json,
     "/api/rc/create-bind": create_bind_json,
+    "/api/rc/check-session": check_session_json,
     "/api/rc/run-comparison": run_comparison_json,
     "/api/sc/list-branches": sc_list_branches_json,
     "/api/sc/list-db-folders": sc_list_db_folders_json,
@@ -57,6 +60,7 @@ _POST_ROUTES: dict[str, Callable[[dict], dict]] = {
     "/api/sc/list-azure-databases": sc_list_azure_databases_json,
     "/api/sc/save-connect": sc_save_connect_json,
     "/api/sc/create-bind": sc_create_bind_json,
+    "/api/sc/check-session": sc_check_session_json,
     "/api/sc/run-comparison": run_schema_compare_json,
 }
 

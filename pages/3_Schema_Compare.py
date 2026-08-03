@@ -16,6 +16,7 @@ from db2_explorer.api.sch_result_store import (
     get_result_snapshot_for_session,
     save_result_snapshot,
 )
+from db2_explorer.api.sch_connect_service import reload_deployment_from_payload
 from db2_explorer.clients.azure import AzureConnection
 from db2_explorer.compare.schema_compare import run_schema_compare
 from db2_explorer.ddl.fetcher import fetch_all_objects
@@ -69,6 +70,8 @@ def _init_session() -> None:
         "sch_token": "",
         "sch_toast_message": "",
         "sch_toast_error": False,
+        "sch_pending_refresh": False,
+        "sch_clear_secrets": False,
     }
     for key, val in defaults.items():
         if key not in st.session_state:
@@ -145,6 +148,40 @@ def _lookup_result_snapshot() -> dict[str, object] | None:
     return None
 
 
+def _has_sch_config_fields() -> bool:
+    return bool(
+        str(st.session_state.get("sch_database", "")).strip()
+        and str(st.session_state.get("sch_server", "")).strip()
+    )
+
+
+def _prepare_sch_reconnect(*, clear_secrets: bool) -> None:
+    """Keep non-secret connection fields; clear secrets and cached deployment."""
+    if clear_secrets:
+        st.session_state.sch_gitlab_token = ""
+        st.session_state.sch_deployment_files = {}
+        st.session_state.sch_missing_files = []
+        st.session_state.sch_bundle_path = ""
+        st.session_state.sch_clear_secrets = True
+
+
+def _reload_deployment_from_gitlab() -> bool:
+    payload = {
+        "sch_gitlab_token": st.session_state.get("sch_gitlab_token", ""),
+        "sch_branch": st.session_state.get("sch_branch", "main"),
+        "sch_database": st.session_state.get("sch_database", ""),
+        "sch_server": st.session_state.get("sch_server", ""),
+    }
+    updates, err = reload_deployment_from_payload(payload)
+    if err:
+        _set_toast(err, error=True)
+        return False
+    if updates:
+        for key, val in updates.items():
+            st.session_state[key] = val
+    return True
+
+
 def _ensure_setup_credentials() -> None:
     if st.session_state.get("sch_setup_mode") != "edit":
         return
@@ -156,7 +193,10 @@ def _ensure_setup_credentials() -> None:
     _restore_from_session_cache()
 
 
-def _run_schema_compare() -> None:
+def _run_schema_compare(*, reload_gitlab: bool = False) -> None:
+    if reload_gitlab and not _reload_deployment_from_gitlab():
+        return
+
     deployment_files = dict(st.session_state.get("sch_deployment_files") or {})
     if not deployment_files:
         _set_toast("Load deployment from GitLab first.", error=True)
@@ -217,6 +257,8 @@ def _handle_query_actions() -> None:
     restored = _apply_sch_bind() or _restore_from_session_cache()
 
     if action == "connect":
+        pending_refresh = bool(st.session_state.pop("sch_pending_refresh", False))
+        st.session_state.sch_clear_secrets = False
         if not restored:
             _set_toast("Session expired — connect again.", error=True)
             st.query_params.clear()
@@ -230,6 +272,13 @@ def _handle_query_actions() -> None:
             missing.append("Azure connection fields")
         if missing:
             _set_toast("Missing: " + ", ".join(missing), error=True)
+        elif pending_refresh:
+            if not _reload_deployment_from_gitlab():
+                st.session_state.sch_setup_done = False
+            else:
+                st.session_state.sch_setup_done = True
+                st.session_state.sch_setup_mode = "initial"
+                _run_schema_compare()
         else:
             from_edit = st.session_state.get("sch_setup_mode") == "edit"
             st.session_state.sch_setup_done = True
@@ -241,13 +290,39 @@ def _handle_query_actions() -> None:
                     _run_schema_compare()
             else:
                 _run_schema_compare()
+    elif action == "reconnect_refresh":
+        _prepare_sch_reconnect(clear_secrets=True)
+        st.session_state.sch_pending_refresh = True
+        st.session_state.sch_setup_done = False
+        st.session_state.sch_setup_mode = "initial"
+        _set_toast(
+            "Session expired. Re-enter your GitLab token, load deployment, then compare.",
+            error=True,
+        )
+    elif action == "reconnect_edit":
+        _prepare_sch_reconnect(clear_secrets=True)
+        st.session_state.sch_setup_done = False
+        st.session_state.sch_setup_mode = "edit"
+        _set_toast(
+            "Session expired. Re-enter your GitLab token to edit connection settings.",
+            error=True,
+        )
     elif action == "edit":
         if not restored:
             _restore_from_session_cache()
         if not str(st.session_state.get("sch_gitlab_token", "")).strip():
-            _set_toast("Session expired — connect again.", error=True)
-            st.session_state.sch_setup_done = True
-            st.session_state.sch_setup_mode = "initial"
+            if _has_sch_config_fields():
+                _prepare_sch_reconnect(clear_secrets=True)
+                st.session_state.sch_setup_mode = "edit"
+                st.session_state.sch_setup_done = False
+                _set_toast(
+                    "Session expired. Re-enter your GitLab token to edit connection settings.",
+                    error=True,
+                )
+            else:
+                _set_toast("Session expired — connect again.", error=True)
+                st.session_state.sch_setup_done = True
+                st.session_state.sch_setup_mode = "initial"
             st.query_params.clear()
             return
         st.session_state.sch_setup_mode = "edit"
@@ -264,16 +339,30 @@ def _handle_query_actions() -> None:
     elif action == "refresh":
         if not restored:
             _restore_from_session_cache()
-        st.session_state.sch_setup_done = True
-        _run_schema_compare()
+        if not str(st.session_state.get("sch_gitlab_token", "")).strip():
+            if _has_sch_config_fields():
+                _prepare_sch_reconnect(clear_secrets=True)
+                st.session_state.sch_pending_refresh = True
+                st.session_state.sch_setup_done = False
+                st.session_state.sch_setup_mode = "initial"
+                _set_toast(
+                    "Session expired. Re-enter your GitLab token, load deployment, then compare.",
+                    error=True,
+                )
+            else:
+                _set_toast("Session expired — connect again.", error=True)
+        else:
+            st.session_state.sch_setup_done = True
+            _run_schema_compare(reload_gitlab=True)
 
     st.query_params.clear()
 
 
 def _setup_view() -> SchemaCompareSetupView:
-    deployment_files = st.session_state.get("sch_deployment_files") or {}
+    clear_secrets = bool(st.session_state.get("sch_clear_secrets"))
+    deployment_files = {} if clear_secrets else dict(st.session_state.get("sch_deployment_files") or {})
     return SchemaCompareSetupView(
-        gitlab_token=str(st.session_state.get("sch_gitlab_token", "")),
+        gitlab_token="" if clear_secrets else str(st.session_state.get("sch_gitlab_token", "")),
         branch=str(st.session_state.get("sch_branch", "")),
         branch_list=list(st.session_state.get("sch_branch_list", [])),
         database=str(st.session_state.get("sch_database", "")),
@@ -286,10 +375,11 @@ def _setup_view() -> SchemaCompareSetupView:
         az_auth=str(st.session_state.get("sch_az_auth", "entra")),
         az_trust_cert=bool(st.session_state.get("sch_az_trust_cert", True)),
         deployment_loaded=bool(deployment_files),
-        bundle_path=str(st.session_state.get("sch_bundle_path", "")),
-        deployment_files=dict(deployment_files),
-        missing_files=list(st.session_state.get("sch_missing_files") or []),
+        bundle_path="" if clear_secrets else str(st.session_state.get("sch_bundle_path", "")),
+        deployment_files=deployment_files,
+        missing_files=[] if clear_secrets else list(st.session_state.get("sch_missing_files") or []),
         edit_mode=st.session_state.get("sch_setup_mode") == "edit",
+        clear_secrets=clear_secrets,
         sch_sid=str(st.session_state.get("sch_sid", "")),
         sch_token=str(st.session_state.get("sch_token", "")),
         toast_message=str(st.session_state.get("sch_toast_message", "")),

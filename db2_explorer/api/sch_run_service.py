@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from db2_explorer.api.sch_credential_store import get_connect_payload
+from db2_explorer.api.sch_credential_store import get_connect_payload, update_connect_payload_data
+from db2_explorer.api.sch_connect_service import reload_deployment_from_payload
 from db2_explorer.api.sch_result_store import save_result_snapshot
 from db2_explorer.clients.azure import AzureConnection
 from db2_explorer.compare.schema_compare import run_schema_compare
@@ -40,6 +41,13 @@ def run_schema_compare_json(body: dict[str, Any]) -> dict[str, Any]:
     payload = get_connect_payload(sch_sid, sch_token)
     if not payload:
         return {"ok": False, "error": "Connection not found. Connect again from setup."}
+
+    deployment_updates, reload_err = reload_deployment_from_payload(payload)
+    if reload_err:
+        return {"ok": False, "error": f"Could not reload GitLab deployment: {reload_err}"}
+    if deployment_updates:
+        payload.update(deployment_updates)
+        update_connect_payload_data(sch_sid, sch_token, deployment_updates)
 
     deployment_files = dict(payload.get("sch_deployment_files") or {})
     if not deployment_files:

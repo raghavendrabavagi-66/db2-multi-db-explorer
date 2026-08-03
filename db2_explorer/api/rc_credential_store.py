@@ -93,6 +93,35 @@ def verify_connect_token(rc_sid: str, rc_token: str) -> bool:
     return _token_matches(str(entry.get("token", "")), rc_token)
 
 
+def update_connect_payload_data(
+    rc_sid: str,
+    rc_token: str,
+    updates: dict[str, Any],
+) -> bool:
+    """Merge ``updates`` into a live session payload (extends TTL)."""
+    sid = (rc_sid or "").strip()
+    token = (rc_token or "").strip()
+    if not sid or not token or not updates:
+        return False
+
+    purge_expired()
+    entry = _STORE.get(sid)
+    if entry is None:
+        return False
+    if float(entry.get("expires_at", 0)) <= _now():
+        _STORE.pop(sid, None)
+        return False
+    if not _token_matches(str(entry.get("token", "")), token):
+        return False
+
+    payload = dict(entry.get("payload") or {})
+    payload.update(updates)
+    entry["payload"] = payload
+    entry["expires_at"] = _now() + _ttl_seconds()
+    entry["updated_at"] = _now()
+    return True
+
+
 def get_connect_payload(rc_sid: str, rc_token: str = "") -> dict[str, Any] | None:
     """Return credential payload when ``rc_token`` matches."""
     sid = (rc_sid or "").strip()

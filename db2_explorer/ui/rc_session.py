@@ -33,6 +33,8 @@ RC_SESSION_KEYS = (
     "rc_token",
     "rc_toast_message",
     "rc_toast_error",
+    "rc_pending_run",
+    "rc_clear_secrets",
 )
 
 

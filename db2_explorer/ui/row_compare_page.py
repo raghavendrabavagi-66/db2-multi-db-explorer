@@ -12,6 +12,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from db2_explorer.api.register import (
+    rc_check_session_api_url,
     rc_create_bind_api_url,
     rc_list_azure_databases_api_url,
     rc_run_comparison_api_url,
@@ -145,6 +146,7 @@ class RowCompareSetupView:
     az_auth: str = "entra"
     az_trust_cert: bool = True
     edit_mode: bool = False
+    clear_secrets: bool = False
     rc_sid: str = ""
     rc_token: str = ""
     toast_message: str = ""
@@ -214,6 +216,7 @@ def _rc_setup_bridge_script(view: RowCompareSetupView) -> str:
   const RC_SID_KEY = "rc_sid";
   const RC_TOKEN_KEY = "rc_token";
   const EDIT_MODE = {json.dumps(view.edit_mode)};
+  const CLEAR_SECRETS = {json.dumps(view.clear_secrets)};
 
   function rcSessionToken() {{
     try {{
@@ -762,6 +765,7 @@ def _table_type_original_checked(mode: str) -> str:
 def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
     run_compare_url = rc_run_comparison_api_url()
     create_bind_url = rc_create_bind_api_url()
+    check_session_url = rc_check_session_api_url()
     initial_views = json.dumps(view.result_tbody_views) if view.result_tbody_views else "null"
     return f"""
 <script>
@@ -770,6 +774,7 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
   const HOME_CLEAR_URL = {json.dumps(_HOME_CLEAR_URL)};
   const RUN_COMPARE_URL = {json.dumps(run_compare_url)};
   const CREATE_BIND_URL = {json.dumps(create_bind_url)};
+  const CHECK_SESSION_URL = {json.dumps(check_session_url)};
   const RC_SID_KEY = "rc_sid";
   const RC_TOKEN_KEY = "rc_token";
   const RC_COMPARISON_CACHE_KEY = "rc_comparison_cache";
@@ -939,6 +944,22 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
     rcNavigate(p);
   }}
 
+  function isSessionExpiredError(msg) {{
+    const text = String(msg || "");
+    return (
+      text.indexOf("Connection not found") >= 0
+      || text.indexOf("Invalid or expired session") >= 0
+    );
+  }}
+
+  function navigateReconnectRun() {{
+    rcNavigate(new URLSearchParams([["rc_action", "reconnect_run"]]));
+  }}
+
+  function navigateReconnectEdit() {{
+    rcNavigate(new URLSearchParams([["rc_action", "reconnect_edit"]]));
+  }}
+
   async function runComparison() {{
     if (runInFlight) return;
     const runBtn = document.getElementById("rc-run-btn");
@@ -976,6 +997,10 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
         return;
       }}
       if (!response.ok || !payload.ok) {{
+        if (isSessionExpiredError(payload.error)) {{
+          navigateReconnectRun();
+          return;
+        }}
         toast(payload.error || ("Comparison failed (HTTP " + response.status + ")."), true);
         return;
       }}
@@ -1006,11 +1031,11 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
     const sid = rcSessionId();
     const token = rcSessionToken();
     if (!sid || !token) {{
-      toast("Session expired — connect again from setup.", true);
+      navigateReconnectEdit();
       return;
     }}
     editBtn.disabled = true;
-    fetch(apiUrl(CREATE_BIND_URL), {{
+    fetch(apiUrl(CHECK_SESSION_URL), {{
       method: "POST",
       headers: {{ "Content-Type": "application/json" }},
       body: JSON.stringify({{ rc_sid: sid, rc_token: token }}),
@@ -1018,9 +1043,28 @@ def _rc_workspace_bridge_script(view: RowCompareWorkspaceView) -> str:
       return res.json().then(function (payload) {{
         return {{ res: res, payload: payload }};
       }});
+    }}).then(function (checkOut) {{
+      if (!checkOut.res.ok || !checkOut.payload.active) {{
+        navigateReconnectEdit();
+        return null;
+      }}
+      return fetch(apiUrl(CREATE_BIND_URL), {{
+        method: "POST",
+        headers: {{ "Content-Type": "application/json" }},
+        body: JSON.stringify({{ rc_sid: sid, rc_token: token }}),
+      }}).then(function (res) {{
+        return res.json().then(function (payload) {{
+          return {{ res: res, payload: payload }};
+        }});
+      }});
     }}).then(function (out) {{
       editBtn.disabled = false;
+      if (!out) return;
       if (!out.res.ok || !out.payload.ok || !out.payload.rc_bind) {{
+        if (isSessionExpiredError(out.payload && out.payload.error)) {{
+          navigateReconnectEdit();
+          return;
+        }}
         toast(out.payload.error || "Could not open edit.", true);
         return;
       }}

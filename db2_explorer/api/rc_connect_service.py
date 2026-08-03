@@ -128,6 +128,14 @@ def save_connect_json(body: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def check_session_json(body: dict[str, Any]) -> dict[str, Any]:
+    rc_sid = str(body.get("rc_sid", "")).strip()
+    rc_token = str(body.get("rc_token", "")).strip()
+    if not rc_sid or not rc_token:
+        return {"ok": True, "active": False}
+    return {"ok": True, "active": verify_connect_token(rc_sid, rc_token)}
+
+
 def create_bind_json(body: dict[str, Any]) -> dict[str, Any]:
     """Issue a one-time bind token so Streamlit can restore credentials (e.g. Edit)."""
     rc_sid = str(body.get("rc_sid", "")).strip()

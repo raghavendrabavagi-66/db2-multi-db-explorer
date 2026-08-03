@@ -12,6 +12,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from db2_explorer.api.register import (
+    sc_check_session_api_url,
     sc_create_bind_api_url,
     sc_list_azure_databases_api_url,
     sc_list_branches_api_url,
@@ -165,6 +166,7 @@ class SchemaCompareSetupView:
     deployment_files: dict[str, str] = field(default_factory=dict)
     missing_files: list[str] = field(default_factory=list)
     edit_mode: bool = False
+    clear_secrets: bool = False
     sch_sid: str = ""
     sch_token: str = ""
     toast_message: str = ""
@@ -202,6 +204,7 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
   const SC_SID_KEY = "sch_sid";
   const SC_TOKEN_KEY = "sch_token";
   const EDIT_MODE = {json.dumps(view.edit_mode)};
+  const CLEAR_SECRETS = {json.dumps(view.clear_secrets)};
 
   let branchList = {_js_literal(view.branch_list)};
   let dbFolderList = {_js_literal(view.db_folder_list)};
@@ -731,10 +734,15 @@ def _sc_setup_bridge_script(view: SchemaCompareSetupView) -> str:
     if (el) el.addEventListener("input", onGitLabSourceChange);
   }});
 
-  if (deploymentLoaded) {{
+  if (deploymentLoaded && !CLEAR_SECRETS) {{
     deployVerifiedSnapshot = deployFingerprint();
     setDeployLoadState("loaded");
   }} else {{
+    deploymentLoaded = false;
+    deploymentFiles = {{}};
+    missingFiles = [];
+    bundlePath = "";
+    deployVerifiedSnapshot = null;
     setDeployLoadState("idle");
   }}
 
@@ -778,6 +786,7 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
   const HOME_CLEAR_URL = {json.dumps(_HOME_CLEAR_URL)};
   const RUN_COMPARE_URL = {json.dumps(sc_run_comparison_api_url())};
   const CREATE_BIND_URL = {json.dumps(sc_create_bind_api_url())};
+  const CHECK_SESSION_URL = {json.dumps(sc_check_session_api_url())};
   const SC_SID_KEY = "sch_sid";
   const SC_TOKEN_KEY = "sch_token";
   const SC_CACHE_KEY = "sch_comparison_cache";
@@ -1276,6 +1285,22 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
     if (syncView) syncView.classList.toggle("hidden", tab !== "sync");
   }}
 
+  function isSessionExpiredError(msg) {{
+    const text = String(msg || "");
+    return (
+      text.indexOf("Connection not found") >= 0
+      || text.indexOf("Invalid or expired session") >= 0
+    );
+  }}
+
+  function navigateReconnectRefresh() {{
+    scNavigate(new URLSearchParams([["sch_action", "reconnect_refresh"]]));
+  }}
+
+  function navigateReconnectEdit() {{
+    scNavigate(new URLSearchParams([["sch_action", "reconnect_edit"]]));
+  }}
+
   async function runComparison() {{
     if (compareInFlight) return;
     const btn = document.getElementById("sc-refresh-btn");
@@ -1306,6 +1331,10 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
         return;
       }}
       if (!response.ok || !payload.ok) {{
+        if (isSessionExpiredError(payload.error)) {{
+          navigateReconnectRefresh();
+          return;
+        }}
         toast(payload.error || ("Comparison failed (HTTP " + response.status + ")."), true);
         return;
       }}
@@ -1346,9 +1375,12 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
     const editBtn = document.getElementById("sc-edit-creds");
     const sid = scSessionId();
     const token = scSessionToken();
-    if (!sid || !token) {{ toast("Session expired — connect again.", true); return; }}
+    if (!sid || !token) {{
+      navigateReconnectEdit();
+      return;
+    }}
     if (editBtn) editBtn.disabled = true;
-    fetch(apiUrl(CREATE_BIND_URL), {{
+    fetch(apiUrl(CHECK_SESSION_URL), {{
       method: "POST",
       headers: {{ "Content-Type": "application/json" }},
       body: JSON.stringify({{ sch_sid: sid, sch_token: token }}),
@@ -1356,8 +1388,27 @@ def _sc_workspace_bridge_script(view: SchemaCompareWorkspaceView) -> str:
       return res.json().then(function (payload) {{
         return {{ res: res, payload: payload }};
       }});
+    }}).then(function (checkOut) {{
+      if (!checkOut.res.ok || !checkOut.payload.active) {{
+        navigateReconnectEdit();
+        return null;
+      }}
+      return fetch(apiUrl(CREATE_BIND_URL), {{
+        method: "POST",
+        headers: {{ "Content-Type": "application/json" }},
+        body: JSON.stringify({{ sch_sid: sid, sch_token: token }}),
+      }}).then(function (res) {{
+        return res.json().then(function (payload) {{
+          return {{ res: res, payload: payload }};
+        }});
+      }});
     }}).then(function (out) {{
+        if (!out) return;
         if (!out.res.ok || !out.payload.ok || !out.payload.sch_bind) {{
+          if (isSessionExpiredError(out.payload && out.payload.error)) {{
+            navigateReconnectEdit();
+            return;
+          }}
           toast((out.payload && out.payload.error) || "Could not open edit.", true);
           return;
         }}

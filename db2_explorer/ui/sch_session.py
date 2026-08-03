@@ -38,6 +38,8 @@ SCH_SESSION_KEYS = (
     "sch_token",
     "sch_toast_message",
     "sch_toast_error",
+    "sch_pending_refresh",
+    "sch_clear_secrets",
 )
 
 

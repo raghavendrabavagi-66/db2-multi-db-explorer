@@ -250,6 +250,50 @@ def save_connect_json(body: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def reload_deployment_from_payload(payload: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
+    """Fetch the latest GitLab deployment bundle for credentials in ``payload``."""
+    token = str(payload.get("sch_gitlab_token", "")).strip()
+    branch = str(payload.get("sch_branch", "main")).strip() or "main"
+    database = str(payload.get("sch_database", "")).strip()
+    server_folder = str(payload.get("sch_server", "")).strip()
+    if not token:
+        return None, "GitLab personal access token is required."
+    if not database or not server_folder:
+        return None, "GitLab database and server folder are required."
+
+    result = load_deployment_json(
+        {
+            "gitlab_token": token,
+            "branch": branch,
+            "database": database,
+            "server_folder": server_folder,
+        }
+    )
+    if not result.get("ok"):
+        return None, str(result.get("error") or "Failed to reload deployment from GitLab.")
+
+    updates: dict[str, Any] = {
+        "sch_deployment_files": dict(result.get("deployment_files") or {}),
+        "sch_missing_files": list(result.get("missing_files") or []),
+        "sch_bundle_path": str(result.get("bundle_path") or ""),
+    }
+    target_server = str(result.get("target_server") or "").strip()
+    target_database = str(result.get("target_database") or "").strip()
+    if target_server:
+        updates["sch_az_server"] = target_server
+    if target_database:
+        updates["sch_az_database"] = target_database
+    return updates, None
+
+
+def check_session_json(body: dict[str, Any]) -> dict[str, Any]:
+    sch_sid = str(body.get("sch_sid", "")).strip()
+    sch_token = str(body.get("sch_token", "")).strip()
+    if not sch_sid or not sch_token:
+        return {"ok": True, "active": False}
+    return {"ok": True, "active": verify_connect_token(sch_sid, sch_token)}
+
+
 def create_bind_json(body: dict[str, Any]) -> dict[str, Any]:
     sch_sid = str(body.get("sch_sid", "")).strip()
     sch_token = str(body.get("sch_token", "")).strip()

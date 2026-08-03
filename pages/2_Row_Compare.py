@@ -69,6 +69,8 @@ def _init_session() -> None:
         "rc_token": "",
         "rc_toast_message": "",
         "rc_toast_error": False,
+        "rc_pending_run": False,
+        "rc_clear_secrets": False,
     }
     for key, val in defaults.items():
         if key not in st.session_state:
@@ -174,6 +176,16 @@ def _cached_results_available() -> bool:
     return _lookup_result_snapshot() is not None
 
 
+def _has_rc_config_fields() -> bool:
+    return bool(str(st.session_state.get("cmp_db2_database", "")).strip())
+
+
+def _prepare_rc_reconnect(*, clear_secrets: bool) -> None:
+    if clear_secrets:
+        st.session_state.cmp_db2_password = ""
+        st.session_state.rc_clear_secrets = True
+
+
 def _ensure_setup_credentials() -> None:
     """Prefill setup form from server cache when entering edit mode."""
     if st.session_state.get("rc_setup_mode") != "edit":
@@ -192,6 +204,8 @@ def _handle_query_actions() -> None:
     restored = _apply_rc_bind() or _restore_from_session_cache()
 
     if action == "connect":
+        pending_run = bool(st.session_state.pop("rc_pending_run", False))
+        st.session_state.rc_clear_secrets = False
         if not restored:
             _apply_connect_params()
         missing = []
@@ -206,12 +220,35 @@ def _handle_query_actions() -> None:
             missing.append("Azure connection fields")
         if missing:
             _set_toast("Missing: " + ", ".join(missing), error=True)
+        elif pending_run:
+            st.session_state.rc_setup_done = True
+            st.session_state.rc_setup_mode = "initial"
+            _run_comparison()
         else:
             st.session_state.rc_setup_done = True
             st.session_state.rc_setup_mode = "initial"
             if not _cached_results_available():
                 st.session_state.compare_result = None
             _set_toast("Connected — ready to run comparison.")
+    elif action == "reconnect_run":
+        _prepare_rc_reconnect(clear_secrets=True)
+        st.session_state.rc_pending_run = True
+        st.session_state.rc_setup_done = False
+        st.session_state.rc_setup_mode = "initial"
+        _ensure_az_database_in_options()
+        _set_toast(
+            "Session expired. Re-enter your DB2 password, then connect to run comparison.",
+            error=True,
+        )
+    elif action == "reconnect_edit":
+        _prepare_rc_reconnect(clear_secrets=True)
+        st.session_state.rc_setup_done = False
+        st.session_state.rc_setup_mode = "edit"
+        _ensure_az_database_in_options()
+        _set_toast(
+            "Session expired. Re-enter your DB2 password to edit connection settings.",
+            error=True,
+        )
     elif action == "edit":
         if not restored:
             _restore_from_session_cache()
@@ -221,6 +258,18 @@ def _handle_query_actions() -> None:
             st.session_state.rc_setup_mode = "initial"
             st.query_params.clear()
             return
+        if not str(st.session_state.get("cmp_db2_password", "")).strip():
+            if _has_rc_config_fields():
+                _prepare_rc_reconnect(clear_secrets=True)
+                st.session_state.rc_setup_mode = "edit"
+                st.session_state.rc_setup_done = False
+                _ensure_az_database_in_options()
+                _set_toast(
+                    "Session expired. Re-enter your DB2 password to edit connection settings.",
+                    error=True,
+                )
+                st.query_params.clear()
+                return
         _ensure_az_database_in_options()
         st.session_state.rc_setup_mode = "edit"
         st.session_state.rc_setup_done = False
@@ -233,11 +282,25 @@ def _handle_query_actions() -> None:
     elif action == "run":
         if not restored:
             _restore_from_session_cache()
-        mode = st.query_params.get("cmp_target_table_mode", "original")
-        if mode in {"original", "staging"}:
-            st.session_state.cmp_target_table_mode = mode
-        st.session_state.rc_setup_done = True
-        _run_comparison()
+        if not str(st.session_state.get("cmp_db2_password", "")).strip():
+            if _has_rc_config_fields():
+                _prepare_rc_reconnect(clear_secrets=True)
+                st.session_state.rc_pending_run = True
+                st.session_state.rc_setup_done = False
+                st.session_state.rc_setup_mode = "initial"
+                _ensure_az_database_in_options()
+                _set_toast(
+                    "Session expired. Re-enter your DB2 password, then connect to run comparison.",
+                    error=True,
+                )
+            else:
+                _set_toast("Session expired — connect again.", error=True)
+        else:
+            mode = st.query_params.get("cmp_target_table_mode", "original")
+            if mode in {"original", "staging"}:
+                st.session_state.cmp_target_table_mode = mode
+            st.session_state.rc_setup_done = True
+            _run_comparison()
 
     st.query_params.clear()
 
@@ -320,18 +383,20 @@ def _run_comparison() -> None:
 
 
 def _setup_view() -> RowCompareSetupView:
+    clear_secrets = bool(st.session_state.get("rc_clear_secrets"))
     return RowCompareSetupView(
         db2_database=str(st.session_state.get("cmp_db2_database", "")),
         db2_host=str(st.session_state.get("cmp_db2_host", "")),
         db2_port=int(st.session_state.get("cmp_db2_port", 50000)),
         db2_user=str(st.session_state.get("cmp_db2_user", "")),
-        db2_password=str(st.session_state.get("cmp_db2_password", "")),
+        db2_password="" if clear_secrets else str(st.session_state.get("cmp_db2_password", "")),
         az_server=str(st.session_state.get("cmp_az_server", "")),
         az_database=str(st.session_state.get("cmp_az_database", "")),
         az_database_options=list(st.session_state.get("cmp_az_database_options", [])),
         az_auth=str(st.session_state.get("cmp_az_auth", "entra")),
         az_trust_cert=bool(st.session_state.get("cmp_az_trust_cert", True)),
         edit_mode=st.session_state.get("rc_setup_mode") == "edit",
+        clear_secrets=clear_secrets,
         rc_sid=str(st.session_state.get("rc_sid", "")),
         rc_token=str(st.session_state.get("rc_token", "")),
         toast_message=str(st.session_state.get("rc_toast_message", "")),
